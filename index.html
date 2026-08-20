@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canned Remarks</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <span class="app-brand">Canned Remarks</span>
+        <div class="theme-picker">
+          <button id="themeToggle" class="theme-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
+            <span aria-hidden="true">&#127912;</span><span id="themeLabel">Theme</span><span class="theme-menu-chevron" aria-hidden="true">&#9662;</span>
+          </button>
+          <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="light"><span aria-hidden="true">&#9728;&#65039;</span><span>Light</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark"><span aria-hidden="true">&#127769;</span><span>Dark</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="sepia"><span aria-hidden="true">&#128220;</span><span>Sepia</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="forest"><span aria-hidden="true">&#127794;</span><span>Forest</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="blossom"><span aria-hidden="true">&#127800;</span><span>Blossom</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+          </div>
+        </div>
+      </header>
+
+      <section class="panel" aria-labelledby="pageTitle">
+        <div class="page-header">
+          <p class="eyebrow">Quick filing notes</p>
+          <h1 id="pageTitle">Canned Remarks</h1>
+          <p class="subtitle">Click a remark to copy it</p>
+        </div>
+
+        <main>
+          <div id="remarkList" class="remark-list" aria-live="polite"></div>
+        </main>
+      </section>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+      <div
+        id="remarkModal"
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+      >
+        <div class="modal-header">
+          <h2 id="modalTitle">Remark</h2>
+          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        <div id="modalContent" class="modal-content"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
