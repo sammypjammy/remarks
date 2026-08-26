@@ -240,8 +240,16 @@ button {
   box-shadow: var(--shadow);
 }
 
-.page-header {
+.page-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   margin-bottom: 22px;
+}
+
+.page-header {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -265,8 +273,42 @@ h1 {
   font-size: 1rem;
 }
 
+.application-selector {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 1fr);
+  flex: 0 0 auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-inset);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.application-option {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.application-option:hover {
+  color: var(--text);
+}
+
+.application-option.active {
+  background: var(--panel);
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
 .field input:focus,
-.field textarea:focus {
+.field textarea:focus,
+.field select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--focus-ring);
@@ -281,6 +323,20 @@ button:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
   gap: 10px;
+}
+
+.remark-group-title {
+  grid-column: 1 / -1;
+  margin: 14px 0 2px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.remark-group-title:first-child {
+  margin-top: 0;
 }
 
 .remark-card {
@@ -336,6 +392,7 @@ button:focus-visible {
   font-size: 0.82rem;
   font-weight: 400;
   line-height: 1.45;
+  white-space: pre-line;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-4px);
@@ -434,6 +491,153 @@ button:focus-visible {
   color: var(--muted);
 }
 
+.ssi-builder {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 16px;
+}
+
+.ssi-builder-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.ssi-builder-description {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ssi-question-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.ssi-question-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ssi-question-row:last-child {
+  border-bottom: 0;
+}
+
+.ssi-question-label {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.ssi-choice-group {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+}
+
+.ssi-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.ssi-choice input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.ssi-preview {
+  min-height: 110px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-alt);
+}
+
+.ssi-preview strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ssi-preview p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ssi-preview p.is-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.ssi-copy-button {
+  justify-self: end;
+}
+
+.ssi-autofill-button {
+  justify-self: start;
+  border: 1px solid var(--accent-line);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  padding: 8px 10px;
+  color: var(--accent);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.ssi-autofill-button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.ssi-autofill-button:disabled {
+  border-color: var(--border);
+  background: var(--panel-alt);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (max-width: 560px) {
+  .ssi-question-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ssi-choice-group {
+    width: 100%;
+  }
+
+  .ssi-choice {
+    flex: 1;
+  }
+
+  .ssi-copy-button {
+    justify-self: stretch;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -502,7 +706,8 @@ button:focus-visible {
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -514,6 +719,10 @@ button:focus-visible {
 
 .field textarea {
   min-height: 110px;
+}
+
+.field select {
+  cursor: pointer;
 }
 
 .preview-box {
@@ -601,6 +810,21 @@ button:focus-visible {
   .panel {
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .page-header-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .application-selector {
+    width: 100%;
+  }
+
+  .application-option {
+    padding-inline: 8px;
+    white-space: normal;
   }
 
   .remark-card {

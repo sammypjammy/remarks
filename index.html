@@ -27,10 +27,24 @@
       </header>
 
       <section class="panel" aria-labelledby="pageTitle">
-        <div class="page-header">
-          <p class="eyebrow">Quick filing notes</p>
-          <h1 id="pageTitle">Canned Remarks</h1>
-          <p class="subtitle">Click a remark to copy it</p>
+        <div class="page-header-row">
+          <div class="page-header">
+            <p class="eyebrow">Quick filing notes</p>
+            <h1 id="pageTitle">Canned Remarks</h1>
+            <p class="subtitle">Click a remark to copy it</p>
+          </div>
+
+          <div class="application-selector" role="radiogroup" aria-label="Application type">
+            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">
+              Filing Application
+            </button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">
+              795 Application
+            </button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">
+              SSI Application
+            </button>
+          </div>
         </div>
 
         <main>
