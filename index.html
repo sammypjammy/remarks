@@ -3,87 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3f5f8" />
     <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/favicon.png" />
-    <title>Canned Remarks</title>
+    <title>Canned Remarks | Packard Toolkit</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="app-shell">
-      <header class="app-header">
+    <header class="app-header">
+      <div class="app-header-inner">
         <div class="app-navigation">
-          <button id="appMenuToggle" class="app-menu-toggle" type="button" aria-label="Open tools menu" aria-haspopup="menu" aria-expanded="false" aria-controls="appMenu">
+          <button id="appMenuToggle" class="app-menu-toggle" type="button" aria-label="Open Packard Toolkit menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="appMenu">
             <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
           </button>
-          <nav id="appMenu" class="app-menu" role="menu" aria-label="Packard tools" hidden>
-            <a class="app-menu-item" role="menuitem" href="https://welcome-email-sender.vercel.app/">Welcome Email Sender</a>
-            <span class="app-menu-item active" role="menuitem" aria-current="page">Remarks Builder <span class="app-menu-check" aria-hidden="true">&#10003;</span></span>
-            <a class="app-menu-item" role="menuitem" href="https://medtabsgenerator.vercel.app/">Med Tabs Generator</a>
-          </nav>
+          <span class="app-brand">Packard Toolkit</span>
         </div>
-        <span class="app-brand">Canned Remarks</span>
+
         <div class="theme-picker">
           <button id="themeToggle" class="theme-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-            <span aria-hidden="true">&#127912;</span><span id="themeLabel">Theme</span><span class="theme-menu-chevron" aria-hidden="true">&#9662;</span>
+            <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h2.5A6.5 6.5 0 0 0 21 7.5C21 5 17 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="9.5" cy="6.5" r="1"/><circle cx="14" cy="6.2" r="1"/><circle cx="17.2" cy="9" r="1"/></svg>
+            <span id="themeLabel">Theme</span>
+            <svg class="theme-menu-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
           </button>
           <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="light"><span aria-hidden="true">&#9728;&#65039;</span><span>Light</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark"><span aria-hidden="true">&#127769;</span><span>Dark</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="sepia"><span aria-hidden="true">&#128220;</span><span>Sepia</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="forest"><span aria-hidden="true">&#127794;</span><span>Forest</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="blossom"><span aria-hidden="true">&#127800;</span><span>Blossom</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="light"><span class="theme-swatch swatch-light" aria-hidden="true"></span><span>Light</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark"><span class="theme-swatch swatch-dark" aria-hidden="true"></span><span>Dark</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="sepia"><span class="theme-swatch swatch-sepia" aria-hidden="true"></span><span>Sepia</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="forest"><span class="theme-swatch swatch-forest" aria-hidden="true"></span><span>Forest</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="blossom"><span class="theme-swatch swatch-blossom" aria-hidden="true"></span><span>Blossom</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <section class="panel" aria-labelledby="pageTitle">
-        <div class="page-header-row">
-          <div class="page-header">
-            <p class="eyebrow">Quick filing notes</p>
-            <h1 id="pageTitle">Canned Remarks</h1>
-            <p class="subtitle">Click a remark to copy it</p>
-          </div>
-
-          <div class="application-selector" role="radiogroup" aria-label="Application type">
-            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">
-              Filing Application
-            </button>
-            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">
-              795 Application
-            </button>
-            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">
-              SSI Application
-            </button>
-          </div>
+    <div id="appMenuBackdrop" class="app-menu-backdrop" hidden></div>
+    <aside id="appMenu" class="app-menu" role="dialog" aria-modal="true" aria-labelledby="toolkit-menu-title" hidden>
+      <div class="app-menu-header">
+        <div>
+          <p class="app-menu-eyebrow">Internal tools</p>
+          <h2 id="toolkit-menu-title">Packard Toolkit</h2>
         </div>
+        <button id="appMenuClose" class="icon-btn" type="button" aria-label="Close Packard Toolkit menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <nav id="toolkitNavigation" class="toolkit-navigation" aria-label="Packard Toolkit tools"></nav>
+    </aside>
 
-        <main>
-          <div id="remarkList" class="remark-list" aria-live="polite"></div>
-        </main>
+    <main class="app-shell">
+      <section class="page-intro" aria-labelledby="pageTitle">
+        <p class="eyebrow">Filing tools</p>
+        <h1 id="pageTitle">Canned Remarks</h1>
+        <p class="subtitle">Quickly copy standardized remarks for filings and applications.</p>
       </section>
-    </div>
+
+      <section class="panel" aria-label="Remarks workspace">
+        <div class="workspace-toolbar">
+          <div>
+            <p class="section-label">Remark library</p>
+            <h2>Choose an application</h2>
+          </div>
+          <div class="application-selector" role="radiogroup" aria-label="Application type">
+            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">Filing Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">795 Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">SSI Application</button>
+          </div>
+        </div>
+
+        <div id="remarkList" class="remark-list" aria-live="polite"></div>
+      </section>
+    </main>
 
     <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
-      <div
-        id="remarkModal"
-        class="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modalTitle"
-      >
+      <div id="remarkModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="modal-header">
           <h2 id="modalTitle">Remark</h2>
-          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">
-            ×
-          </button>
+          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">&times;</button>
         </div>
-
         <div id="modalContent" class="modal-content"></div>
       </div>
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
     <script src="script.js"></script>
   </body>
 </html>
