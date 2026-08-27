@@ -56,10 +56,18 @@ const themeController = {
     if (!toggle || !menu) return;
     const options = [...menu.querySelectorAll(".theme-option")];
 
-    toggle.addEventListener("click", () => menu.hidden ? this.open() : this.close(true));
+    toggle.addEventListener("click", () => {
+      if (menu.hidden) {
+        appNavigation.close();
+        this.open();
+      } else {
+        this.close(true);
+      }
+    });
     toggle.addEventListener("keydown", (event) => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
+        appNavigation.close();
         this.open();
         if (event.key === "ArrowUp") options.at(-1)?.focus();
       }
@@ -97,6 +105,65 @@ const themeController = {
 
 themeController.apply(themeController.getInitialTheme());
 themeController.bind();
+
+const appNavigation = {
+  open() {
+    const toggle = document.getElementById("appMenuToggle");
+    const menu = document.getElementById("appMenu");
+    menu.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+    menu.querySelector("a")?.focus();
+  },
+
+  close(returnFocus = false) {
+    const toggle = document.getElementById("appMenuToggle");
+    const menu = document.getElementById("appMenu");
+    menu.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+    if (returnFocus) toggle.focus();
+  },
+
+  bind() {
+    const toggle = document.getElementById("appMenuToggle");
+    const menu = document.getElementById("appMenu");
+    const links = [...menu.querySelectorAll("a")];
+
+    toggle.addEventListener("click", () => {
+      if (menu.hidden) {
+        themeController.close();
+        this.open();
+      } else {
+        this.close(true);
+      }
+    });
+    toggle.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        themeController.close();
+        this.open();
+      }
+    });
+    menu.addEventListener("keydown", (event) => {
+      const currentIndex = links.indexOf(document.activeElement);
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        links[(currentIndex + direction + links.length) % links.length]?.focus();
+      }
+    });
+    document.addEventListener("click", (event) => {
+      if (!menu.hidden && !event.target.closest(".app-navigation")) this.close();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !menu.hidden) {
+        event.preventDefault();
+        this.close(true);
+      }
+    });
+  }
+};
+
+appNavigation.bind();
 
 // Filing Application options
 const filingRemarks = [
