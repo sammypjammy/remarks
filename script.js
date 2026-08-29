@@ -119,7 +119,7 @@ const toolkitNavigationConfig = [
   },
   {
     label: "Other",
-    items: [{ label: "Settings", url: null, disabledLabel: "Coming soon" }]
+    items: [{ label: "Settings", url: "https://welcome-email-sender.vercel.app/settings" }]
   }
 ];
 
@@ -334,7 +334,7 @@ My doctors also prescribed medications I am currently taking.`,
     group: "Things to Notate in Remarks",
     title: "Separated but Still Married",
     text: "The claimant is separated but technically still married to their spouse. They have been separated since {{date}} and have not shared any resources or assets since then.",
-    fields: [{ key: "date", label: "Separated since", type: "month", required: true }]
+    fields: [{ key: "date", label: "Separated since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
     id: "filing-prior-claim",
@@ -349,8 +349,8 @@ My doctors also prescribed medications I am currently taking.`,
     title: "Failed Work Attempt",
     text: "The claimant has a Failed Work Attempt from {{startDate}} to {{endDate}}.",
     fields: [
-      { key: "startDate", label: "Start date", type: "month", required: true },
-      { key: "endDate", label: "End date", type: "month", required: true }
+      { key: "startDate", label: "Start date", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true },
+      { key: "endDate", label: "End date", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }
     ]
   },
   {
@@ -709,8 +709,23 @@ function renderSsiApplication() {
     copyRemarkText(blurb, "SSI Remark");
   });
 
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "secondary-btn";
+  clearButton.textContent = "Clear";
+  clearButton.addEventListener("click", () => {
+    Object.keys(ssiSelections).forEach((key) => delete ssiSelections[key]);
+    Object.keys(ssiDetails).forEach((key) => delete ssiDetails[key]);
+    renderSsiApplication();
+    showToast("SSI preview cleared.");
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "ssi-actions";
+  actions.append(copyButton, clearButton);
+
   preview.append(previewLabel, previewText);
-  builder.append(heading, description, questionList, preview, copyButton);
+  builder.append(heading, description, questionList, preview, actions);
   remarkList.appendChild(builder);
   updateSsiPreview();
 }
@@ -860,6 +875,9 @@ function openRemarkModal(remark) {
     } else {
       input.type = ["number", "date", "month"].includes(field.type) ? field.type : "text";
       input.placeholder = field.placeholder || "";
+      if (field.inputMode) input.inputMode = field.inputMode;
+      if (field.maxLength) input.maxLength = field.maxLength;
+      if (field.pattern) input.pattern = field.pattern;
     }
 
     if (field.type === "textarea") {
@@ -868,7 +886,9 @@ function openRemarkModal(remark) {
 
     const dataKey = field.key;
     input.addEventListener("input", () => {
-      modalValues[dataKey] = formatFieldValue(field, input.value);
+      const formattedValue = formatFieldValue(field, input.value);
+      if (field.format === "numericMonth") input.value = formattedValue;
+      modalValues[dataKey] = formattedValue;
       updatePreview();
     });
 
@@ -947,6 +967,11 @@ function formatFieldValue(field, value) {
     return value;
   }
 
+  if (field.format === "numericMonth") {
+    const digits = value.replace(/\D/g, "").slice(0, 6);
+    return digits.length > 2 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits;
+  }
+
   if (field.type === "month") {
     const [year, month] = value.split("-");
     return year && month ? `${month}/${year}` : value;
@@ -971,6 +996,9 @@ function copyFromModal() {
   if (!activeRemark) {
     return;
   }
+
+  const form = modalContent.querySelector("form");
+  if (form && !form.reportValidity()) return;
 
   const errors = activeRemark.fields.filter((field) => field.required && !(modalValues[field.key] || "").trim());
 
