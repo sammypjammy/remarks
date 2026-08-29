@@ -709,8 +709,23 @@ function renderSsiApplication() {
     copyRemarkText(blurb, "SSI Remark");
   });
 
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "secondary-btn";
+  clearButton.textContent = "Clear";
+  clearButton.addEventListener("click", () => {
+    Object.keys(ssiSelections).forEach((key) => delete ssiSelections[key]);
+    Object.keys(ssiDetails).forEach((key) => delete ssiDetails[key]);
+    renderSsiApplication();
+    showToast("SSI preview cleared.");
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "ssi-actions";
+  actions.append(copyButton, clearButton);
+
   preview.append(previewLabel, previewText);
-  builder.append(heading, description, questionList, preview, copyButton);
+  builder.append(heading, description, questionList, preview, actions);
   remarkList.appendChild(builder);
   updateSsiPreview();
 }
