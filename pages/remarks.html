@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3f5f8" />
-    <link rel="icon" type="image/png" sizes="192x192" href="assets/images/favicon.png" />
-    <link rel="apple-touch-icon" href="assets/images/favicon.png" />
-    <title>Packard Toolkit</title>
-    <link rel="stylesheet" href="assets/css/style.css" />
+    <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
+    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
+    <title>Canned Remarks | Packard Toolkit</title>
+    <link rel="stylesheet" href="../assets/css/style.css" />
   </head>
-  <body data-page="home">
+  <body data-page="remarks">
     <header class="app-header">
       <div class="app-header-inner">
         <div class="app-navigation">
@@ -51,43 +51,62 @@
     </aside>
 
     <main class="app-shell">
-      <section class="tool-directory" aria-labelledby="toolsTitle">
-        <div class="tool-directory-heading">
+      <section class="page-intro" aria-labelledby="pageTitle">
+        <h1 id="pageTitle">Canned Remarks</h1>
+        <p class="subtitle">Quickly copy standardized remarks for filings and applications.</p>
+      </section>
+
+      <section class="panel" aria-label="Remarks workspace">
+        <div class="workspace-toolbar">
           <div>
-            <p class="home-eyebrow">Workspace</p>
-            <h2 id="toolsTitle">Choose a tool</h2>
+            <h2>Choose an application</h2>
           </div>
-          <p>Everything available in the Packard Toolkit.</p>
-        </div>
-
-        <div class="tool-grid">
-          <a class="tool-card" href="pages/remarks.html">
-            <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></svg></span>
-            <span class="tool-card-content"><strong>Canned Remarks</strong><span>Build and copy standardized filing and application remarks.</span></span>
-            <span class="tool-card-status available">Open</span>
-          </a>
-
-          <a class="tool-card" href="https://medtabsgenerator.vercel.app/">
-            <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
-            <span class="tool-card-content"><strong>Med Tabs</strong><span>Generate clean medical record tabs quickly and consistently.</span></span>
-            <span class="tool-card-status available">Open</span>
-          </a>
-
-          <a class="tool-card" href="https://welcome-email-sender.vercel.app/">
-            <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="m4 7 8 6 8-6"/></svg></span>
-            <span class="tool-card-content"><strong>Welcome Emails</strong><span>Create and send consistent welcome messages.</span></span>
-            <span class="tool-card-status available">Open</span>
-          </a>
-
-          <div class="tool-card is-disabled" aria-disabled="true">
-            <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/><path d="M8 8h8v5H8zM9 17h6M12 13v4"/></svg></span>
-            <span class="tool-card-content"><strong>Fax Sender</strong><span>Send documents from the toolkit when this feature is ready.</span></span>
-            <span class="tool-card-status">Coming soon</span>
+          <div class="application-selector" role="radiogroup" aria-label="Application type">
+            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">Filing Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">795 Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">SSI Application</button>
           </div>
         </div>
+
+        <div id="remarkList" class="remark-list" aria-live="polite"></div>
+
+        <section id="shortTermWorkspace" class="short-term-workspace" aria-labelledby="shortTermLabel">
+          <div class="short-term-heading">
+            <div>
+              <h2 id="shortTermLabel">Short-Term Remarks</h2>
+              <p>Paste medical conditions, notes, or any other text you will need again shortly.</p>
+            </div>
+            <div class="short-term-notice">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="M9 12h6M12 9v6"/></svg>
+              <span><strong>Session only</strong>Your text stays in this browser tab and is removed when the tab closes or you press Clear.</span>
+            </div>
+          </div>
+
+          <label class="short-term-input-label" for="shortTermInput">Temporary remark</label>
+          <textarea id="shortTermInput" class="short-term-input" rows="10" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Paste a claimant's medical conditions or other temporary text here..."></textarea>
+
+          <div class="short-term-footer">
+            <span id="shortTermCount" class="short-term-count" aria-live="polite">0 characters</span>
+            <div class="short-term-actions">
+              <button id="clearShortTermButton" class="secondary-btn" type="button" disabled>Clear</button>
+              <button id="copyShortTermButton" class="primary-btn" type="button" disabled>Copy</button>
+            </div>
+          </div>
+        </section>
       </section>
     </main>
 
-    <script src="assets/js/script.js"></script>
+    <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+      <div id="remarkModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h2 id="modalTitle">Remark</h2>
+          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">&times;</button>
+        </div>
+        <div id="modalContent" class="modal-content"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="../assets/js/script.js"></script>
   </body>
 </html>

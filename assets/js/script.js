@@ -106,13 +106,16 @@ const themeController = {
 themeController.apply(themeController.getInitialTheme());
 themeController.bind();
 
+const activePage = document.body.dataset.page || "home";
+const pagePrefix = activePage === "home" ? "pages/" : "";
+
 const toolkitNavigationConfig = [
   {
     label: "Packard Toolkit",
     items: [
-      { label: "Home", url: null, disabledLabel: "Coming soon" },
+      { label: "Home", url: activePage === "home" ? null : "../index.html", current: activePage === "home" },
       { label: "Med Tabs", url: "https://medtabsgenerator.vercel.app/" },
-      { label: "Canned Remarks", url: null, current: true },
+      { label: "Canned Remarks", url: activePage === "remarks" ? null : `${pagePrefix}remarks.html`, current: activePage === "remarks" },
       { label: "Welcome Emails", url: "https://welcome-email-sender.vercel.app/" },
       { label: "Fax Sender", url: null, disabledLabel: "Coming soon" }
     ]
@@ -214,6 +217,102 @@ const appNavigation = {
 appNavigation.render();
 appNavigation.bind();
 
+async function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    return fallbackCopyText(text);
+  } catch (error) {
+    return fallbackCopyText(text);
+  }
+}
+
+function fallbackCopyText(text) {
+  const tempTextArea = document.createElement("textarea");
+  tempTextArea.value = text;
+  tempTextArea.setAttribute("readonly", "");
+  tempTextArea.style.position = "fixed";
+  tempTextArea.style.left = "-9999px";
+  document.body.appendChild(tempTextArea);
+  tempTextArea.select();
+
+  let success = false;
+  try {
+    success = document.execCommand("copy");
+  } catch (error) {
+    success = false;
+  }
+
+  document.body.removeChild(tempTextArea);
+  return success;
+}
+
+function showToastMessage(toastElement, message) {
+  if (!toastElement) return;
+  toastElement.textContent = message;
+  toastElement.classList.add("show");
+  window.clearTimeout(Number(toastElement.dataset.timer));
+  const timer = window.setTimeout(() => toastElement.classList.remove("show"), 1800);
+  toastElement.dataset.timer = String(timer);
+}
+
+const shortTermInput = document.getElementById("shortTermInput");
+if (shortTermInput) {
+  const storageKey = "packard-short-term-remarks";
+  const copyButton = document.getElementById("copyShortTermButton");
+  const clearButton = document.getElementById("clearShortTermButton");
+  const characterCount = document.getElementById("shortTermCount");
+  const shortTermToast = document.getElementById("toast");
+
+  const updateShortTermState = () => {
+    const hasText = Boolean(shortTermInput.value.trim());
+    copyButton.disabled = !hasText;
+    clearButton.disabled = !hasText;
+    characterCount.textContent = `${shortTermInput.value.length.toLocaleString()} characters`;
+  };
+
+  try {
+    shortTermInput.value = window.sessionStorage.getItem(storageKey) || "";
+  } catch (error) {
+    showToastMessage(shortTermToast, "Temporary browser storage is unavailable.");
+  }
+  updateShortTermState();
+
+  shortTermInput.addEventListener("input", () => {
+    try {
+      if (shortTermInput.value) {
+        window.sessionStorage.setItem(storageKey, shortTermInput.value);
+      } else {
+        window.sessionStorage.removeItem(storageKey);
+      }
+    } catch (error) {
+      showToastMessage(shortTermToast, "Could not retain this text for the session.");
+    }
+    updateShortTermState();
+  });
+
+  copyButton.addEventListener("click", async () => {
+    if (!shortTermInput.value.trim()) return;
+    const copied = await copyTextToClipboard(shortTermInput.value);
+    showToastMessage(shortTermToast, copied ? "Short-term remark copied." : "Copy failed. Please try again.");
+  });
+
+  clearButton.addEventListener("click", () => {
+    shortTermInput.value = "";
+    try {
+      window.sessionStorage.removeItem(storageKey);
+    } catch (error) {
+      // The textarea can still be cleared when browser storage is unavailable.
+    }
+    updateShortTermState();
+    shortTermInput.focus();
+    showToastMessage(shortTermToast, "Short-term remark cleared.");
+  });
+}
+
+if (document.getElementById("remarkList")) {
 // Filing Application options
 const filingRemarks = [
   {
@@ -273,7 +372,7 @@ My doctors also prescribed medications I am currently taking.`,
     group: "795 Remarks",
     title: "795 Dire Need - Homeless or Transient",
     text: "The claimant is currently transient or homeless. They have been transient or homeless since {{date}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
-    fields: [{ key: "date", label: "Homeless or transient since", type: "month", required: true }]
+    fields: [{ key: "date", label: "Homeless or transient since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
     id: "filing-795-disabled-veteran",
@@ -380,7 +479,7 @@ const application795Remarks = [
     id: "795-dire-need",
     title: "795 Dire Need - Homeless or Transient",
     text: "The claimant is currently transient or homeless. They have been transient or homeless since {{date}}. We are respectfully requesting Critical Claim status and Expedited Processing.",
-    fields: [{ key: "date", label: "Homeless or transient since", type: "month", required: true }]
+    fields: [{ key: "date", label: "Homeless or transient since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
     id: "795-disabled-veteran",
@@ -498,7 +597,6 @@ const closeModalButton = document.getElementById("closeModalButton");
 
 let activeRemark = null;
 let modalValues = {};
-let toastTimer = null;
 let activeApplication = "filing";
 const ssiSelections = {};
 const ssiDetails = {};
@@ -760,7 +858,7 @@ function openSsiDetailModal(item) {
     const reuseValue = ssiDetails[prompt.reuseFrom.itemId]?.[prompt.reuseFrom.key] || "";
     const reuseButton = document.createElement("button");
     reuseButton.type = "button";
-    reuseButton.className = "ssi-autofill-button";
+    reuseButton.className = "autofill-button";
     reuseButton.disabled = !reuseValue;
     reuseButton.textContent = reuseValue
       ? `${prompt.reuseFrom.label}: ${reuseValue}`
@@ -818,6 +916,9 @@ function selectApplication(application) {
     option.setAttribute("aria-checked", String(isActive));
     option.tabIndex = isActive ? 0 : -1;
   });
+
+  const shortTermWorkspace = document.getElementById("shortTermWorkspace");
+  if (shortTermWorkspace) shortTermWorkspace.hidden = application !== "filing";
 
   renderRemarks();
 }
@@ -899,8 +1000,23 @@ function openRemarkModal(remark) {
       }
     });
 
-    wrapper.appendChild(label);
-    wrapper.appendChild(input);
+    wrapper.append(label, input);
+
+    const shortTermValue = shortTermInput?.value.trim() || "";
+    const acceptsConditionList = field.key === "condition" || field.key === "conditions";
+    if (acceptsConditionList && shortTermValue) {
+      const reuseButton = document.createElement("button");
+      reuseButton.type = "button";
+      reuseButton.className = "autofill-button";
+      reuseButton.textContent = "Use short-term condition list";
+      reuseButton.addEventListener("click", () => {
+        input.value = shortTermValue;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      });
+      wrapper.appendChild(reuseButton);
+    }
+
     form.appendChild(wrapper);
   });
 
@@ -1017,18 +1133,7 @@ function copyFromModal() {
 
 // Copying uses the navigator clipboard when available and falls back to a textarea approach.
 async function copyRemarkText(text, remarkTitle) {
-  let copied = false;
-
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      copied = true;
-    } else {
-      copied = fallbackCopyText(text);
-    }
-  } catch (error) {
-    copied = fallbackCopyText(text);
-  }
+  const copied = await copyTextToClipboard(text);
 
   if (copied) {
     showToast(`Copied: ${remarkTitle}`);
@@ -1037,33 +1142,8 @@ async function copyRemarkText(text, remarkTitle) {
   }
 }
 
-function fallbackCopyText(text) {
-  const tempTextArea = document.createElement("textarea");
-  tempTextArea.value = text;
-  tempTextArea.setAttribute("readonly", "");
-  tempTextArea.style.position = "fixed";
-  tempTextArea.style.left = "-9999px";
-  document.body.appendChild(tempTextArea);
-  tempTextArea.select();
-
-  let success = false;
-  try {
-    success = document.execCommand("copy");
-  } catch (error) {
-    success = false;
-  }
-
-  document.body.removeChild(tempTextArea);
-  return success;
-}
-
 function showToast(message) {
-  toast.textContent = message;
-  toast.classList.add("show");
-  window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => {
-    toast.classList.remove("show");
-  }, 1500);
+  showToastMessage(toast, message);
 }
 
 function closeModal() {
@@ -1113,3 +1193,4 @@ document.addEventListener("keydown", (event) => {
 });
 
 selectApplication(activeApplication);
+}
