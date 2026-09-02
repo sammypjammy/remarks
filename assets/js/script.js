@@ -113,7 +113,7 @@ const toolkitNavigationConfig = [
   {
     label: "Packard Toolkit",
     items: [
-      { label: "Home", url: activePage === "home" ? null : "../index.html", current: activePage === "home" },
+      { label: "Home", url: activePage === "home" ? "index.html" : "../index.html", current: activePage === "home" },
       { label: "Med Tabs", url: "https://medtabsgenerator.vercel.app/" },
       { label: "Canned Remarks", url: activePage === "remarks" ? null : `${pagePrefix}remarks.html`, current: activePage === "remarks" },
       { label: "Welcome Emails", url: "https://welcome-email-sender.vercel.app/" },
@@ -135,6 +135,7 @@ const appNavigation = {
       <section class="toolkit-nav-section" aria-labelledby="nav-${section.label.toLowerCase().replaceAll(" ", "-")}">
         <h3 id="nav-${section.label.toLowerCase().replaceAll(" ", "-")}" class="toolkit-nav-label">${section.label}</h3>
         ${section.items.map((item) => {
+          if (item.current && item.url) return `<a class="toolkit-nav-item active" href="${item.url}" aria-current="page"><span>${item.label}</span><span class="toolkit-nav-status">Current</span></a>`;
           if (item.current) return `<span class="toolkit-nav-item active" aria-current="page"><span>${item.label}</span><span class="toolkit-nav-status">Current</span></span>`;
           if (!item.url) return `<span class="toolkit-nav-item disabled" aria-disabled="true"><span>${item.label}</span><span class="toolkit-nav-status">${item.disabledLabel}</span></span>`;
           return `<a class="toolkit-nav-item" href="${item.url}"><span>${item.label}</span></a>`;
