@@ -39,8 +39,14 @@ body > main,
   opacity: 0.45;
 }
 
-.app-footer-link {
+.app-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   margin-left: auto;
+}
+
+.app-footer-link {
   border-radius: 7px;
   color: inherit;
   font-weight: 650;
@@ -74,7 +80,7 @@ body > main,
     padding-block: 10px;
   }
 
-  .app-footer-link {
+  .app-footer-links {
     width: 100%;
     margin-left: 0;
   }

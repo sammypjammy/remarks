@@ -7,6 +7,8 @@ import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
+const EMAIL_HISTORY_STORAGE_KEY = "packard-welcome-email-history";
+const EMAIL_HISTORY_LIMIT = 8;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office.com",
@@ -104,6 +106,34 @@ function getInitialClientEmail() {
   }
 }
 
+function getSavedEmailHistory() {
+  try {
+    const history = JSON.parse(localStorage.getItem(EMAIL_HISTORY_STORAGE_KEY) || "[]");
+    if (!Array.isArray(history)) return [];
+    return history.filter((entry) =>
+      entry &&
+      typeof entry.id === "string" &&
+      typeof entry.recipient === "string" &&
+      typeof entry.subject === "string" &&
+      typeof entry.managerName === "string" &&
+      typeof entry.createdAt === "string"
+    ).slice(0, EMAIL_HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function formatHistoryTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recently";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+}
+
 export default function App() {
   const toolkitNavigation = getToolkitNavigation(false);
   const [clientEmail, setClientEmail] = useState(getInitialClientEmail);
@@ -116,6 +146,7 @@ export default function App() {
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
   const [emailSignature, setEmailSignature] = useState(getEmailSignature);
+  const [emailHistory, setEmailHistory] = useState(getSavedEmailHistory);
   const draftRequestInProgressRef = useRef(false);
   const emailInputRef = useRef(null);
   const appMenuToggleRef = useRef(null);
@@ -237,6 +268,38 @@ export default function App() {
     return Object.keys(nextErrors).length === 0;
   }
 
+  function addEmailToHistory() {
+    const entry = {
+      id: globalThis.crypto?.randomUUID?.() || `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      recipient: clientEmail.trim(),
+      subject: emailSubject,
+      managerName: selectedManager,
+      language,
+      createdAt: new Date().toISOString(),
+    };
+    const nextHistory = [entry, ...emailHistory].slice(0, EMAIL_HISTORY_LIMIT);
+    setEmailHistory(nextHistory);
+    try {
+      localStorage.setItem(EMAIL_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
+    } catch {
+      // History remains available for this page view if browser storage is unavailable.
+    }
+  }
+
+  function resetSenderForm({ focus = false, clearStatus = false } = {}) {
+    setClientEmail("");
+    setSelectedManager("");
+    setErrors({});
+    setIsPreviewOpen(false);
+    if (clearStatus) setCopyStatus("");
+    try {
+      localStorage.removeItem(MANAGER_STORAGE_KEY);
+    } catch {
+      // Clearing the visible form still works if browser storage is unavailable.
+    }
+    if (focus) requestAnimationFrame(() => emailInputRef.current?.focus());
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     if (!validate()) return;
@@ -245,6 +308,9 @@ export default function App() {
       setIsSignaturePromptOpen(true);
       return;
     }
+
+    addEmailToHistory();
+    resetSenderForm();
 
     if (isOutlookGraphConfigured) {
       if (draftRequestInProgressRef.current) {
@@ -343,12 +409,7 @@ export default function App() {
   }
 
   function handleClear() {
-    setClientEmail("");
-    setSelectedManager("");
-    setErrors({});
-    setIsPreviewOpen(false);
-    setCopyStatus("");
-    emailInputRef.current?.focus();
+    resetSenderForm({ focus: true, clearStatus: true });
   }
 
   return (
@@ -447,6 +508,7 @@ export default function App() {
             </div>
           </div>
 
+          <div className="email-workspace">
           <form className="sender-card" onSubmit={handleSubmit} noValidate>
           <div className="form-fields">
             <div className="field-group">
@@ -537,6 +599,35 @@ export default function App() {
               : "Outlook attachment setup is pending. Until configured, the email body is copied for you to paste."}
           </p>
           </form>
+          <aside className="email-history-card" aria-labelledby="email-history-title">
+            <div className="email-history-header">
+              <div>
+                <p className="email-history-eyebrow">History</p>
+                <h2 id="email-history-title">Sent Emails</h2>
+              </div>
+              <span>{emailHistory.length}/{EMAIL_HISTORY_LIMIT}</span>
+            </div>
+            <p className="email-history-description">Marked as sent when Open Outlook Draft is clicked.</p>
+            {emailHistory.length ? (
+              <ol className="email-history-list" aria-live="polite">
+                {emailHistory.map((entry) => (
+                  <li className="email-history-item" key={entry.id}>
+                    <strong>{entry.recipient}</strong>
+                    <span className="email-history-subject" title={entry.subject}>{entry.subject}</span>
+                    <span className="email-history-meta">
+                      {entry.managerName} · {entry.language === "spanish" ? "Spanish" : "English"} · {formatHistoryTime(entry.createdAt)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="email-history-empty">
+                <span aria-hidden="true">@</span>
+                <p>Your most recently sent emails will appear here.</p>
+              </div>
+            )}
+          </aside>
+          </div>
         </main>
       </div>
 
@@ -544,10 +635,15 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <span>Packard Toolkit</span>
+          <span>Packard Toolkit v1.0.0</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
-          <a className="app-footer-link" href="/settings/">Settings</a>
+          <span className="app-footer-divider" aria-hidden="true">&bull;</span>
+          <span>Built by Sam Jensen</span>
+          <span className="app-footer-links">
+            <a className="app-footer-link" href="https://github.com/sammypjammy/remarks/commits/main/" target="_blank" rel="noopener noreferrer">Version history</a>
+            <a className="app-footer-link" href="/settings/">Settings</a>
+          </span>
         </div>
       </footer>
 
