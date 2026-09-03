@@ -30,7 +30,7 @@ function renderAppShell() {
               <svg class="theme-menu-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
             </button>
             <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
-              ${["light", "dark", "system"].map((theme) => `
+              ${["light", "dark", "system", "sepia", "forest", "blossom"].map((theme) => `
                 <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="${theme}">
                   <span class="theme-swatch swatch-${theme}" aria-hidden="true"></span>
                   <span>${theme[0].toUpperCase()}${theme.slice(1)}</span>
@@ -66,7 +66,7 @@ function renderAppShell() {
 renderAppShell();
 
 const themeController = {
-  themes: ["light", "dark", "system"],
+  themes: ["light", "dark", "system", "sepia", "forest", "blossom"],
 
   getInitialTheme() {
     const savedTheme = window.PackardSettings?.getSetting("theme");

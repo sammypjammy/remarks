@@ -1,10 +1,14 @@
 .settings-page { max-width: 1040px; }
 .settings-stack { display: grid; gap: 18px; }
 .settings-card { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 21px; background: var(--panel); box-shadow: var(--shadow); }
-.settings-card-header { padding: 26px 28px 18px; }
+.settings-card-header { position: relative; padding: 26px 28px 18px; }
 .settings-card-header h2 { margin-top: 5px; color: var(--text); font-size: 1.25rem; letter-spacing: -0.015em; }
 .settings-card-header > p:last-child { margin-top: 6px; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
 .settings-eyebrow { color: var(--accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
+.settings-section-link { position: absolute; top: 22px; right: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 9px; color: var(--accent); font-size: 0.76rem; font-weight: 750; text-decoration: none; }
+.settings-section-link:hover { background: var(--accent-soft); color: var(--accent-strong); }
+.settings-section-link span { font-size: 0.95rem; line-height: 1; transition: transform 160ms ease; }
+.settings-section-link:hover span { transform: translateX(2px); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 20px 28px 26px; }
 .setting-copy { min-width: 0; }
 .setting-copy h3, .setting-copy label { display: block; color: var(--text); font-size: 0.95rem; font-weight: 750; }
@@ -21,6 +25,9 @@
 .settings-form { display: grid; gap: 14px; padding: 22px 28px 26px; }
 .settings-form textarea, .settings-form input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; outline: none; background: var(--surface-inset); color: var(--text); font: inherit; line-height: 1.5; }
 .settings-form textarea { min-height: 140px; resize: vertical; }
+.signature-form { gap: 8px; padding-top: 14px; padding-bottom: 16px; }
+.signature-form textarea { min-height: 84px; }
+.signature-form .settings-save-button { min-height: 36px; padding-block: 7px; }
 .settings-form input { min-height: 46px; }
 .settings-form textarea:focus, .settings-form input:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
 .resource-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
@@ -32,6 +39,8 @@
 .settings-save-button { min-height: 40px; padding: 9px 14px; border-radius: 11px; background: var(--accent); color: #fff; font-size: 0.82rem; font-weight: 700; }
 .settings-save-button:hover { background: var(--accent-strong); }
 .settings-disabled-button { min-height: 40px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-inset); color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.settings-card-compact .settings-card-header { padding-bottom: 10px; }
+.settings-card-compact .setting-row { padding-top: 10px; padding-bottom: 18px; }
 :root[data-density="compact"] .settings-stack { gap: 12px; }
 :root[data-density="compact"] .settings-card-header { padding: 20px 24px 14px; }
 :root[data-density="compact"] .setting-row, :root[data-density="compact"] .settings-form { padding: 16px 24px 19px; }
@@ -44,6 +53,7 @@
 
 @media (max-width: 520px) {
   .settings-card-header, .setting-row, .settings-form { padding-left: 20px; padding-right: 20px; }
+  .settings-section-link { right: 20px; }
   .settings-divider { margin-inline: 20px; }
   .resource-input-row { grid-template-columns: 1fr; }
   .configuration-state { justify-self: start; }

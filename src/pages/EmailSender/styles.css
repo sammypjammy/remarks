@@ -146,6 +146,7 @@ svg { display: block; }
 .theme-option:hover, .theme-option:focus-visible, .theme-option[aria-checked="true"] { background: var(--accent-soft); color: var(--accent); }
 .theme-swatch { width: 14px; height: 14px; border: 1px solid rgba(15, 23, 42, 0.18); border-radius: 50%; }
 .swatch-light { background: #f3f5f8; } .swatch-dark { background: #151c29; } .swatch-system { background: linear-gradient(135deg, #f3f5f8 50%, #151c29 50%); }
+.swatch-sepia { background: #c59a61; } .swatch-forest { background: #4f8a64; } .swatch-blossom { background: #c875d8; }
 .theme-check { opacity: 0; color: var(--accent); font-weight: 800; }
 .theme-option[aria-checked="true"] .theme-check { opacity: 1; }
 

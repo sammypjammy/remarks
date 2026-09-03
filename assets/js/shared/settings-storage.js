@@ -11,7 +11,7 @@
     "med-tabs-theme",
     "packard-welcome-email-theme"
   ];
-  const THEMES = ["light", "dark", "system"];
+  const THEMES = ["light", "dark", "system", "sepia", "forest", "blossom"];
   const DENSITIES = ["comfortable", "compact"];
   const DEFAULT_SETTINGS = Object.freeze({
     theme: "system",
@@ -44,7 +44,7 @@
     try {
       for (const key of LEGACY_THEME_STORAGE_KEYS) {
         const value = global.localStorage.getItem(key);
-        if (value === "light" || value === "dark") return value;
+        if (THEMES.includes(value)) return value;
       }
     } catch {
       // Fall back to the new default when legacy storage is unavailable.
@@ -112,7 +112,7 @@
     if (preference === "system") {
       return global.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     }
-    return preference === "dark" ? "dark" : "light";
+    return THEMES.includes(preference) ? preference : "light";
   }
 
   function syncLegacyTheme(preference) {
@@ -152,7 +152,14 @@
     global.document.documentElement.dataset.themePreference = settings.theme;
     global.document.documentElement.dataset.density = settings.density;
     const themeColor = global.document.querySelector('meta[name="theme-color"]');
-    if (themeColor) themeColor.content = resolvedTheme === "dark" ? "#0d121b" : "#f3f5f8";
+    const themeColors = {
+      light: "#f3f5f8",
+      dark: "#0d121b",
+      sepia: "#f4eedf",
+      forest: "#edf4ef",
+      blossom: "#fdf4f8"
+    };
+    if (themeColor) themeColor.content = themeColors[resolvedTheme] || themeColors.light;
     return settings;
   }
 

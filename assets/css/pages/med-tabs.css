@@ -360,6 +360,9 @@ svg { display: block; }
 .swatch-light { background: #f3f5f8; }
 .swatch-dark { background: #151c29; }
 .swatch-system { background: linear-gradient(135deg, #f3f5f8 50%, #151c29 50%); }
+.swatch-sepia { background: #c59a61; }
+.swatch-forest { background: #4f8a64; }
+.swatch-blossom { background: #c875d8; }
 
 .theme-check { opacity: 0; font-weight: 800; }
 .theme-option[aria-checked="true"] .theme-check { opacity: 1; }

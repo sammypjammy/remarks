@@ -24,6 +24,7 @@
         <section class="settings-card" aria-labelledby="appearanceTitle">
           <div class="settings-card-header">
             <p class="settings-eyebrow">Toolkit</p>
+            <a class="settings-section-link" href="../">Open Home <span aria-hidden="true">&rarr;</span></a>
             <h2 id="appearanceTitle">Appearance</h2>
             <p>Choose how every Toolkit page looks and how much information fits on screen.</p>
           </div>
@@ -37,6 +38,9 @@
               <button type="button" role="radio" data-setting-option="theme" data-value="light">Light</button>
               <button type="button" role="radio" data-setting-option="theme" data-value="dark">Dark</button>
               <button type="button" role="radio" data-setting-option="theme" data-value="system">System</button>
+              <button type="button" role="radio" data-setting-option="theme" data-value="sepia">Sepia</button>
+              <button type="button" role="radio" data-setting-option="theme" data-value="forest">Forest</button>
+              <button type="button" role="radio" data-setting-option="theme" data-value="blossom">Blossom</button>
             </div>
           </div>
 
@@ -57,6 +61,7 @@
         <section class="settings-card" aria-labelledby="emailSettingsTitle">
           <div class="settings-card-header">
             <p class="settings-eyebrow">Tool</p>
+            <a class="settings-section-link" href="../email/">Open Email Sender <span aria-hidden="true">&rarr;</span></a>
             <h2 id="emailSettingsTitle">Email Sender</h2>
             <p>Control Outlook draft behavior and the signature added to generated emails.</p>
           </div>
@@ -71,13 +76,13 @@
 
           <div class="settings-divider"></div>
 
-          <form id="signatureForm" class="settings-form" data-settings-anchor="email-signature">
+          <form id="signatureForm" class="settings-form signature-form" data-settings-anchor="email-signature">
             <span id="email-signature" class="settings-anchor" aria-hidden="true"></span>
             <div class="setting-copy">
               <label for="emailSignature">Email signature</label>
               <p>Enter the signature exactly as it should appear after “Thank you,” in generated welcome emails.</p>
             </div>
-            <textarea id="emailSignature" rows="6" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
+            <textarea id="emailSignature" rows="3" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
             <div class="settings-form-actions">
               <span id="signatureStatus" class="save-status" role="status" aria-live="polite"></span>
               <button class="settings-save-button" type="submit">Save signature</button>
@@ -105,6 +110,7 @@
         <section class="settings-card" aria-labelledby="medTabsSettingsTitle">
           <div class="settings-card-header">
             <p class="settings-eyebrow">Tool</p>
+            <a class="settings-section-link" href="../med-tabs/">Open Med Tabs <span aria-hidden="true">&rarr;</span></a>
             <h2 id="medTabsSettingsTitle">Med Tabs</h2>
           </div>
           <div class="setting-row">
@@ -116,9 +122,10 @@
           </div>
         </section>
 
-        <section class="settings-card" aria-labelledby="remarksSettingsTitle">
+        <section class="settings-card settings-card-compact" aria-labelledby="remarksSettingsTitle">
           <div class="settings-card-header">
             <p class="settings-eyebrow">Tool</p>
+            <a class="settings-section-link" href="../remarks/">Open Remarks <span aria-hidden="true">&rarr;</span></a>
             <h2 id="remarksSettingsTitle">Remarks</h2>
             <p>Custom remarks will be managed here in a future update.</p>
           </div>

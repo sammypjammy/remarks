@@ -35,6 +35,9 @@ const themes = [
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
   { id: "system", label: "System" },
+  { id: "sepia", label: "Sepia" },
+  { id: "forest", label: "Forest" },
+  { id: "blossom", label: "Blossom" },
 ];
 
 async function copyToClipboard(text) {
