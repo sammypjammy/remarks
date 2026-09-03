@@ -632,8 +632,17 @@ function renderSsiApplication() {
   actions.className = "ssi-actions";
   actions.append(copyButton, clearButton);
 
+  const previewColumn = document.createElement("aside");
+  previewColumn.className = "ssi-preview-column";
+  previewColumn.setAttribute("aria-label", "SSI remark result");
+
+  const workspace = document.createElement("div");
+  workspace.className = "ssi-workspace";
+
   preview.append(previewLabel, previewText);
-  builder.append(heading, description, questionList, preview, actions);
+  previewColumn.append(preview, actions);
+  workspace.append(questionList, previewColumn);
+  builder.append(heading, description, workspace);
   remarkList.appendChild(builder);
   updateSsiPreview();
 }

@@ -540,6 +540,17 @@ export default function App() {
         </main>
       </div>
 
+      <footer className="app-footer">
+        <div className="app-footer-inner">
+          <span>&copy; 2026 Packard Law Firm</span>
+          <span className="app-footer-divider" aria-hidden="true">&bull;</span>
+          <span>Packard Toolkit</span>
+          <span className="app-footer-divider" aria-hidden="true">&bull;</span>
+          <span>Internal use only</span>
+          <a className="app-footer-link" href="/settings/">Settings</a>
+        </div>
+      </footer>
+
       {copyStatus && (
         <div className="toast-container" aria-live="polite" aria-atomic="true">
           <div className={`toast ${copyStatus.includes("could not") || copyStatus.includes("allow popups") ? "toast-error" : "toast-success"}`} role="status">

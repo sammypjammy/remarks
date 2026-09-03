@@ -56,6 +56,7 @@
 .custom-remark-modal .modal-header h2 { margin-top: 4px; }
 .custom-remark-form { display: grid; gap: 16px; padding: 20px; }
 .custom-remark-field { display: grid; gap: 7px; }
+.custom-remark-field[hidden] { display: none; }
 .custom-remark-field label { color: var(--text); font-size: 0.88rem; font-weight: 750; }
 .custom-remark-field input,
 .custom-remark-field select,
@@ -68,6 +69,17 @@
 .custom-remark-field textarea:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
 .custom-remark-form-status { min-height: 1.2em; color: var(--danger, #bd3444); font-size: 0.8rem; }
 .custom-remark-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.custom-remark-list { display: grid; margin: 0 28px 22px; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; }
+.custom-remark-list[hidden] { display: none; }
+.custom-remark-list-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 13px 14px; border-bottom: 1px solid var(--border-subtle); background: var(--surface-inset); }
+.custom-remark-list-item:last-child { border-bottom: 0; }
+.custom-remark-list-copy { min-width: 0; }
+.custom-remark-list-copy strong { display: block; overflow: hidden; color: var(--text); font-size: 0.86rem; text-overflow: ellipsis; white-space: nowrap; }
+.custom-remark-list-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 0.74rem; }
+.custom-remark-list-actions { display: flex; gap: 7px; }
+.custom-remark-action { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); font-size: 0.75rem; font-weight: 700; }
+.custom-remark-action:hover { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+.custom-remark-action.delete:hover { border-color: color-mix(in srgb, var(--danger, #bd3444) 45%, var(--border)); background: color-mix(in srgb, var(--danger, #bd3444) 10%, var(--panel)); color: var(--danger, #bd3444); }
 :root[data-density="compact"] .settings-stack { gap: 12px; }
 :root[data-density="compact"] .settings-card-header { padding: 20px 24px 14px; }
 :root[data-density="compact"] .setting-row, :root[data-density="compact"] .settings-form { padding: 16px 24px 19px; }
@@ -85,10 +97,13 @@
   .settings-card-header, .setting-row, .settings-form { padding-left: 20px; padding-right: 20px; }
   .settings-section-link { right: 20px; }
   .settings-divider { margin-inline: 20px; }
+  .custom-remark-list { margin-inline: 20px; }
   .resource-input-row { grid-template-columns: 1fr; }
   .configuration-state { justify-self: start; }
   .settings-form-actions { align-items: stretch; flex-direction: column; }
   .settings-save-button { width: 100%; }
   .custom-remark-modal-actions { flex-direction: column-reverse; }
   .custom-remark-modal-actions button { width: 100%; }
+  .custom-remark-list-item { align-items: stretch; grid-template-columns: 1fr; }
+  .custom-remark-list-actions button { flex: 1; }
 }

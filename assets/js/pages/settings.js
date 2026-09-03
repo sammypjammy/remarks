@@ -16,6 +16,12 @@ const newCustomSectionField = document.getElementById("newCustomSectionField");
 const newCustomSectionName = document.getElementById("newCustomSectionName");
 const customRemarkText = document.getElementById("customRemarkText");
 const customRemarkFormStatus = document.getElementById("customRemarkFormStatus");
+const customRemarkList = document.getElementById("customRemarkList");
+const customRemarkModalTitle = document.getElementById("customRemarkModalTitle");
+const saveCustomRemarkButton = document.getElementById("saveCustomRemarkButton");
+
+let editingCustomRemarkId = null;
+let customRemarkModalTrigger = openCustomRemarkModalButton;
 
 const BUILT_IN_REMARK_SECTIONS = [
   { value: "Filing Remarks", label: "Filing Remarks" },
@@ -56,6 +62,53 @@ function updateCustomRemarkSummary() {
     : "Add a remark to an existing section or create a new section.";
 }
 
+function renderCustomRemarkList() {
+  const customRemarks = settings.getCustomRemarks();
+  customRemarkList.replaceChildren();
+  customRemarkList.hidden = customRemarks.length === 0;
+
+  customRemarks.forEach((remark) => {
+    const item = document.createElement("div");
+    item.className = "custom-remark-list-item";
+
+    const copy = document.createElement("div");
+    copy.className = "custom-remark-list-copy";
+    const title = document.createElement("strong");
+    title.textContent = remark.title;
+    const section = document.createElement("span");
+    section.textContent = remark.group;
+    copy.append(title, section);
+
+    const actions = document.createElement("div");
+    actions.className = "custom-remark-list-actions";
+    const editButton = document.createElement("button");
+    editButton.type = "button";
+    editButton.className = "custom-remark-action";
+    editButton.textContent = "Edit";
+    editButton.setAttribute("aria-label", `Edit ${remark.title}`);
+    editButton.addEventListener("click", () => openCustomRemarkModal(remark, editButton));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "custom-remark-action delete";
+    deleteButton.textContent = "Delete";
+    deleteButton.setAttribute("aria-label", `Delete ${remark.title}`);
+    deleteButton.addEventListener("click", () => {
+      if (!window.confirm(`Delete “${remark.title}”? This cannot be undone.`)) return;
+      const saved = settings.saveCustomRemarks(settings.getCustomRemarks().filter((item) => item.id !== remark.id));
+      if (!saved) {
+        window.alert("The custom remark could not be deleted from this browser.");
+        return;
+      }
+      openCustomRemarkModalButton.focus();
+    });
+
+    actions.append(editButton, deleteButton);
+    item.append(copy, actions);
+    customRemarkList.appendChild(item);
+  });
+}
+
 function getRemarkSections() {
   const sections = [...BUILT_IN_REMARK_SECTIONS];
   settings.getCustomRemarks().forEach((remark) => {
@@ -86,10 +139,20 @@ function updateNewSectionField() {
   if (!isCreatingSection) newCustomSectionName.value = "";
 }
 
-function openCustomRemarkModal() {
+function openCustomRemarkModal(remark = null, trigger = openCustomRemarkModalButton) {
   customRemarkForm.reset();
   customRemarkFormStatus.textContent = "";
   populateRemarkSections();
+  editingCustomRemarkId = remark?.id || null;
+  customRemarkModalTrigger = trigger;
+  customRemarkModalTitle.textContent = remark ? "Edit custom remark" : "Add custom remark";
+  saveCustomRemarkButton.textContent = remark ? "Save changes" : "Save remark";
+
+  if (remark) {
+    customRemarkTitle.value = remark.title;
+    customRemarkSection.value = remark.group;
+    customRemarkText.value = remark.text;
+  }
   updateNewSectionField();
   customRemarkModalBackdrop.classList.remove("hidden");
   customRemarkModalBackdrop.setAttribute("aria-hidden", "false");
@@ -101,7 +164,9 @@ function closeCustomRemarkModal(returnFocus = true) {
   customRemarkModalBackdrop.classList.add("hidden");
   customRemarkModalBackdrop.setAttribute("aria-hidden", "true");
   document.body.classList.remove("menu-open");
-  if (returnFocus) openCustomRemarkModalButton.focus();
+  if (returnFocus) customRemarkModalTrigger?.focus();
+  editingCustomRemarkId = null;
+  customRemarkModalTrigger = openCustomRemarkModalButton;
 }
 
 function createCustomRemarkId() {
@@ -122,6 +187,7 @@ function renderSettings(forceFormValues = false) {
   hydrateFormValues(forceFormValues);
   updateResourcesState();
   updateCustomRemarkSummary();
+  renderCustomRemarkList();
 }
 
 document.querySelectorAll("[data-setting-option]").forEach((button) => {
@@ -133,7 +199,7 @@ customRemarkSection.addEventListener("change", () => {
   updateNewSectionField();
   if (!newCustomSectionField.hidden) newCustomSectionName.focus();
 });
-openCustomRemarkModalButton.addEventListener("click", openCustomRemarkModal);
+openCustomRemarkModalButton.addEventListener("click", () => openCustomRemarkModal());
 document.getElementById("closeCustomRemarkModal").addEventListener("click", () => closeCustomRemarkModal());
 document.getElementById("cancelCustomRemarkModal").addEventListener("click", () => closeCustomRemarkModal());
 customRemarkModalBackdrop.addEventListener("click", (event) => {
@@ -162,18 +228,26 @@ customRemarkForm.addEventListener("submit", (event) => {
   }
 
   const customRemarks = settings.getCustomRemarks();
-  const saved = settings.saveCustomRemarks([
-    ...customRemarks,
-    { id: createCustomRemarkId(), application: "filing", group, title, text }
-  ]);
+  const updatedRemark = {
+    id: editingCustomRemarkId || createCustomRemarkId(),
+    application: "filing",
+    group,
+    title,
+    text
+  };
+  const nextCustomRemarks = editingCustomRemarkId
+    ? customRemarks.map((remark) => remark.id === editingCustomRemarkId ? updatedRemark : remark)
+    : [...customRemarks, updatedRemark];
+  const saved = settings.saveCustomRemarks(nextCustomRemarks);
 
   if (!saved) {
     customRemarkFormStatus.textContent = "The custom remark could not be saved in this browser.";
     return;
   }
 
-  closeCustomRemarkModal();
+  closeCustomRemarkModal(false);
   updateCustomRemarkSummary();
+  openCustomRemarkModalButton.focus();
 });
 
 document.getElementById("openDraftsToggle").addEventListener("click", (event) => {

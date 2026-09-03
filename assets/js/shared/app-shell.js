@@ -11,6 +11,7 @@ const routes = {
 function renderAppShell() {
   const headerRoot = document.querySelector("[data-app-header]");
   const menuRoot = document.querySelector("[data-app-menu]");
+  const footerRoot = document.querySelector("[data-app-footer]");
 
   if (headerRoot) {
     headerRoot.innerHTML = `
@@ -43,6 +44,21 @@ function renderAppShell() {
         </div>
         <nav id="toolkitNavigation" class="toolkit-navigation" aria-label="Packard Toolkit tools"></nav>
       </aside>
+    `;
+  }
+
+  if (footerRoot) {
+    footerRoot.innerHTML = `
+      <footer class="app-footer">
+        <div class="app-footer-inner">
+          <span>&copy; 2026 Packard Law Firm</span>
+          <span class="app-footer-divider" aria-hidden="true">&bull;</span>
+          <span>Packard Toolkit</span>
+          <span class="app-footer-divider" aria-hidden="true">&bull;</span>
+          <span>Internal use only</span>
+          <a class="app-footer-link" href="${routes.settings}">Settings</a>
+        </div>
+      </footer>
     `;
   }
 }

@@ -9,6 +9,7 @@
     <title>Settings | Packard Toolkit</title>
     <link rel="stylesheet" href="../assets/css/style.css" />
     <link rel="stylesheet" href="../assets/css/pages/settings.css" />
+    <link rel="stylesheet" href="../assets/css/footer.css" />
   </head>
   <body data-page="settings">
     <div data-app-header></div>
@@ -138,9 +139,12 @@
             </div>
             <button id="openCustomRemarkModal" class="settings-save-button" type="button">Add remark</button>
           </div>
+          <div id="customRemarkList" class="custom-remark-list" aria-label="Saved custom remarks" aria-live="polite" hidden></div>
         </section>
       </div>
     </main>
+
+    <div data-app-footer></div>
 
     <div id="customRemarkModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
       <div class="modal custom-remark-modal" role="dialog" aria-modal="true" aria-labelledby="customRemarkModalTitle">
@@ -171,7 +175,7 @@
           <p id="customRemarkFormStatus" class="custom-remark-form-status" role="alert"></p>
           <div class="custom-remark-modal-actions">
             <button id="cancelCustomRemarkModal" class="secondary-btn" type="button">Cancel</button>
-            <button class="primary-btn" type="submit">Save remark</button>
+            <button id="saveCustomRemarkButton" class="primary-btn" type="submit">Save remark</button>
           </div>
         </form>
       </div>
