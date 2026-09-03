@@ -1,0 +1,19 @@
+{
+  "rewrites": [
+    {
+      "source": "/auth/callback",
+      "destination": "/auth/callback.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/auth/callback",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ]
+}

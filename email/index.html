@@ -1,25 +1,17 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
+<!doctype html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3f5f8" />
-    <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
-    <title>Email Sender | Packard Toolkit</title>
-    <link rel="stylesheet" href="../assets/css/style.css" />
+    <link rel="icon" type="image/png" href="../assets/images/favicon.png" />
+    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
+    <meta name="description" content="Create prepared Packard Law Firm welcome emails in Outlook." />
+    <title>Welcome Email Sender | Packard Toolkit</title>
   </head>
-  <body data-page="email">
-    <div data-app-header></div>
-    <div data-app-menu></div>
-    <main class="app-shell">
-      <section class="page-intro" aria-labelledby="pageTitle">
-        <h1 id="pageTitle">Email Sender</h1>
-        <p class="subtitle">The Email Sender will be migrated here in a future update.</p>
-      </section>
-      <section class="panel placeholder-panel" aria-label="Email Sender migration status">
-        <p>This route is ready. No Email Sender functionality has been migrated yet.</p>
-      </section>
-    </main>
-    <script src="../assets/js/shared/app-shell.js"></script>
+  <body>
+    <div id="root"></div>
+    <script src="../assets/js/shared/settings-storage.js"></script>
+    <script type="module" src="../src/pages/EmailSender/main.jsx"></script>
   </body>
 </html>
