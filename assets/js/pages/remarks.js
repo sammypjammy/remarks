@@ -391,11 +391,32 @@ const ssiSelections = {};
 const ssiDetails = {};
 let activeSsiPrompt = null;
 
+function buildFilingRemarks() {
+  const customRemarks = (window.PackardSettings?.getCustomRemarks() || [])
+    .filter((remark) => remark.application === "filing")
+    .map((remark) => ({ ...remark, fields: [] }));
+  const sectionOrder = [...new Set([
+    ...filingRemarks.map((remark) => remark.group),
+    ...customRemarks.map((remark) => remark.group)
+  ])];
+
+  return sectionOrder.flatMap((group) => [
+    ...filingRemarks.filter((remark) => remark.group === group),
+    ...customRemarks.filter((remark) => remark.group === group)
+  ]);
+}
+
 const remarkSets = {
-  filing: filingRemarks,
+  filing: buildFilingRemarks(),
   "795": application795Remarks,
   ssi: ssiRemarks
 };
+
+window.addEventListener("packardsettingschange", (event) => {
+  if (event.detail?.name !== "customRemarks") return;
+  remarkSets.filing = buildFilingRemarks();
+  if (activeApplication === "filing") renderRemarks();
+});
 
 function createRemarkCard(remark) {
   const button = document.createElement("button");

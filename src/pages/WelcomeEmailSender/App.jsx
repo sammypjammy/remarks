@@ -31,15 +31,6 @@ function getToolkitNavigation(isSettingsPage) {
   },
   ];
 }
-const themes = [
-  { id: "light", label: "Light" },
-  { id: "dark", label: "Dark" },
-  { id: "system", label: "System" },
-  { id: "sepia", label: "Sepia" },
-  { id: "forest", label: "Forest" },
-  { id: "blossom", label: "Blossom" },
-];
-
 async function copyToClipboard(text) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -97,11 +88,6 @@ function getSavedManager() {
   }
 }
 
-function getSavedTheme() {
-  const savedTheme = getSetting("theme");
-  return themes.some(({ id }) => id === savedTheme) ? savedTheme : "system";
-}
-
 function getSavedLanguage() {
   try {
     return localStorage.getItem(LANGUAGE_STORAGE_KEY) === "spanish" ? "spanish" : "english";
@@ -124,10 +110,8 @@ export default function App() {
   const [selectedManager, setSelectedManager] = useState(getSavedManager);
   const [errors, setErrors] = useState({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [theme, setTheme] = useState(getSavedTheme);
   const [language, setLanguage] = useState(getSavedLanguage);
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
-  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
@@ -136,8 +120,6 @@ export default function App() {
   const emailInputRef = useRef(null);
   const appMenuToggleRef = useRef(null);
   const appDrawerRef = useRef(null);
-  const themePickerRef = useRef(null);
-  const themeToggleRef = useRef(null);
   const signaturePromptRef = useRef(null);
 
   const customCaseManagers = useMemo(getCustomCaseManagers, []);
@@ -176,7 +158,6 @@ export default function App() {
 
   useEffect(() => {
     const syncSettings = () => {
-      setTheme(getSavedTheme());
       setEmailSignature(getEmailSignature());
     };
     window.addEventListener("packardsettingschange", syncSettings);
@@ -190,24 +171,6 @@ export default function App() {
       // The language selector still works if browser storage is unavailable.
     }
   }, [language]);
-
-  useEffect(() => {
-    if (!isThemeMenuOpen) return undefined;
-
-    function closeThemeMenu(event) {
-      if (event.type === "keydown" && event.key !== "Escape") return;
-      if (event.type === "pointerdown" && themePickerRef.current?.contains(event.target)) return;
-      setIsThemeMenuOpen(false);
-      if (event.type === "keydown") themeToggleRef.current?.focus();
-    }
-
-    document.addEventListener("pointerdown", closeThemeMenu);
-    document.addEventListener("keydown", closeThemeMenu);
-    return () => {
-      document.removeEventListener("pointerdown", closeThemeMenu);
-      document.removeEventListener("keydown", closeThemeMenu);
-    };
-  }, [isThemeMenuOpen]);
 
   useEffect(() => {
     if (!isAppMenuOpen) return undefined;
@@ -401,10 +364,7 @@ export default function App() {
               aria-haspopup="dialog"
               aria-expanded={isAppMenuOpen}
               aria-controls="app-menu"
-              onClick={() => {
-                setIsAppMenuOpen((open) => !open);
-                setIsThemeMenuOpen(false);
-              }}
+              onClick={() => setIsAppMenuOpen((open) => !open)}
             >
               <span aria-hidden="true"></span>
               <span aria-hidden="true"></span>
@@ -413,51 +373,6 @@ export default function App() {
 
           </div>
           <a className="app-brand" href="/">Packard Toolkit</a>
-          <div className="app-header-actions">
-            <div className="theme-picker" ref={themePickerRef}>
-            <button
-              ref={themeToggleRef}
-              className="theme-toggle"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={isThemeMenuOpen}
-              onClick={() => {
-                setIsThemeMenuOpen((open) => !open);
-                setIsAppMenuOpen(false);
-              }}
-            >
-              <svg className="control-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h2.5A6.5 6.5 0 0 0 21 7.5C21 5 17 3 12 3Z" />
-                <circle cx="7.5" cy="10" r="1" /><circle cx="9.5" cy="6.5" r="1" /><circle cx="14" cy="6.2" r="1" /><circle cx="17.2" cy="9" r="1" />
-              </svg>
-              <span>Theme</span>
-              <svg className="theme-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-            </button>
-
-            {isThemeMenuOpen && (
-              <div className="theme-menu" role="menu" aria-label="Choose color scheme">
-                {themes.map((option) => (
-                  <button
-                    className="theme-option"
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={theme === option.id}
-                    key={option.id}
-                    onClick={() => {
-                      setTheme(option.id);
-                      window.PackardSettings.setSetting("theme", option.id);
-                      setIsThemeMenuOpen(false);
-                    }}
-                  >
-                    <span className={`theme-swatch swatch-${option.id}`} aria-hidden="true"></span>
-                    <span>{option.label}</span>
-                    <span className="theme-check" aria-hidden="true">&#10003;</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            </div>
-          </div>
         </header>
 
         {isAppMenuOpen && (

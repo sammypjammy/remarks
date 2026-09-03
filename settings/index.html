@@ -34,14 +34,14 @@
               <h3>Theme</h3>
               <p>System follows your browser or operating system preference.</p>
             </div>
-            <div class="setting-choice-group" role="radiogroup" aria-label="Global theme">
-              <button type="button" role="radio" data-setting-option="theme" data-value="light">Light</button>
-              <button type="button" role="radio" data-setting-option="theme" data-value="dark">Dark</button>
-              <button type="button" role="radio" data-setting-option="theme" data-value="system">System</button>
-              <button type="button" role="radio" data-setting-option="theme" data-value="sepia">Sepia</button>
-              <button type="button" role="radio" data-setting-option="theme" data-value="forest">Forest</button>
-              <button type="button" role="radio" data-setting-option="theme" data-value="blossom">Blossom</button>
-            </div>
+            <select id="themeSelect" class="settings-select" aria-label="Global theme">
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+              <option value="sepia">Sepia</option>
+              <option value="forest">Forest</option>
+              <option value="blossom">Blossom</option>
+            </select>
           </div>
 
           <div class="settings-divider"></div>
@@ -129,21 +129,53 @@
             <p class="settings-eyebrow">Tool</p>
             <a class="settings-section-link" href="../canned-remarks/">Open Remarks <span aria-hidden="true">&rarr;</span></a>
             <h2 id="remarksSettingsTitle">Remarks</h2>
-            <p>Custom remarks will be managed here in a future update.</p>
+            <p>Create reusable remarks and organize them within the Filing Application sections.</p>
           </div>
-          <div class="setting-row custom-remark-layout">
-            <div class="settings-form-side">
-              <div class="setting-copy">
+          <div class="setting-row">
+            <div class="setting-copy">
               <h3>Add custom remark</h3>
-              <p>Create reusable remarks alongside the built-in collection.</p>
-              </div>
-              <button class="settings-disabled-button" type="button" disabled>Coming soon</button>
+              <p id="customRemarkSummary">Add a remark to an existing section or create a new section.</p>
             </div>
-            <textarea class="settings-disabled-editor" rows="3" placeholder="Custom remark editor coming soon" aria-label="Custom remark editor coming soon" disabled></textarea>
+            <button id="openCustomRemarkModal" class="settings-save-button" type="button">Add remark</button>
           </div>
         </section>
       </div>
     </main>
+
+    <div id="customRemarkModalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+      <div class="modal custom-remark-modal" role="dialog" aria-modal="true" aria-labelledby="customRemarkModalTitle">
+        <div class="modal-header">
+          <div>
+            <p class="settings-eyebrow">Remarks</p>
+            <h2 id="customRemarkModalTitle">Add custom remark</h2>
+          </div>
+          <button id="closeCustomRemarkModal" class="icon-button" type="button" aria-label="Close">&times;</button>
+        </div>
+        <form id="customRemarkForm" class="custom-remark-form">
+          <div class="custom-remark-field">
+            <label for="customRemarkTitle">Remark name</label>
+            <input id="customRemarkTitle" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Follow-up documentation" required />
+          </div>
+          <div class="custom-remark-field">
+            <label for="customRemarkSection">Section</label>
+            <select id="customRemarkSection" required></select>
+          </div>
+          <div id="newCustomSectionField" class="custom-remark-field" hidden>
+            <label for="newCustomSectionName">New section name</label>
+            <input id="newCustomSectionName" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Hearing Notes" />
+          </div>
+          <div class="custom-remark-field">
+            <label for="customRemarkText">Remark text</label>
+            <textarea id="customRemarkText" rows="6" placeholder="Enter the text you want to copy from the Remarks page." required></textarea>
+          </div>
+          <p id="customRemarkFormStatus" class="custom-remark-form-status" role="alert"></p>
+          <div class="custom-remark-modal-actions">
+            <button id="cancelCustomRemarkModal" class="secondary-btn" type="button">Cancel</button>
+            <button class="primary-btn" type="submit">Save remark</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <script src="../assets/js/shared/settings-storage.js"></script>
     <script src="../assets/js/shared/app-shell.js"></script>

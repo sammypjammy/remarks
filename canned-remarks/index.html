@@ -32,25 +32,25 @@
         <div id="remarkList" class="remark-list" aria-live="polite"></div>
 
         <section id="shortTermWorkspace" class="short-term-workspace" aria-labelledby="shortTermLabel">
-          <div class="short-term-heading">
-            <div>
+          <div class="short-term-layout">
+            <div class="short-term-info">
               <h2 id="shortTermLabel">Short-Term Remarks</h2>
               <p>Paste medical conditions, notes, or any other text you will need again shortly.</p>
+              <div class="short-term-notice">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="M9 12h6M12 9v6"/></svg>
+                <span><strong>Session only</strong>Your text stays in this browser tab and is removed when the tab closes or you press Clear.</span>
+              </div>
             </div>
-            <div class="short-term-notice">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="M9 12h6M12 9v6"/></svg>
-              <span><strong>Session only</strong>Your text stays in this browser tab and is removed when the tab closes or you press Clear.</span>
-            </div>
-          </div>
-
-          <label class="short-term-input-label" for="shortTermInput">Temporary remark</label>
-          <textarea id="shortTermInput" class="short-term-input" rows="10" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Paste a claimant's medical conditions or other temporary text here..."></textarea>
-
-          <div class="short-term-footer">
-            <span id="shortTermCount" class="short-term-count" aria-live="polite">0 characters</span>
-            <div class="short-term-actions">
-              <button id="clearShortTermButton" class="secondary-btn" type="button" disabled>Clear</button>
-              <button id="copyShortTermButton" class="primary-btn" type="button" disabled>Copy</button>
+            <div class="short-term-editor">
+              <label class="short-term-input-label" for="shortTermInput">Temporary remark</label>
+              <textarea id="shortTermInput" class="short-term-input" rows="4" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Paste a claimant's medical conditions or other temporary text here..."></textarea>
+              <div class="short-term-footer">
+                <span id="shortTermCount" class="short-term-count" aria-live="polite">0 characters</span>
+                <div class="short-term-actions">
+                  <button id="clearShortTermButton" class="secondary-btn" type="button" disabled>Clear</button>
+                  <button id="copyShortTermButton" class="primary-btn" type="button" disabled>Copy</button>
+                </div>
+              </div>
             </div>
           </div>
         </section>

@@ -18,6 +18,9 @@
 .setting-choice-group button { min-height: 36px; padding: 7px 12px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 0.78rem; font-weight: 700; }
 .setting-choice-group button:hover { color: var(--text); }
 .setting-choice-group button.active { background: var(--panel); color: var(--accent); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1); }
+.settings-select { min-width: 220px; min-height: 44px; flex: 0 0 auto; padding: 9px 38px 9px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-inset); color: var(--text); cursor: pointer; }
+.settings-select:hover { border-color: var(--accent-line); }
+.settings-select:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); outline: none; }
 .settings-toggle { position: relative; width: 48px; height: 28px; flex: 0 0 auto; padding: 3px; border-radius: 999px; background: var(--disabled, #aeb8c5); }
 .settings-toggle span { display: block; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.22); transition: transform 160ms ease; }
 .settings-toggle[aria-checked="true"] { background: var(--accent); }
@@ -48,6 +51,23 @@
 .settings-disabled-editor:disabled { cursor: not-allowed; opacity: 0.68; }
 .settings-card-compact .settings-card-header { padding-bottom: 10px; }
 .settings-card-compact .setting-row { padding-top: 10px; padding-bottom: 18px; }
+.custom-remark-modal { width: min(620px, 100%); }
+.custom-remark-modal .modal-header > div { min-width: 0; }
+.custom-remark-modal .modal-header h2 { margin-top: 4px; }
+.custom-remark-form { display: grid; gap: 16px; padding: 20px; }
+.custom-remark-field { display: grid; gap: 7px; }
+.custom-remark-field label { color: var(--text); font-size: 0.88rem; font-weight: 750; }
+.custom-remark-field input,
+.custom-remark-field select,
+.custom-remark-field textarea { width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 12px; outline: none; background: var(--surface-inset); color: var(--text); font: inherit; line-height: 1.5; }
+.custom-remark-field input,
+.custom-remark-field select { min-height: 44px; }
+.custom-remark-field textarea { min-height: 142px; resize: vertical; }
+.custom-remark-field input:focus,
+.custom-remark-field select:focus,
+.custom-remark-field textarea:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
+.custom-remark-form-status { min-height: 1.2em; color: var(--danger, #bd3444); font-size: 0.8rem; }
+.custom-remark-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
 :root[data-density="compact"] .settings-stack { gap: 12px; }
 :root[data-density="compact"] .settings-card-header { padding: 20px 24px 14px; }
 :root[data-density="compact"] .setting-row, :root[data-density="compact"] .settings-form { padding: 16px 24px 19px; }
@@ -57,6 +77,7 @@
   .signature-form, .custom-remark-layout { grid-template-columns: 1fr; gap: 14px; }
   .settings-form-side { gap: 12px; }
   .setting-choice-group { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+  .settings-select { width: 100%; }
   .settings-toggle { align-self: flex-start; }
 }
 
@@ -68,4 +89,6 @@
   .configuration-state { justify-self: start; }
   .settings-form-actions { align-items: stretch; flex-direction: column; }
   .settings-save-button { width: 100%; }
+  .custom-remark-modal-actions { flex-direction: column-reverse; }
+  .custom-remark-modal-actions button { width: 100%; }
 }

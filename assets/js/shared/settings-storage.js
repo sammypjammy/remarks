@@ -197,7 +197,11 @@
     const id = typeof remark.id === "string" ? remark.id.trim() : "";
     const title = typeof remark.title === "string" ? remark.title.trim() : "";
     const text = typeof remark.text === "string" ? remark.text.trim() : "";
-    return id && title && text ? { id, title, text, kind: "custom" } : null;
+    const application = remark.application === "795" ? "795" : "filing";
+    const group = typeof remark.group === "string" && remark.group.trim()
+      ? remark.group.trim()
+      : "Filing Remarks";
+    return id && title && text ? { id, application, group, title, text, kind: "custom" } : null;
   }
 
   function getCustomRemarks() {
@@ -207,7 +211,9 @@
 
   function saveCustomRemarks(remarks) {
     const normalizedRemarks = Array.isArray(remarks) ? remarks.map(normalizeRemark).filter(Boolean) : [];
-    return writeJson(CUSTOM_REMARKS_STORAGE_KEY, normalizedRemarks);
+    const succeeded = writeJson(CUSTOM_REMARKS_STORAGE_KEY, normalizedRemarks);
+    if (succeeded) announceChange("customRemarks", normalizedRemarks);
+    return succeeded;
   }
 
   function normalizeEmailTemplates(templates) {
