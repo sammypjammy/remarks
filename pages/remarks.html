@@ -1,112 +1,14 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f3f5f8" />
-    <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
-    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
-    <title>Canned Remarks | Packard Toolkit</title>
-    <link rel="stylesheet" href="../assets/css/style.css" />
+    <meta http-equiv="refresh" content="0; url=../remarks/" />
+    <title>Redirecting to Canned Remarks</title>
+    <link rel="canonical" href="../remarks/" />
   </head>
-  <body data-page="remarks">
-    <header class="app-header">
-      <div class="app-header-inner">
-        <div class="app-navigation">
-          <button id="appMenuToggle" class="app-menu-toggle" type="button" aria-label="Open Packard Toolkit menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="appMenu">
-            <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
-          </button>
-          <span class="app-brand">Packard Toolkit</span>
-        </div>
-
-        <div class="theme-picker">
-          <button id="themeToggle" class="theme-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-            <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h2.5A6.5 6.5 0 0 0 21 7.5C21 5 17 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="9.5" cy="6.5" r="1"/><circle cx="14" cy="6.2" r="1"/><circle cx="17.2" cy="9" r="1"/></svg>
-            <span id="themeLabel">Theme</span>
-            <svg class="theme-menu-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
-          </button>
-          <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="light"><span class="theme-swatch swatch-light" aria-hidden="true"></span><span>Light</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark"><span class="theme-swatch swatch-dark" aria-hidden="true"></span><span>Dark</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="sepia"><span class="theme-swatch swatch-sepia" aria-hidden="true"></span><span>Sepia</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="forest"><span class="theme-swatch swatch-forest" aria-hidden="true"></span><span>Forest</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="blossom"><span class="theme-swatch swatch-blossom" aria-hidden="true"></span><span>Blossom</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div id="appMenuBackdrop" class="app-menu-backdrop" hidden></div>
-    <aside id="appMenu" class="app-menu" role="dialog" aria-modal="true" aria-labelledby="toolkit-menu-title" hidden>
-      <div class="app-menu-header">
-        <div>
-          <p class="app-menu-eyebrow">Internal tools</p>
-          <h2 id="toolkit-menu-title">Packard Toolkit</h2>
-        </div>
-        <button id="appMenuClose" class="icon-btn" type="button" aria-label="Close Packard Toolkit menu">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
-        </button>
-      </div>
-      <nav id="toolkitNavigation" class="toolkit-navigation" aria-label="Packard Toolkit tools"></nav>
-    </aside>
-
-    <main class="app-shell">
-      <section class="page-intro" aria-labelledby="pageTitle">
-        <h1 id="pageTitle">Canned Remarks</h1>
-        <p class="subtitle">Quickly copy standardized remarks for filings and applications.</p>
-      </section>
-
-      <section class="panel" aria-label="Remarks workspace">
-        <div class="workspace-toolbar">
-          <div>
-            <h2>Choose an application</h2>
-          </div>
-          <div class="application-selector" role="radiogroup" aria-label="Application type">
-            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">Filing Application</button>
-            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">795 Application</button>
-            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">SSI Application</button>
-          </div>
-        </div>
-
-        <div id="remarkList" class="remark-list" aria-live="polite"></div>
-
-        <section id="shortTermWorkspace" class="short-term-workspace" aria-labelledby="shortTermLabel">
-          <div class="short-term-heading">
-            <div>
-              <h2 id="shortTermLabel">Short-Term Remarks</h2>
-              <p>Paste medical conditions, notes, or any other text you will need again shortly.</p>
-            </div>
-            <div class="short-term-notice">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="M9 12h6M12 9v6"/></svg>
-              <span><strong>Session only</strong>Your text stays in this browser tab and is removed when the tab closes or you press Clear.</span>
-            </div>
-          </div>
-
-          <label class="short-term-input-label" for="shortTermInput">Temporary remark</label>
-          <textarea id="shortTermInput" class="short-term-input" rows="10" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Paste a claimant's medical conditions or other temporary text here..."></textarea>
-
-          <div class="short-term-footer">
-            <span id="shortTermCount" class="short-term-count" aria-live="polite">0 characters</span>
-            <div class="short-term-actions">
-              <button id="clearShortTermButton" class="secondary-btn" type="button" disabled>Clear</button>
-              <button id="copyShortTermButton" class="primary-btn" type="button" disabled>Copy</button>
-            </div>
-          </div>
-        </section>
-      </section>
-    </main>
-
-    <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
-      <div id="remarkModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-header">
-          <h2 id="modalTitle">Remark</h2>
-          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">&times;</button>
-        </div>
-        <div id="modalContent" class="modal-content"></div>
-      </div>
-    </div>
-
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="../assets/js/script.js"></script>
+  <body>
+    <p>The Remarks Builder has moved to <a href="../remarks/">its new internal route</a>.</p>
+    <script>window.location.replace("../remarks/" + window.location.search + window.location.hash);</script>
   </body>
 </html>

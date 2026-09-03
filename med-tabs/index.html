@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3f5f8" />
+    <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
+    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
+    <title>Med Tabs Generator | Packard Toolkit</title>
+    <link rel="stylesheet" href="../assets/css/pages/med-tabs.css" />
+  </head>
+  <body data-page="med-tabs">
+    <div data-app-header></div>
+    <div data-app-menu></div>
+
+    <main class="app-shell">
+      <section class="page-intro" aria-labelledby="generator-title">
+        <div class="page-intro-copy">
+          <h1 id="generator-title">Med Tabs Generator</h1>
+          <p class="page-subtitle">Convert provider intake information into formatted Med Tabs.</p>
+        </div>
+        <button id="copyBlankTemplateBtn" class="secondary-btn" type="button">
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8h10v12H8z"/><path d="M6 16H4V4h10v2"/></svg>
+          Copy Blank Template
+        </button>
+      </section>
+
+      <div class="workspace">
+        <section class="panel input-panel" aria-labelledby="input-title">
+          <div class="panel-heading">
+            <div><h2 id="input-title">Paste intake details</h2></div>
+            <p class="panel-copy">Add one or more provider intake blocks. We’ll identify and format each provider.</p>
+          </div>
+
+          <label class="form-label" for="inputText">Raw intake text</label>
+          <textarea id="inputText" placeholder="Paste provider intake text here..." spellcheck="false"></textarea>
+
+          <div class="input-actions">
+            <button id="generateBtn" class="primary-btn" type="button">Generate Med Tabs</button>
+            <span class="keyboard-hint">Ctrl / Cmd + Enter</span>
+          </div>
+
+          <div id="statusMessage" class="status-message" role="status" aria-live="polite">Paste a provider intake block to begin.</div>
+        </section>
+
+        <section class="panel output-panel" aria-labelledby="results-title">
+          <div class="output-header">
+            <div class="output-title"><h2 id="results-title">Medical Provider Tabs</h2></div>
+            <div class="output-header-actions">
+              <div id="validationCounters" class="validation-counters" aria-label="Provider validation summary" aria-live="polite">
+                <span id="resultCount" class="counter-pill counter-pill-providers" data-counter-status="all">0 Providers</span>
+                <span id="greenCount" class="counter-pill counter-pill-complete" data-counter-status="complete" hidden></span>
+                <span id="yellowCount" class="counter-pill counter-pill-warning" data-counter-status="warning" hidden></span>
+                <span id="redCount" class="counter-pill counter-pill-critical" data-counter-status="critical" hidden></span>
+                <span id="duplicateCount" class="counter-pill counter-pill-duplicate" data-counter-status="duplicate" hidden></span>
+              </div>
+              <button id="clearAllBtn" class="danger-btn" type="button" disabled>Clear All</button>
+            </div>
+          </div>
+
+          <div id="resultsContainer" class="results-stack">
+            <div class="empty-state">
+              <div class="empty-state-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg>
+              </div>
+              <div>
+                <h3>Ready to generate</h3>
+                <p>Your formatted provider tabs will appear here.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+    <script src="../assets/js/shared/settings-storage.js"></script>
+    <script src="../assets/js/pages/med-tabs/parser.js"></script>
+    <script src="../assets/js/shared/app-shell.js"></script>
+    <script src="../assets/js/pages/med-tabs/index.js"></script>
+  </body>
+</html>

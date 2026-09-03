@@ -10,45 +10,8 @@
     <link rel="stylesheet" href="assets/css/style.css" />
   </head>
   <body data-page="home">
-    <header class="app-header">
-      <div class="app-header-inner">
-        <div class="app-navigation">
-          <button id="appMenuToggle" class="app-menu-toggle" type="button" aria-label="Open Packard Toolkit menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="appMenu">
-            <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
-          </button>
-          <span class="app-brand">Packard Toolkit</span>
-        </div>
-
-        <div class="theme-picker">
-          <button id="themeToggle" class="theme-toggle" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="themeMenu">
-            <svg class="control-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a1.5 1.5 0 0 0 0-3H12a2 2 0 0 1 0-4h2.5A6.5 6.5 0 0 0 21 7.5C21 5 17 3 12 3Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="9.5" cy="6.5" r="1"/><circle cx="14" cy="6.2" r="1"/><circle cx="17.2" cy="9" r="1"/></svg>
-            <span id="themeLabel">Theme</span>
-            <svg class="theme-menu-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
-          </button>
-          <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="light"><span class="theme-swatch swatch-light" aria-hidden="true"></span><span>Light</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="dark"><span class="theme-swatch swatch-dark" aria-hidden="true"></span><span>Dark</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="sepia"><span class="theme-swatch swatch-sepia" aria-hidden="true"></span><span>Sepia</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="forest"><span class="theme-swatch swatch-forest" aria-hidden="true"></span><span>Forest</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="blossom"><span class="theme-swatch swatch-blossom" aria-hidden="true"></span><span>Blossom</span><span class="theme-check" aria-hidden="true">&#10003;</span></button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <div id="appMenuBackdrop" class="app-menu-backdrop" hidden></div>
-    <aside id="appMenu" class="app-menu" role="dialog" aria-modal="true" aria-labelledby="toolkit-menu-title" hidden>
-      <div class="app-menu-header">
-        <div>
-          <p class="app-menu-eyebrow">Internal tools</p>
-          <h2 id="toolkit-menu-title">Packard Toolkit</h2>
-        </div>
-        <button id="appMenuClose" class="icon-btn" type="button" aria-label="Close Packard Toolkit menu">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
-        </button>
-      </div>
-      <nav id="toolkitNavigation" class="toolkit-navigation" aria-label="Packard Toolkit tools"></nav>
-    </aside>
+    <div data-app-header></div>
+    <div data-app-menu></div>
 
     <main class="app-shell">
       <section class="tool-directory" aria-labelledby="toolsTitle">
@@ -61,22 +24,22 @@
         </div>
 
         <div class="tool-grid">
-          <a class="tool-card" href="pages/remarks.html">
+          <a class="tool-card" href="remarks/">
             <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 11h6M9 15h6"/></svg></span>
             <span class="tool-card-content"><strong>Canned Remarks</strong><span>Build and copy standardized filing and application remarks.</span></span>
             <span class="tool-card-status available">Open</span>
           </a>
 
-          <a class="tool-card" href="https://medtabsgenerator.vercel.app/">
+          <a class="tool-card" href="med-tabs/">
             <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
             <span class="tool-card-content"><strong>Med Tabs</strong><span>Generate clean medical record tabs quickly and consistently.</span></span>
             <span class="tool-card-status available">Open</span>
           </a>
 
-          <a class="tool-card" href="https://welcome-email-sender.vercel.app/">
+          <a class="tool-card" href="email/">
             <span class="tool-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v12H3z"/><path d="m4 7 8 6 8-6"/></svg></span>
             <span class="tool-card-content"><strong>Welcome Emails</strong><span>Create and send consistent welcome messages.</span></span>
-            <span class="tool-card-status available">Open</span>
+            <span class="tool-card-status">Migration pending</span>
           </a>
 
           <div class="tool-card is-disabled" aria-disabled="true">
@@ -88,6 +51,6 @@
       </section>
     </main>
 
-    <script src="assets/js/script.js"></script>
+    <script src="assets/js/shared/app-shell.js"></script>
   </body>
 </html>

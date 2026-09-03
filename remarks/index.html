@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3f5f8" />
+    <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
+    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
+    <title>Canned Remarks | Packard Toolkit</title>
+    <link rel="stylesheet" href="../assets/css/style.css" />
+  </head>
+  <body data-page="remarks">
+    <div data-app-header></div>
+    <div data-app-menu></div>
+
+    <main class="app-shell">
+      <section class="page-intro" aria-labelledby="pageTitle">
+        <h1 id="pageTitle">Canned Remarks</h1>
+        <p class="subtitle">Quickly copy standardized remarks for filings and applications.</p>
+      </section>
+
+      <section class="panel" aria-label="Remarks workspace">
+        <div class="workspace-toolbar">
+          <div><h2>Choose an application</h2></div>
+          <div class="application-selector" role="radiogroup" aria-label="Application type">
+            <button class="application-option active" type="button" role="radio" aria-checked="true" data-application="filing">Filing Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="795">795 Application</button>
+            <button class="application-option" type="button" role="radio" aria-checked="false" data-application="ssi">SSI Application</button>
+          </div>
+        </div>
+
+        <div id="remarkList" class="remark-list" aria-live="polite"></div>
+
+        <section id="shortTermWorkspace" class="short-term-workspace" aria-labelledby="shortTermLabel">
+          <div class="short-term-heading">
+            <div>
+              <h2 id="shortTermLabel">Short-Term Remarks</h2>
+              <p>Paste medical conditions, notes, or any other text you will need again shortly.</p>
+            </div>
+            <div class="short-term-notice">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z"/><path d="M9 12h6M12 9v6"/></svg>
+              <span><strong>Session only</strong>Your text stays in this browser tab and is removed when the tab closes or you press Clear.</span>
+            </div>
+          </div>
+
+          <label class="short-term-input-label" for="shortTermInput">Temporary remark</label>
+          <textarea id="shortTermInput" class="short-term-input" rows="10" autocomplete="off" autocapitalize="sentences" spellcheck="false" placeholder="Paste a claimant's medical conditions or other temporary text here..."></textarea>
+
+          <div class="short-term-footer">
+            <span id="shortTermCount" class="short-term-count" aria-live="polite">0 characters</span>
+            <div class="short-term-actions">
+              <button id="clearShortTermButton" class="secondary-btn" type="button" disabled>Clear</button>
+              <button id="copyShortTermButton" class="primary-btn" type="button" disabled>Copy</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
+      <div id="remarkModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+          <h2 id="modalTitle">Remark</h2>
+          <button id="closeModalButton" class="icon-button" type="button" aria-label="Close">&times;</button>
+        </div>
+        <div id="modalContent" class="modal-content"></div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="../assets/js/shared/app-shell.js"></script>
+    <script src="../assets/js/pages/remarks.js"></script>
+  </body>
+</html>
