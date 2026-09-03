@@ -3,12 +3,23 @@
 
   const SETTINGS_STORAGE_KEY = "packard-toolkit-settings";
   const CUSTOM_REMARKS_STORAGE_KEY = "packard-toolkit-custom-remarks";
-  const EMAIL_SIGNATURE_STORAGE_KEY = "packard-toolkit-email-signature";
+  const LEGACY_EMAIL_SIGNATURE_STORAGE_KEY = "packard-toolkit-email-signature";
   const EMAIL_TEMPLATES_STORAGE_KEY = "packard-toolkit-email-templates";
   const CUSTOM_CASE_MANAGERS_STORAGE_KEY = "packard-toolkit-custom-case-managers";
+  const LEGACY_THEME_STORAGE_KEYS = [
+    "canned-remarks-theme",
+    "med-tabs-theme",
+    "packard-welcome-email-theme"
+  ];
+  const THEMES = ["light", "dark", "system"];
+  const DENSITIES = ["comfortable", "compact"];
   const DEFAULT_SETTINGS = Object.freeze({
+    theme: "system",
+    density: "comfortable",
     openDraftsInNewTab: true,
     confirmBeforeClearingMedTabs: true,
+    emailSignature: "",
+    emailResourcesUrl: ""
   });
 
   function readJson(key, fallback) {
@@ -29,16 +40,149 @@
     }
   }
 
+  function readLegacyTheme() {
+    try {
+      for (const key of LEGACY_THEME_STORAGE_KEYS) {
+        const value = global.localStorage.getItem(key);
+        if (value === "light" || value === "dark") return value;
+      }
+    } catch {
+      // Fall back to the new default when legacy storage is unavailable.
+    }
+    return DEFAULT_SETTINGS.theme;
+  }
+
+  function signatureObjectToText(signature) {
+    if (!signature || typeof signature !== "object") return "";
+    return [signature.name, signature.position, signature.phone]
+      .filter((line) => typeof line === "string" && line.trim())
+      .map((line) => line.trim())
+      .join("\n");
+  }
+
+  function readLegacySignatureText() {
+    return signatureObjectToText(readJson(LEGACY_EMAIL_SIGNATURE_STORAGE_KEY, null));
+  }
+
+  function normalizeSettings(value = {}, useLegacyValues = true) {
+    const settings = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    const theme = THEMES.includes(settings.theme)
+      ? settings.theme
+      : useLegacyValues
+        ? readLegacyTheme()
+        : DEFAULT_SETTINGS.theme;
+    const density = DENSITIES.includes(settings.density) ? settings.density : DEFAULT_SETTINGS.density;
+    const emailSignature = typeof settings.emailSignature === "string"
+      ? settings.emailSignature.trim()
+      : useLegacyValues
+        ? readLegacySignatureText()
+        : "";
+    return {
+      ...settings,
+      theme,
+      density,
+      openDraftsInNewTab: typeof settings.openDraftsInNewTab === "boolean"
+        ? settings.openDraftsInNewTab
+        : DEFAULT_SETTINGS.openDraftsInNewTab,
+      confirmBeforeClearingMedTabs: typeof settings.confirmBeforeClearingMedTabs === "boolean"
+        ? settings.confirmBeforeClearingMedTabs
+        : DEFAULT_SETTINGS.confirmBeforeClearingMedTabs,
+      emailSignature,
+      emailResourcesUrl: typeof settings.emailResourcesUrl === "string" ? settings.emailResourcesUrl.trim() : ""
+    };
+  }
+
+  function getSettings() {
+    return normalizeSettings(readJson(SETTINGS_STORAGE_KEY, {}));
+  }
+
   function getSetting(name) {
-    const savedSettings = readJson(SETTINGS_STORAGE_KEY, {});
-    return Object.hasOwn(DEFAULT_SETTINGS, name)
-      ? savedSettings[name] ?? DEFAULT_SETTINGS[name]
-      : savedSettings[name];
+    return getSettings()[name];
+  }
+
+  function normalizeSetting(name, value) {
+    if (name === "theme") return THEMES.includes(value) ? value : DEFAULT_SETTINGS.theme;
+    if (name === "density") return DENSITIES.includes(value) ? value : DEFAULT_SETTINGS.density;
+    if (name === "openDraftsInNewTab" || name === "confirmBeforeClearingMedTabs") return Boolean(value);
+    if (name === "emailSignature" || name === "emailResourcesUrl") return typeof value === "string" ? value.trim() : "";
+    return value;
+  }
+
+  function getResolvedTheme(preference = getSetting("theme")) {
+    if (preference === "system") {
+      return global.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return preference === "dark" ? "dark" : "light";
+  }
+
+  function syncLegacyTheme(preference) {
+    const resolvedTheme = getResolvedTheme(preference);
+    try {
+      LEGACY_THEME_STORAGE_KEYS.forEach((key) => global.localStorage.setItem(key, resolvedTheme));
+    } catch {
+      // The global preference remains available even when legacy keys cannot be updated.
+    }
+  }
+
+  function signatureTextToObject(text) {
+    const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) return null;
+    return {
+      text: lines.join("\n"),
+      name: lines[0] || "",
+      position: lines[1] || "",
+      phone: lines.slice(2).join("\n") || ""
+    };
+  }
+
+  function syncLegacySignature(text) {
+    const signature = signatureTextToObject(text);
+    if (!signature?.name || !signature.position || !signature.phone) return;
+    writeJson(LEGACY_EMAIL_SIGNATURE_STORAGE_KEY, {
+      name: signature.name,
+      position: signature.position,
+      phone: signature.phone
+    });
+  }
+
+  function applyPreferences() {
+    const settings = getSettings();
+    const resolvedTheme = getResolvedTheme(settings.theme);
+    global.document.documentElement.dataset.theme = resolvedTheme;
+    global.document.documentElement.dataset.themePreference = settings.theme;
+    global.document.documentElement.dataset.density = settings.density;
+    const themeColor = global.document.querySelector('meta[name="theme-color"]');
+    if (themeColor) themeColor.content = resolvedTheme === "dark" ? "#0d121b" : "#f3f5f8";
+    return settings;
+  }
+
+  function announceChange(name, value) {
+    global.dispatchEvent(new CustomEvent("packardsettingschange", { detail: { name, value, settings: getSettings() } }));
   }
 
   function setSetting(name, value) {
-    const savedSettings = readJson(SETTINGS_STORAGE_KEY, {});
-    return writeJson(SETTINGS_STORAGE_KEY, { ...savedSettings, [name]: value });
+    const normalizedValue = normalizeSetting(name, value);
+    const savedSettings = getSettings();
+    const succeeded = writeJson(SETTINGS_STORAGE_KEY, { ...savedSettings, [name]: normalizedValue });
+    if (!succeeded) return false;
+    if (name === "theme") syncLegacyTheme(normalizedValue);
+    if (name === "emailSignature") syncLegacySignature(normalizedValue);
+    applyPreferences();
+    announceChange(name, normalizedValue);
+    return true;
+  }
+
+  function getEmailSignatureText() {
+    return getSetting("emailSignature") || "";
+  }
+
+  function getEmailSignature() {
+    return signatureTextToObject(getEmailSignatureText());
+  }
+
+  function saveEmailSignature(signature) {
+    const text = typeof signature === "string" ? signature : signatureObjectToText(signature);
+    return Boolean(text.trim()) && setSetting("emailSignature", text);
   }
 
   function normalizeRemark(remark) {
@@ -55,29 +199,8 @@
   }
 
   function saveCustomRemarks(remarks) {
-    const normalizedRemarks = Array.isArray(remarks)
-      ? remarks.map(normalizeRemark).filter(Boolean)
-      : [];
+    const normalizedRemarks = Array.isArray(remarks) ? remarks.map(normalizeRemark).filter(Boolean) : [];
     return writeJson(CUSTOM_REMARKS_STORAGE_KEY, normalizedRemarks);
-  }
-
-  function normalizeEmailSignature(signature) {
-    if (!signature || typeof signature !== "object") return null;
-    const name = typeof signature.name === "string" ? signature.name.trim() : "";
-    const position = typeof signature.position === "string" ? signature.position.trim() : "";
-    const phone = typeof signature.phone === "string" ? signature.phone.trim() : "";
-    return name && position && phone ? { name, position, phone } : null;
-  }
-
-  function getEmailSignature() {
-    return normalizeEmailSignature(readJson(EMAIL_SIGNATURE_STORAGE_KEY, null));
-  }
-
-  function saveEmailSignature(signature) {
-    const normalizedSignature = normalizeEmailSignature(signature);
-    return normalizedSignature
-      ? writeJson(EMAIL_SIGNATURE_STORAGE_KEY, normalizedSignature)
-      : false;
   }
 
   function normalizeEmailTemplates(templates) {
@@ -118,23 +241,53 @@
   }
 
   function saveCustomCaseManagers(managers) {
-    const normalizedManagers = Array.isArray(managers)
-      ? managers.map(normalizeCaseManager).filter(Boolean)
-      : [];
+    const normalizedManagers = Array.isArray(managers) ? managers.map(normalizeCaseManager).filter(Boolean) : [];
     return writeJson(CUSTOM_CASE_MANAGERS_STORAGE_KEY, normalizedManagers);
   }
 
+  function migrateSettings() {
+    const savedSettings = readJson(SETTINGS_STORAGE_KEY, {});
+    const normalizedSettings = normalizeSettings(savedSettings);
+    writeJson(SETTINGS_STORAGE_KEY, normalizedSettings);
+    syncLegacyTheme(normalizedSettings.theme);
+    if (normalizedSettings.emailSignature) syncLegacySignature(normalizedSettings.emailSignature);
+  }
+
+  const systemThemeQuery = global.matchMedia?.("(prefers-color-scheme: dark)");
+  systemThemeQuery?.addEventListener?.("change", () => {
+    if (getSetting("theme") !== "system") return;
+    syncLegacyTheme("system");
+    applyPreferences();
+    announceChange("theme", "system");
+  });
+
+  global.addEventListener("storage", (event) => {
+    if (event.key !== SETTINGS_STORAGE_KEY) return;
+    applyPreferences();
+    announceChange("storage", null);
+  });
+
+  migrateSettings();
+  applyPreferences();
+
   global.PackardSettings = Object.freeze({
+    storageKey: SETTINGS_STORAGE_KEY,
+    defaults: DEFAULT_SETTINGS,
+    themes: THEMES,
+    densities: DENSITIES,
+    getSettings,
     getSetting,
     setSetting,
-    getCustomRemarks,
-    saveCustomRemarks,
+    getResolvedTheme,
+    applyPreferences,
+    getEmailSignatureText,
     getEmailSignature,
     saveEmailSignature,
+    getCustomRemarks,
+    saveCustomRemarks,
     getEmailTemplates,
     saveEmailTemplates,
     getCustomCaseManagers,
-    saveCustomCaseManagers,
+    saveCustomCaseManagers
   });
 })(window);
-

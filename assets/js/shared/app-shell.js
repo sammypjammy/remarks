@@ -30,7 +30,7 @@ function renderAppShell() {
               <svg class="theme-menu-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
             </button>
             <div id="themeMenu" class="theme-menu" role="menu" aria-label="Choose theme" hidden>
-              ${["light", "dark", "sepia", "forest", "blossom"].map((theme) => `
+              ${["light", "dark", "system"].map((theme) => `
                 <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-option="${theme}">
                   <span class="theme-swatch swatch-${theme}" aria-hidden="true"></span>
                   <span>${theme[0].toUpperCase()}${theme.slice(1)}</span>
@@ -66,41 +66,22 @@ function renderAppShell() {
 renderAppShell();
 
 const themeController = {
-  storageKey: "canned-remarks-theme",
-  themes: ["light", "dark", "sepia", "forest", "blossom"],
+  themes: ["light", "dark", "system"],
 
   getInitialTheme() {
-    try {
-      const savedTheme = window.localStorage.getItem(this.storageKey);
-      if (this.themes.includes(savedTheme)) return savedTheme;
-      if (activePage === "med-tabs") {
-        const legacyMedTabsTheme = window.localStorage.getItem("med-tabs-theme");
-        if (this.themes.includes(legacyMedTabsTheme)) return legacyMedTabsTheme;
-      }
-    } catch (error) {
-      // Themes still work when browser storage is unavailable.
-    }
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    const savedTheme = window.PackardSettings?.getSetting("theme");
+    return this.themes.includes(savedTheme) ? savedTheme : "system";
   },
 
   apply(theme, persist = false) {
-    const selectedTheme = this.themes.includes(theme) ? theme : "light";
-    document.documentElement.dataset.theme = selectedTheme;
+    const selectedTheme = this.themes.includes(theme) ? theme : "system";
+    if (persist) window.PackardSettings?.setSetting("theme", selectedTheme);
+    else window.PackardSettings?.applyPreferences();
     document.querySelectorAll("[data-theme-option]").forEach((option) => {
       const isActive = option.dataset.themeOption === selectedTheme;
       option.setAttribute("aria-checked", String(isActive));
       option.tabIndex = isActive ? 0 : -1;
     });
-    if (persist) {
-      try {
-        window.localStorage.setItem(this.storageKey, selectedTheme);
-        if (activePage === "med-tabs") {
-          window.localStorage.setItem("med-tabs-theme", selectedTheme);
-        }
-      } catch (error) {
-        // Ignore storage failures without interrupting the UI.
-      }
-    }
   },
 
   open() {
@@ -168,6 +149,7 @@ const themeController = {
         this.close(true);
       }
     });
+    window.addEventListener("packardsettingschange", () => this.apply(this.getInitialTheme()));
   }
 };
 

@@ -359,9 +359,7 @@ svg { display: block; }
 
 .swatch-light { background: #f3f5f8; }
 .swatch-dark { background: #151c29; }
-.swatch-sepia { background: #d9bd91; }
-.swatch-forest { background: #4f8664; }
-.swatch-blossom { background: #c77bda; }
+.swatch-system { background: linear-gradient(135deg, #f3f5f8 50%, #151c29 50%); }
 
 .theme-check { opacity: 0; font-weight: 800; }
 .theme-option[aria-checked="true"] .theme-check { opacity: 1; }
@@ -745,6 +743,12 @@ textarea:focus-visible { border-color: var(--accent); background: var(--panel); 
 @keyframes drawer-in { from { transform: translateX(-100%); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(6px) scale(.98); } }
+
+:root[data-density="compact"] .app-shell { padding-top: 20px; padding-bottom: 32px; }
+:root[data-density="compact"] .workspace { gap: 16px; }
+:root[data-density="compact"] .panel { padding: 24px; }
+:root[data-density="compact"] .results-stack { gap: 7px; }
+:root[data-density="compact"] .provider-summary { padding-block: 5px; }
 
 @media (max-width: 1080px) {
   .workspace { grid-template-columns: 1fr; }

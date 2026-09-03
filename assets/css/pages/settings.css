@@ -1,0 +1,52 @@
+.settings-page { max-width: 1040px; }
+.settings-stack { display: grid; gap: 18px; }
+.settings-card { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 21px; background: var(--panel); box-shadow: var(--shadow); }
+.settings-card-header { padding: 26px 28px 18px; }
+.settings-card-header h2 { margin-top: 5px; color: var(--text); font-size: 1.25rem; letter-spacing: -0.015em; }
+.settings-card-header > p:last-child { margin-top: 6px; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+.settings-eyebrow { color: var(--accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
+.setting-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 20px 28px 26px; }
+.setting-copy { min-width: 0; }
+.setting-copy h3, .setting-copy label { display: block; color: var(--text); font-size: 0.95rem; font-weight: 750; }
+.setting-copy p { margin-top: 5px; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.settings-divider { height: 1px; margin: 0 28px; background: var(--border-subtle); }
+.setting-choice-group { display: inline-grid; grid-auto-flow: column; flex: 0 0 auto; padding: 4px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface-inset); }
+.setting-choice-group button { min-height: 36px; padding: 7px 12px; border-radius: 9px; background: transparent; color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+.setting-choice-group button:hover { color: var(--text); }
+.setting-choice-group button.active { background: var(--panel); color: var(--accent); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1); }
+.settings-toggle { position: relative; width: 48px; height: 28px; flex: 0 0 auto; padding: 3px; border-radius: 999px; background: var(--disabled, #aeb8c5); }
+.settings-toggle span { display: block; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(15, 23, 42, 0.22); transition: transform 160ms ease; }
+.settings-toggle[aria-checked="true"] { background: var(--accent); }
+.settings-toggle[aria-checked="true"] span { transform: translateX(20px); }
+.settings-form { display: grid; gap: 14px; padding: 22px 28px 26px; }
+.settings-form textarea, .settings-form input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; outline: none; background: var(--surface-inset); color: var(--text); font: inherit; line-height: 1.5; }
+.settings-form textarea { min-height: 140px; resize: vertical; }
+.settings-form input { min-height: 46px; }
+.settings-form textarea:focus, .settings-form input:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
+.resource-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.configuration-state { padding: 6px 9px; border-radius: 999px; background: var(--surface-inset); color: var(--muted); font-size: 0.7rem; font-weight: 750; white-space: nowrap; }
+.configuration-state.configured { background: var(--accent-soft); color: var(--accent); }
+.settings-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.save-status { flex: 1; color: var(--muted); font-size: 0.78rem; }
+.save-status.error { color: #bd3444; }
+.settings-save-button { min-height: 40px; padding: 9px 14px; border-radius: 11px; background: var(--accent); color: #fff; font-size: 0.82rem; font-weight: 700; }
+.settings-save-button:hover { background: var(--accent-strong); }
+.settings-disabled-button { min-height: 40px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--border); border-radius: 11px; background: var(--surface-inset); color: var(--muted); font-size: 0.78rem; font-weight: 700; }
+:root[data-density="compact"] .settings-stack { gap: 12px; }
+:root[data-density="compact"] .settings-card-header { padding: 20px 24px 14px; }
+:root[data-density="compact"] .setting-row, :root[data-density="compact"] .settings-form { padding: 16px 24px 19px; }
+
+@media (max-width: 720px) {
+  .setting-row { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .setting-choice-group { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
+  .settings-toggle { align-self: flex-start; }
+}
+
+@media (max-width: 520px) {
+  .settings-card-header, .setting-row, .settings-form { padding-left: 20px; padding-right: 20px; }
+  .settings-divider { margin-inline: 20px; }
+  .resource-input-row { grid-template-columns: 1fr; }
+  .configuration-state { justify-self: start; }
+  .settings-form-actions { align-items: stretch; flex-direction: column; }
+  .settings-save-button { width: 100%; }
+}

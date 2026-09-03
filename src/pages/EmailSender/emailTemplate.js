@@ -114,7 +114,7 @@ export function buildWelcomeEmail(caseManager, emailSignature, template, languag
   const selectedTemplate = template || DEFAULT_EMAIL_TEMPLATES[language] || DEFAULT_EMAIL_TEMPLATES.english;
   const body = renderTemplate(selectedTemplate.body, caseManager, language).trim();
   const signature = emailSignature
-    ? `- ${emailSignature.name}\n${emailSignature.position}\n${emailSignature.phone}`
+    ? `- ${emailSignature.text || [emailSignature.name, emailSignature.position, emailSignature.phone].filter(Boolean).join("\n")}`
     : "";
   return `${body}${signature ? `\n\n${signature}` : ""}`;
 }

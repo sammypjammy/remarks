@@ -5,21 +5,136 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f3f5f8" />
     <link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon.png" />
+    <link rel="apple-touch-icon" href="../assets/images/favicon.png" />
     <title>Settings | Packard Toolkit</title>
     <link rel="stylesheet" href="../assets/css/style.css" />
+    <link rel="stylesheet" href="../assets/css/pages/settings.css" />
   </head>
   <body data-page="settings">
     <div data-app-header></div>
     <div data-app-menu></div>
-    <main class="app-shell">
+
+    <main class="app-shell settings-page">
       <section class="page-intro" aria-labelledby="pageTitle">
         <h1 id="pageTitle">Settings</h1>
-        <p class="subtitle">Shared Packard Toolkit settings will live here later.</p>
+        <p class="subtitle">Manage preferences shared across the Packard Toolkit.</p>
       </section>
-      <section class="panel placeholder-panel" aria-label="Settings status">
-        <p>This route is ready. Toolkit-wide settings have not been added yet.</p>
-      </section>
+
+      <div class="settings-stack">
+        <section class="settings-card" aria-labelledby="appearanceTitle">
+          <div class="settings-card-header">
+            <p class="settings-eyebrow">Toolkit</p>
+            <h2 id="appearanceTitle">Appearance</h2>
+            <p>Choose how every Toolkit page looks and how much information fits on screen.</p>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>Theme</h3>
+              <p>System follows your browser or operating system preference.</p>
+            </div>
+            <div class="setting-choice-group" role="radiogroup" aria-label="Global theme">
+              <button type="button" role="radio" data-setting-option="theme" data-value="light">Light</button>
+              <button type="button" role="radio" data-setting-option="theme" data-value="dark">Dark</button>
+              <button type="button" role="radio" data-setting-option="theme" data-value="system">System</button>
+            </div>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>View mode</h3>
+              <p>Compact reduces spacing while keeping forms and text comfortable to use.</p>
+            </div>
+            <div class="setting-choice-group" role="radiogroup" aria-label="Toolkit view mode">
+              <button type="button" role="radio" data-setting-option="density" data-value="comfortable">Comfortable</button>
+              <button type="button" role="radio" data-setting-option="density" data-value="compact">Compact</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="settings-card" aria-labelledby="emailSettingsTitle">
+          <div class="settings-card-header">
+            <p class="settings-eyebrow">Tool</p>
+            <h2 id="emailSettingsTitle">Email Sender</h2>
+            <p>Control Outlook draft behavior and the signature added to generated emails.</p>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>Open generated Outlook draft in a new tab</h3>
+              <p>Keeps the Toolkit open while Microsoft sign-in and Outlook load.</p>
+            </div>
+            <button id="openDraftsToggle" class="settings-toggle" type="button" role="switch" aria-checked="true" aria-label="Open generated Outlook draft in a new tab"><span></span></button>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <form id="signatureForm" class="settings-form" data-settings-anchor="email-signature">
+            <span id="email-signature" class="settings-anchor" aria-hidden="true"></span>
+            <div class="setting-copy">
+              <label for="emailSignature">Email signature</label>
+              <p>Enter the signature exactly as it should appear after “Thank you,” in generated welcome emails.</p>
+            </div>
+            <textarea id="emailSignature" rows="6" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
+            <div class="settings-form-actions">
+              <span id="signatureStatus" class="save-status" role="status" aria-live="polite"></span>
+              <button class="settings-save-button" type="submit">Save signature</button>
+            </div>
+          </form>
+
+          <div class="settings-divider"></div>
+
+          <form id="resourcesForm" class="settings-form">
+            <div class="setting-copy">
+              <label for="emailResourcesUrl">Email Resources</label>
+              <p>Optional future folder link for shared email templates and welcome packets.</p>
+            </div>
+            <div class="resource-input-row">
+              <input id="emailResourcesUrl" type="url" inputmode="url" placeholder="Not configured" autocomplete="url" />
+              <span id="resourcesState" class="configuration-state">Not configured</span>
+            </div>
+            <div class="settings-form-actions">
+              <span id="resourcesStatus" class="save-status" role="status" aria-live="polite"></span>
+              <button class="settings-save-button" type="submit">Save link</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="settings-card" aria-labelledby="medTabsSettingsTitle">
+          <div class="settings-card-header">
+            <p class="settings-eyebrow">Tool</p>
+            <h2 id="medTabsSettingsTitle">Med Tabs</h2>
+          </div>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>Confirm before clearing Med Tabs</h3>
+              <p>Ask before removing intake text and generated provider tabs.</p>
+            </div>
+            <button id="confirmMedTabsToggle" class="settings-toggle" type="button" role="switch" aria-checked="true" aria-label="Confirm before clearing Med Tabs"><span></span></button>
+          </div>
+        </section>
+
+        <section class="settings-card" aria-labelledby="remarksSettingsTitle">
+          <div class="settings-card-header">
+            <p class="settings-eyebrow">Tool</p>
+            <h2 id="remarksSettingsTitle">Remarks</h2>
+            <p>Custom remarks will be managed here in a future update.</p>
+          </div>
+          <div class="setting-row">
+            <div class="setting-copy">
+              <h3>Add custom remark</h3>
+              <p>Create reusable remarks alongside the built-in collection.</p>
+            </div>
+            <button class="settings-disabled-button" type="button" disabled>Coming soon</button>
+          </div>
+        </section>
+      </div>
     </main>
+
+    <script src="../assets/js/shared/settings-storage.js"></script>
     <script src="../assets/js/shared/app-shell.js"></script>
+    <script src="../assets/js/pages/settings.js"></script>
   </body>
 </html>

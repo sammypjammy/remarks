@@ -6,8 +6,6 @@ import { createOutlookDraft, getOutlookErrorMessage } from "./outlookGraph.js";
 import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "./settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
-const THEME_STORAGE_KEY = "packard-welcome-email-theme";
-const TOOLKIT_THEME_STORAGE_KEY = "canned-remarks-theme";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
@@ -36,9 +34,7 @@ function getToolkitNavigation(isSettingsPage) {
 const themes = [
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
-  { id: "sepia", label: "Sepia" },
-  { id: "forest", label: "Forest" },
-  { id: "blossom", label: "Blossom" },
+  { id: "system", label: "System" },
 ];
 
 async function copyToClipboard(text) {
@@ -99,14 +95,8 @@ function getSavedManager() {
 }
 
 function getSavedTheme() {
-  try {
-    const toolkitTheme = localStorage.getItem(TOOLKIT_THEME_STORAGE_KEY);
-    if (themes.some(({ id }) => id === toolkitTheme)) return toolkitTheme;
-    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    return themes.some(({ id }) => id === savedTheme) ? savedTheme : "light";
-  } catch {
-    return "light";
-  }
+  const savedTheme = getSetting("theme");
+  return themes.some(({ id }) => id === savedTheme) ? savedTheme : "system";
 }
 
 function getSavedLanguage() {
@@ -138,6 +128,7 @@ export default function App() {
   const [copyStatus, setCopyStatus] = useState("");
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
+  const [emailSignature, setEmailSignature] = useState(getEmailSignature);
   const draftRequestInProgressRef = useRef(false);
   const emailInputRef = useRef(null);
   const appMenuToggleRef = useRef(null);
@@ -152,7 +143,6 @@ export default function App() {
     ...Object.fromEntries(customCaseManagers.map((caseManager) => [caseManager.fullName, caseManager])),
   }), [customCaseManagers]);
   const emailTemplates = useMemo(() => mergeEmailTemplates(getEmailTemplates()), []);
-  const emailSignature = useMemo(getEmailSignature, []);
   const manager = allCaseManagers[selectedManager];
   const selectedTemplate = emailTemplates[language];
   const emailSubject = useMemo(
@@ -182,14 +172,13 @@ export default function App() {
   }, [selectedManager]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem(THEME_STORAGE_KEY, theme);
-      localStorage.setItem(TOOLKIT_THEME_STORAGE_KEY, theme);
-    } catch {
-      // The theme still applies if browser storage is unavailable.
-    }
-  }, [theme]);
+    const syncSettings = () => {
+      setTheme(getSavedTheme());
+      setEmailSignature(getEmailSignature());
+    };
+    window.addEventListener("packardsettingschange", syncSettings);
+    return () => window.removeEventListener("packardsettingschange", syncSettings);
+  }, []);
 
   useEffect(() => {
     try {
@@ -453,6 +442,7 @@ export default function App() {
                     key={option.id}
                     onClick={() => {
                       setTheme(option.id);
+                      window.PackardSettings.setSetting("theme", option.id);
                       setIsThemeMenuOpen(false);
                     }}
                   >
