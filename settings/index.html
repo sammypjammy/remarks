@@ -78,15 +78,17 @@
 
           <form id="signatureForm" class="settings-form signature-form" data-settings-anchor="email-signature">
             <span id="email-signature" class="settings-anchor" aria-hidden="true"></span>
+            <div class="settings-form-side">
             <div class="setting-copy">
               <label for="emailSignature">Email signature</label>
               <p>Enter the signature exactly as it should appear after “Thank you,” in generated welcome emails.</p>
             </div>
-            <textarea id="emailSignature" rows="3" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
             <div class="settings-form-actions">
-              <span id="signatureStatus" class="save-status" role="status" aria-live="polite"></span>
               <button class="settings-save-button" type="submit">Save signature</button>
+              <span id="signatureStatus" class="save-status" role="status" aria-live="polite"></span>
             </div>
+            </div>
+            <textarea id="emailSignature" rows="3" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
           </form>
 
           <div class="settings-divider"></div>
@@ -129,12 +131,15 @@
             <h2 id="remarksSettingsTitle">Remarks</h2>
             <p>Custom remarks will be managed here in a future update.</p>
           </div>
-          <div class="setting-row">
-            <div class="setting-copy">
+          <div class="setting-row custom-remark-layout">
+            <div class="settings-form-side">
+              <div class="setting-copy">
               <h3>Add custom remark</h3>
               <p>Create reusable remarks alongside the built-in collection.</p>
+              </div>
+              <button class="settings-disabled-button" type="button" disabled>Coming soon</button>
             </div>
-            <button class="settings-disabled-button" type="button" disabled>Coming soon</button>
+            <textarea class="settings-disabled-editor" rows="3" placeholder="Custom remark editor coming soon" aria-label="Custom remark editor coming soon" disabled></textarea>
           </div>
         </section>
       </div>
