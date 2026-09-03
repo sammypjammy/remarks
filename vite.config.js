@@ -27,7 +27,7 @@ export default defineConfig({
         mkdirSync(resolve(outputDirectory, "assets"), { recursive: true });
         mkdirSync(resolve(outputDirectory, "pages"), { recursive: true });
         cpSync(resolve(import.meta.dirname, "assets"), resolve(outputDirectory, "assets"), { recursive: true });
-        cpSync(resolve(import.meta.dirname, "pages/remarks.html"), resolve(outputDirectory, "pages/remarks.html"));
+        cpSync(resolve(import.meta.dirname, "pages/canned-remarks.html"), resolve(outputDirectory, "pages/canned-remarks.html"));
       }
     }
   ],
@@ -35,9 +35,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         home: resolve(import.meta.dirname, "index.html"),
-        remarks: resolve(import.meta.dirname, "remarks/index.html"),
-        medTabs: resolve(import.meta.dirname, "med-tabs/index.html"),
-        email: resolve(import.meta.dirname, "email/index.html"),
+        cannedRemarks: resolve(import.meta.dirname, "canned-remarks/index.html"),
+        medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
+        welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),
         settings: resolve(import.meta.dirname, "settings/index.html"),
         authCallback: resolve(import.meta.dirname, "auth/callback.html")
       }

@@ -2,9 +2,9 @@ const activePage = document.body.dataset.page || "home";
 const routePrefix = activePage === "home" ? "./" : "../";
 const routes = {
   home: routePrefix,
-  remarks: `${routePrefix}remarks/`,
-  medTabs: `${routePrefix}med-tabs/`,
-  email: `${routePrefix}email/`,
+  remarks: `${routePrefix}canned-remarks/`,
+  medTabs: `${routePrefix}med-tabs-generator/`,
+  email: `${routePrefix}welcome-email-sender/`,
   settings: `${routePrefix}settings/`
 };
 

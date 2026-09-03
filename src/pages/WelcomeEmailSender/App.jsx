@@ -19,9 +19,9 @@ function getToolkitNavigation(isSettingsPage) {
     label: "Packard Toolkit",
     items: [
       { id: "home", label: "Home", href: "/" },
-      { id: "med-tabs", label: "Med Tabs", href: "/med-tabs/" },
-      { id: "remarks", label: "Canned Remarks", href: "/remarks/" },
-      { id: "email", label: "Welcome Emails", href: "/email/", current: !isSettingsPage },
+      { id: "med-tabs", label: "Med Tabs", href: "/med-tabs-generator/" },
+      { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
+      { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
       { id: "fax", label: "Fax Sender", status: "Coming soon" },
     ],
   },

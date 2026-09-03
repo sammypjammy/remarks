@@ -35,6 +35,6 @@ export function getManagerAttachments(managerName, language = "english") {
   const languageAttachments = outlookConfig.attachmentsByLanguage[language] || {};
   return (languageAttachments[managerName] || []).map((fileName) => ({
     name: fileName,
-    path: `/email/attachments/${encodeURIComponent(fileName)}`,
+    path: `/welcome-email-sender/attachments/${encodeURIComponent(fileName)}`,
   }));
 }
