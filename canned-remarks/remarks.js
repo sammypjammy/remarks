@@ -1,7 +1,7 @@
 /*
  * Remarks Builder page logic.
  *
- * App-wide navigation and theme behavior live in ../shared/app-shell.js so
+ * App-wide navigation and theme behavior live in ../settings/shared/app-shell.js so
  * this file can stay focused on the existing Remarks Builder functionality.
  */
 

@@ -2,7 +2,11 @@
   "rewrites": [
     {
       "source": "/auth/callback",
-      "destination": "/auth/callback.html"
+      "destination": "/welcome-email-sender/callback.html"
+    },
+    {
+      "source": "/auth/callback.html",
+      "destination": "/welcome-email-sender/callback.html"
     }
   ],
   "headers": [

@@ -3,7 +3,7 @@ import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
 import { createOutlookDraft, getOutlookErrorMessage } from "./outlookGraph.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "./settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";

@@ -1,6 +1,6 @@
 /*
  * Med Tabs page behavior migrated from the standalone generator.
- * Shared Toolkit navigation and theme behavior live in ../../shared/app-shell.js.
+ * Shared Toolkit navigation and theme behavior live in ../settings/shared/app-shell.js.
  */
 
 const ui = {

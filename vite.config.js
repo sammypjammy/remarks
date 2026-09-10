@@ -5,8 +5,8 @@ import react from "@vitejs/plugin-react";
 
 function authCallbackRoute(server) {
   server.middlewares.use((request, _response, next) => {
-    if (request.url?.split("?")[0] === "/auth/callback") {
-      request.url = "/auth/callback.html";
+    if (["/auth/callback", "/auth/callback.html"].includes(request.url?.split("?")[0])) {
+      request.url = request.url.replace(/^\/auth\/callback(?:\.html)?/, "/welcome-email-sender/callback.html");
     }
     next();
   });
@@ -24,10 +24,17 @@ export default defineConfig({
       name: "copy-static-toolkit-files",
       closeBundle() {
         const outputDirectory = resolve(import.meta.dirname, "dist");
-        mkdirSync(resolve(outputDirectory, "assets"), { recursive: true });
-        mkdirSync(resolve(outputDirectory, "pages"), { recursive: true });
-        cpSync(resolve(import.meta.dirname, "assets"), resolve(outputDirectory, "assets"), { recursive: true });
-        cpSync(resolve(import.meta.dirname, "pages/canned-remarks.html"), resolve(outputDirectory, "pages/canned-remarks.html"));
+        const staticPaths = [
+          "settings/shared", "settings/settings.js", "home.js",
+          "canned-remarks/remarks.js", "med-tabs-generator/parser.js",
+          "med-tabs-generator/index.js", "welcome-email-sender/attachments",
+          "pages/canned-remarks.html"
+        ];
+        for (const path of staticPaths) {
+          const destination = resolve(outputDirectory, path);
+          mkdirSync(resolve(destination, ".."), { recursive: true });
+          cpSync(resolve(import.meta.dirname, path), destination, { recursive: true });
+        }
       }
     }
   ],
@@ -39,7 +46,7 @@ export default defineConfig({
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
         welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),
         settings: resolve(import.meta.dirname, "settings/index.html"),
-        authCallback: resolve(import.meta.dirname, "auth/callback.html")
+        authCallback: resolve(import.meta.dirname, "welcome-email-sender/callback.html")
       }
     }
   }
