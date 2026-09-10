@@ -252,6 +252,7 @@ a.tool-card:hover { z-index: 1; border-color: var(--accent-line); background: va
 .modal-content { padding: 20px; }
 .modal-form { display: grid; gap: 16px; }
 .field { display: grid; gap: 8px; }
+.field[hidden] { display: none; }
 .field label { color: var(--text); font-size: 0.9rem; font-weight: 700; }
 .field input, .field textarea, .field select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; resize: vertical; background: var(--surface-inset); color: var(--text); }
 .field textarea { min-height: 110px; }

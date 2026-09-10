@@ -6,7 +6,12 @@
  */
 
 
+function trimRemarkWhitespace(text) {
+  return text.replace(/[^\S\r\n]+$/gm, "").trim();
+}
+
 async function copyTextToClipboard(text) {
+  text = trimRemarkWhitespace(text);
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
@@ -161,6 +166,7 @@ My doctors also prescribed medications I am currently taking.`,
     group: "795 Remarks",
     title: "795 Dire Need - Homeless or Transient",
     text: "The claimant is currently transient or homeless. They have been transient or homeless since {{date}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
+    omitWhenBlank: [{ key: "date", text: " They have been transient or homeless since {{date}}." }],
     fields: [{ key: "date", label: "Homeless or transient since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
@@ -222,6 +228,10 @@ My doctors also prescribed medications I am currently taking.`,
     group: "Things to Notate in Remarks",
     title: "Separated but Still Married",
     text: "The claimant is separated but technically still married to their spouse. They have been separated since {{date}} and have not shared any resources or assets since then.",
+    omitWhenBlank: [
+      { key: "date", text: " since {{date}}" },
+      { key: "date", text: " since then" }
+    ],
     fields: [{ key: "date", label: "Separated since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
@@ -236,6 +246,10 @@ My doctors also prescribed medications I am currently taking.`,
     group: "Things to Notate in Remarks",
     title: "Failed Work Attempt",
     text: "The claimant has a Failed Work Attempt from {{startDate}} to {{endDate}}.",
+    omitWhenBlank: [
+      { key: "startDate", text: " from {{startDate}}" },
+      { key: "endDate", text: " to {{endDate}}" }
+    ],
     fields: [
       { key: "startDate", label: "Start date", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true },
       { key: "endDate", label: "End date", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }
@@ -247,7 +261,19 @@ My doctors also prescribed medications I am currently taking.`,
     title: "Money Received after Onset Date",
     text: "The claimant received money from {{source}} after the onset date in the amount of ${{amount}} per month.",
     fields: [
-      { key: "source", label: "Where did the money come from?", type: "text", placeholder: "Enter the source of the money", required: true },
+      {
+        key: "source", label: "Where did the money come from?", type: "select", placeholder: "Choose a money source", required: true,
+        options: [
+          "Part-time Work",
+          "Short Term Disability Benefits",
+          "Long Term Disability Benefits",
+          "Workers' Compensation",
+          "VA Disability Benefits",
+          "Early Retirement Benefits",
+          "Other"
+        ].map((label) => ({ value: label, label })),
+        otherOption: "Other"
+      },
       { key: "amount", label: "How much money was received?", type: "text", placeholder: "e.g. $1,000", required: true }
     ]
   },
@@ -268,6 +294,7 @@ const application795Remarks = [
     id: "795-dire-need",
     title: "795 Dire Need - Homeless or Transient",
     text: "The claimant is currently transient or homeless. They have been transient or homeless since {{date}}. We are respectfully requesting Critical Claim status and Expedited Processing.",
+    omitWhenBlank: [{ key: "date", text: " They have been transient or homeless since {{date}}." }],
     fields: [{ key: "date", label: "Homeless or transient since", type: "text", format: "numericMonth", placeholder: "MM/YYYY", inputMode: "numeric", maxLength: 7, pattern: "(?:0[1-9]|1[0-2])/[0-9]{4}", required: true }]
   },
   {
@@ -769,14 +796,14 @@ function openRemarkModal(remark) {
 
     const label = document.createElement("label");
     label.setAttribute("for", `field-${field.key}`);
-    label.textContent = field.label;
+    label.textContent = isDateField(field) ? `${field.label} (optional)` : field.label;
 
     const input = document.createElement(
       field.type === "textarea" ? "textarea" : field.type === "select" ? "select" : "input"
     );
     input.id = `field-${field.key}`;
     input.name = field.key;
-    input.required = Boolean(field.required);
+    input.required = Boolean(field.required) && !isDateField(field);
 
     if (field.type === "select") {
       const placeholderOption = document.createElement("option");
@@ -805,7 +832,17 @@ function openRemarkModal(remark) {
     }
 
     const dataKey = field.key;
+    let otherInput;
     input.addEventListener("input", () => {
+      if (otherInput) {
+        const isOther = input.value === field.otherOption;
+        otherInput.parentElement.hidden = !isOther;
+        otherInput.disabled = !isOther;
+        otherInput.required = isOther;
+        modalValues[dataKey] = isOther ? otherInput.value.trim() : input.value;
+        updatePreview();
+        return;
+      }
       const formattedValue = formatFieldValue(field, input.value);
       if (field.format === "numericMonth") input.value = formattedValue;
       modalValues[dataKey] = formattedValue;
@@ -821,13 +858,36 @@ function openRemarkModal(remark) {
 
     wrapper.append(label, input);
 
-    const shortTermValue = shortTermInput?.value.trim() || "";
+    if (field.otherOption) {
+      const otherWrapper = document.createElement("div");
+      otherWrapper.className = "field";
+      otherWrapper.hidden = true;
+      const otherLabel = document.createElement("label");
+      otherLabel.htmlFor = `field-${field.key}-other`;
+      otherLabel.textContent = "Other money source";
+      otherInput = document.createElement("input");
+      otherInput.type = "text";
+      otherInput.id = otherLabel.htmlFor;
+      otherInput.name = `${field.key}-other`;
+      otherInput.placeholder = "Enter the source of the money";
+      otherInput.disabled = true;
+      otherInput.addEventListener("input", () => {
+        const value = otherInput.value.trim();
+        otherInput.setCustomValidity(value ? "" : "Enter the source of the money.");
+        modalValues[dataKey] = value;
+        updatePreview();
+      });
+      otherWrapper.append(otherLabel, otherInput);
+      wrapper.appendChild(otherWrapper);
+    }
+
+    const shortTermValue = trimRemarkWhitespace(shortTermInput?.value || "");
     const acceptsConditionList = field.key === "condition" || field.key === "conditions";
     if (acceptsConditionList && shortTermValue) {
       const reuseButton = document.createElement("button");
       reuseButton.type = "button";
       reuseButton.className = "autofill-button";
-      reuseButton.textContent = "Use short-term condition list";
+      reuseButton.textContent = "Use short term remark";
       reuseButton.addEventListener("click", () => {
         input.value = shortTermValue;
         input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -885,15 +945,29 @@ function updatePreview() {
     return;
   }
 
-  const generatedText = replacePlaceholders(activeRemark.text, modalValues);
+  const generatedText = generateRemarkText(activeRemark, modalValues);
   previewBox.innerHTML = `<strong>Preview</strong>${escapeHtml(generatedText)}`;
+}
+
+function isDateField(field) {
+  return field.format === "numericMonth" || field.type === "date" || field.type === "month";
+}
+
+function generateRemarkText(remark, values) {
+  let template = remark.text;
+  for (const phrase of remark.omitWhenBlank || []) {
+    if (!(values[phrase.key] || "").trim()) {
+      template = template.replace(phrase.text, "");
+    }
+  }
+  return replacePlaceholders(template, values);
 }
 
 function replacePlaceholders(template, values) {
   // Placeholders like {{name}} are replaced with the values entered in the popup.
   return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => {
     const value = values[key] ?? "";
-    return value;
+    return trimRemarkWhitespace(value);
   });
 }
 
@@ -935,7 +1009,7 @@ function copyFromModal() {
   const form = modalContent.querySelector("form");
   if (form && !form.reportValidity()) return;
 
-  const errors = activeRemark.fields.filter((field) => field.required && !(modalValues[field.key] || "").trim());
+  const errors = activeRemark.fields.filter((field) => field.required && !isDateField(field) && !(modalValues[field.key] || "").trim());
 
   if (errors.length > 0) {
     const firstMissingField = document.getElementById(`field-${errors[0].key}`);
@@ -945,7 +1019,7 @@ function copyFromModal() {
     return;
   }
 
-  const finalText = replacePlaceholders(activeRemark.text, modalValues);
+  const finalText = generateRemarkText(activeRemark, modalValues);
   copyRemarkText(finalText, activeRemark.title);
   closeModal();
 }
