@@ -259,12 +259,12 @@ My doctors also prescribed medications I am currently taking.`,
     id: "filing-money-after-onset",
     group: "Things to Notate in Remarks",
     title: "Money Received after Onset Date",
-    text: "The claimant received money from {{source}} after the onset date in the amount of ${{amount}} per month.",
+    text: "The claimant received {{source}} after the onset date in the amount of ${{amount}} per month.",
     fields: [
       {
         key: "source", label: "Where did the money come from?", type: "select", placeholder: "Choose a money source", required: true,
         options: [
-          "Part-time Work",
+          "Part-time Income",
           "Short Term Disability Benefits",
           "Long Term Disability Benefits",
           "Workers' Compensation",
@@ -275,6 +275,17 @@ My doctors also prescribed medications I am currently taking.`,
         otherOption: "Other"
       },
       { key: "amount", label: "How much money was received?", type: "text", placeholder: "e.g. $1,000", required: true }
+    ]
+  },
+  {
+    id: "filing-clerical-error",
+    group: "Things to Notate in Remarks",
+    title: "Clerical Error Correction",
+    text: "Due to clerical error, the original application incorrectly listed {{incorrectInformation}} as {{originalEntry}}. The correct information is {{correctInformation}}. This filing reflects the corrected information.",
+    fields: [
+      { key: "incorrectInformation", label: "Incorrect information", type: "text", placeholder: "Enter the information that was incorrectly listed", required: true },
+      { key: "originalEntry", label: "Original entry", type: "text", placeholder: "Enter the original incorrect entry", required: true },
+      { key: "correctInformation", label: "Correct information", type: "textarea", placeholder: "Enter the corrected information", required: true }
     ]
   },
   {
