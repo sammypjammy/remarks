@@ -5,6 +5,7 @@ const routes = {
   remarks: `${routePrefix}canned-remarks/`,
   medTabs: `${routePrefix}med-tabs-generator/`,
   email: `${routePrefix}welcome-email-sender/`,
+  fax: `${routePrefix}fax-sender/`,
   settings: `${routePrefix}settings/`
 };
 
@@ -78,7 +79,7 @@ const toolkitNavigationConfig = [
       { id: "med-tabs", label: "Med Tabs", url: routes.medTabs },
       { id: "remarks", label: "Canned Remarks", url: routes.remarks },
       { id: "email", label: "Welcome Emails", url: routes.email },
-      { label: "Fax Sender", disabledLabel: "Coming soon" }
+      { id: "fax", label: "Fax Sender", url: routes.fax }
     ]
   },
   {

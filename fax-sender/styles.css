@@ -1,0 +1,9 @@
+.fax-panel { max-width: 720px; }
+.fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.fax-panel label { color: var(--text); font-weight: 700; }
+.fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
+.fax-panel button { justify-self: start; }
+.fax-panel p { line-height: 1.5; }
+.fax-panel label:not(:first-child), .fax-note { margin-top: 16px; }
+#faxResult { margin-top: 20px; overflow-wrap: anywhere; color: var(--text); }
+#validation, #faxResult[data-error="true"] { color: var(--danger); }

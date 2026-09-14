@@ -1,7 +1,25 @@
 import { resolve } from "node:path";
 import { cpSync, mkdirSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import sendFax from "./api/send-fax.js";
+
+function localFaxApi(server) {
+  // Server process only. Existing process variables take precedence, then root .env.local.
+  const env = {
+    ...loadEnv(server.config.mode, resolve(import.meta.dirname, "fax-sender"), "RC_"),
+    ...loadEnv(server.config.mode, import.meta.dirname, "RC_")
+  };
+  for (const key of ["RC_CLIENT_ID", "RC_CLIENT_SECRET", "RC_USER_JWT"]) {
+    if (!process.env[key] && env[key]) process.env[key] = env[key];
+  }
+  server.middlewares.use((req, res, next) => {
+    if (!["/api/send-fax", "/api/send-fax.js"].includes(req.url?.split("?")[0])) return next();
+    res.status = code => { res.statusCode = code; return res; };
+    res.json = data => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(data)); };
+    return sendFax(req, res);
+  });
+}
 
 function authCallbackRoute(server) {
   server.middlewares.use((request, _response, next) => {
@@ -15,6 +33,7 @@ function authCallbackRoute(server) {
 export default defineConfig({
   plugins: [
     react(),
+    { name: "local-fax-api", configureServer: localFaxApi },
     {
       name: "auth-callback-route",
       configureServer: authCallbackRoute,
@@ -42,6 +61,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         home: resolve(import.meta.dirname, "index.html"),
+        faxSender: resolve(import.meta.dirname, "fax-sender/index.html"),
         cannedRemarks: resolve(import.meta.dirname, "canned-remarks/index.html"),
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
         welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="../settings/shared/favicon.png" />
+    <title>Fax Sender | Packard Toolkit</title>
+    <link rel="stylesheet" href="../settings/shared/style.css" />
+    <link rel="stylesheet" href="../settings/shared/footer.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-page="fax">
+    <div data-app-header></div>
+    <div data-app-menu></div>
+    <main class="app-shell">
+      <section class="page-intro" aria-labelledby="pageTitle">
+        <h1 id="pageTitle">Fax Sender</h1>
+        <p class="subtitle">Send one PDF as one fax through RingCentral.</p>
+      </section>
+      <section class="panel fax-panel" aria-label="Send a fax">
+        <form id="faxForm">
+          <fieldset id="faxFields">
+            <label for="faxNumber">Destination fax number</label>
+            <input id="faxNumber" name="faxNumber" type="tel" placeholder="+18015551234" required aria-describedby="numberHelp" />
+            <p id="numberHelp">Include + and the country code (+1 for US numbers).</p>
+            <label for="pdfFile">PDF document</label>
+            <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" required aria-describedby="fileHelp" />
+            <p id="fileHelp">One PDF, up to 4 MB. No automatic cover page is added.</p>
+            <p id="validation" aria-live="polite"></p>
+            <button id="sendFax" class="primary-btn" type="submit" disabled>Send Fax</button>
+          </fieldset>
+        </form>
+        <p id="faxResult" role="status" aria-live="polite"></p>
+        <p class="fax-note">Acceptance is not delivery confirmation. Check the final delivery status in RingCentral.</p>
+      </section>
+    </main>
+    <div data-app-footer></div>
+    <script src="../settings/shared/settings-storage.js"></script>
+    <script src="../settings/shared/app-shell.js"></script>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

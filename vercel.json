@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/send-fax.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     {
       "source": "/auth/callback",

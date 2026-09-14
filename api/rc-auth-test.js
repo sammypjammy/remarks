@@ -1,4 +1,5 @@
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
   try {
     const clientId = process.env.RC_CLIENT_ID;
     const clientSecret = process.env.RC_CLIENT_SECRET;
@@ -36,12 +37,9 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("RingCentral auth failed:", data);
-
       return res.status(response.status).json({
         success: false,
-        error: data.error,
-        description: data.error_description,
+        error: "RingCentral authentication failed. Check the server credentials and JWT authorization.",
       });
     }
 
@@ -51,9 +49,7 @@ export default async function handler(req, res) {
       expiresIn: data.expires_in,
       scope: data.scope,
     });
-  } catch (error) {
-    console.error(error);
-
+  } catch {
     return res.status(500).json({
       success: false,
       error: "Unexpected server error",
