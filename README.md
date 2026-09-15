@@ -15,7 +15,7 @@ The tools use common files from `settings/shared/`. Dependencies and build confi
 ## Fax Sender
 
 `fax-sender/` supports selecting multiple PDFs and sends **each PDF as its own fax**
-to one LO fax number. `batch.js` manages the tab's document list and sequential queue;
+to one fax destination. `batch.js` manages the tab's document list and sequential queue;
 `main.js` renders the review, progress, per-document results, and retry controls.
 Each document calls the unchanged V1 `POST /api/send-fax` endpoint separately.
 The request is multipart/form-data with `faxNumber` and `file` fields. Numbers
@@ -24,17 +24,36 @@ PDFs must be nonempty, named `.pdf`, have a PDF header, and be at most 4,000,000
 RingCentral performs document conversion; use a readable, unencrypted PDF.
 The upload remains in server memory and is sent as one attachment with no automatic cover page.
 
-### RingCentral contact destinations (v.2.4)
+### Unified fax destination (v.2.5)
 
-Focus **Search RingCentral contacts** to load the JWT user's personal address book.
-Search by name, company, business city/state, or fax number. Select the labeled Business
-fax or Other fax button to fill the existing LO Fax Number field. You may instead type
-or edit that number manually. The batch's existing destination lock applies to both;
-Clear All unlocks selection for the next batch. Enter in the search field does not send
-faxes; Arrow Down moves to the first fax choice, and Tab navigates the other choices.
+Use **Fax Destination** to search by contact name, company, business city/state, or fax
+number. The dropdown overlays the form without moving the PDF list. A contact with one
+fax has a clickable row; multiple fax numbers share one heading with explicit Business
+fax / Other fax choices. Contact names (including any LO suffix) are unchanged.
+
+Manual numbers use the same control: type a number and select **Use fax number**.
+Ten-digit entries are offered with country code +1; eleven-digit entries starting with
+1 receive the + prefix. Other international entries require an explicit +country code.
+Extensions and incomplete numbers are not accepted. These are UI entry conveniences;
+the batch and API normalization are unchanged. +1 numbers display as (833) 555-1234;
+other E.164 values display unchanged.
+
+After selection, the field shows the contact name and formatted number (or just the
+manual number). The original `faxNumber` input is now hidden and remains the single
+normalized E.164 destination read by the batch. The X clears it before locking. After
+the first batch attempt, contact selection, manual selection, and X cannot change the
+destination. Clear All resets the batch and selector.
+
+Outside clicks, focus leaving the component, Escape, and selection close the dropdown.
+Arrow Down enters the choices; Up/Down move among them; Enter/Space activate focused
+buttons. Enter in the search input never sends a fax. The overlay has a bounded height
+and scrolls when needed. Long selected labels are truncated visually with full text
+available in the field's title.
 
 The page caches contacts only in memory and filters locally (no network request per
-keystroke). **Refresh contacts** explicitly reloads changes from RingCentral. Results
+keystroke). The adjacent refresh icon explicitly reloads changes from RingCentral;
+it spins while loading and disables repeated refresh clicks. Manual choices remain
+available during loading or failure. Results
 show at most 30 matching contacts at once; refine the search to find other matches.
 Contacts without a usable fax are shown without a selection button. No mobile/home/
 business phone field is ever substituted for a fax. Contact API errors leave manual
@@ -85,8 +104,8 @@ No credentials are passed to Vite's browser code. Never rename them with a `VITE
 Environment files remain gitignored. `npm run preview` serves static output only;
 use `npm run dev` or `npx vercel dev` to exercise the API.
 
-1. Check that Send is hidden with no ready documents and disabled with an invalid LO fax number.
-2. Enter a test fax number you control, including country code, and select several small PDFs.
+1. Check that Send is hidden with no ready documents and disabled without a selected fax destination.
+2. Select a contact or type a controlled test number and choose Use fax number, then select several small PDFs.
 3. Review the list. Add more PDFs, remove a document, or use Clear All before sending.
 4. Click **Send N Faxes** once. Each row moves from Ready to Submitting to Queued / Processing.
    Expect a separate message ID and initial RingCentral status for each submitted PDF.

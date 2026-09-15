@@ -1,10 +1,27 @@
 .fax-panel { max-width: 960px; }
-#contactResults { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow-y: auto; display: grid; gap: 8px; }
-#contactResults:empty { display: none; }
-#contactResults li { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); overflow-wrap: anywhere; }
-#contactResults strong { color: var(--text); }
-#contactResults button { margin: 8px 8px 0 0; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
-#reloadContacts[hidden] { display: none; }
+.destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 8px; }
+.destination-input-wrap { position: relative; min-width: 0; }
+.fax-panel #contactSearch { height: 48px; padding-right: 44px; text-overflow: ellipsis; }
+.destination-clear { position: absolute; top: 4px; right: 4px; width: 40px; height: 40px; background: transparent; color: var(--muted); border-radius: 8px; font-size: 1.4rem; }
+.destination-refresh { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
+.destination-refresh svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.destination-refresh.is-loading svg { animation: contacts-spin 1.1s linear infinite; }
+@keyframes contacts-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .destination-refresh.is-loading svg { animation: none; opacity: 0.5; } }
+.destination-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 56px; z-index: 30; max-height: min(320px, 50vh); overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow-menu); }
+#contactResults { list-style: none; padding: 4px; margin: 0; }
+#contactResults li + li { border-top: 1px solid var(--border-subtle); }
+.destination-option { width: 100%; min-height: 48px; display: flex; flex-direction: column; align-items: start; gap: 4px; padding: 10px 12px; border-radius: 7px; background: transparent; color: var(--text); text-align: left; overflow-wrap: anywhere; }
+.destination-option:hover, .destination-option:focus-visible, .destination-clear:hover, .destination-refresh:hover { background: var(--accent-soft); }
+.destination-option-name { font-weight: 650; }
+.destination-option-number { color: var(--muted); font-size: 0.9rem; }
+.destination-group-name { display: block; padding: 10px 12px 4px; color: var(--text); overflow-wrap: anywhere; }
+.destination-subchoice { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 12px; }
+.destination-subchoice .destination-option-name { font-weight: 400; font-size: 0.9rem; }
+.destination-empty { padding: 10px 12px; color: var(--muted); font-size: 0.85rem; }
+#contactMessage, #numberHelp { font-size: 0.85rem; }
+.destination-dropdown[hidden], .destination-clear[hidden], #contactMessage[hidden], #numberHelp[hidden], #faxNumber { display: none; }
+@media (max-width: 480px) { .destination-dropdown { right: 0; } }
 .fax-version-history { margin-top: 24px; scroll-margin-top: 90px; }
 .fax-version-history h2 { margin-bottom: 12px; color: var(--text); font-size: 1.1rem; }
 .fax-version-history summary { cursor: pointer; color: var(--text); }

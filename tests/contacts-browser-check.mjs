@@ -1,4 +1,4 @@
-// Real browser integration with local mocks. No RingCentral requests or real fax sends.
+﻿// Real browser integration with local mocks. No RingCentral requests or real fax sends.
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,67 +11,122 @@ if (!browser) throw new Error("Provide a Chromium browser executable path.");
 const directory = await mkdtemp(join(tmpdir(), "fax-contacts-browser-"));
 let html = await readFile(new URL("../fax-sender/index.html", import.meta.url), "utf8");
 html = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<link[^>]+>/g, "");
+const styles = await Promise.all(["../settings/shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
+html = html.replace("</head>", `<style>${styles.join("\n")}</style></head>`);
 const sources = await Promise.all(["tracking.js", "batch.js", "contacts.js", "main.js"].map(async file =>
   (await readFile(new URL(`../fax-sender/${file}`, import.meta.url), "utf8")).replace(/^\uFEFF/, "").replace(/^import .*;\r?\n/gm, "")));
 const script = `
 const fixtures = [
   { id: "1", name: "Albuquerque SSA", company: "Social Security", location: "Albuquerque, NM", faxNumbers: [{ label: "Business fax", number: "+18665551234" }, { label: "Other fax", number: "+18335555678" }] },
-  { id: "2", name: "No Fax SSA", company: "", location: "", faxNumbers: [] }
+  { id: "2", name: "No Fax SSA", company: "", location: "", faxNumbers: [] },
+  { id: "3", name: "San Antonio Downtown LO", company: "Social Security", location: "San Antonio, TX", faxNumbers: [{ label: "Business fax", number: "+18339502396" }] }
 ];
-let contactCalls = 0, failContacts = false;
+let contactCalls = 0, failContacts = false, releaseContacts = null, holdContacts = false;
 globalThis.fetch = async url => {
   if (url !== "/api/ringcentral-contacts") throw new Error("Unexpected network request blocked: " + url);
   contactCalls++;
+  if (holdContacts) await new Promise(resolve => { releaseContacts = resolve; });
   return failContacts ? Response.json({ success: false }, { status: 403 }) : Response.json({ success: true, contacts: fixtures });
 };
 ${sources.join("\n")}
 const check = (value, message) => { if (!value) throw new Error(message); };
+const query = value => {
+  contactPicker.search.value = value;
+  contactPicker.search.dispatchEvent(new Event("input"));
+};
+const dropdown = document.getElementById("contactDropdown");
+const clearDestination = document.getElementById("clearDestination");
 try {
   const submissions = [];
   batch.submit = async (file, number) => { submissions.push(number); return { messageId: String(submissions.length), status: "Sent" }; };
   await contactPicker.load();
-  contactPicker.search.value = "Albu";
-  contactPicker.search.dispatchEvent(new Event("input"));
+  const pdfTop = fileInput.getBoundingClientRect().top;
+  query("Albu");
   check(contactCalls === 1, "Search must reuse cached contacts");
+  check(!dropdown.hidden, "Search must open dropdown");
+  check(getComputedStyle(dropdown).position === "absolute", "Dropdown must overlay content");
+  check(fileInput.getBoundingClientRect().top === pdfTop, "Dropdown must not push PDF layout");
+  check(dropdown.getBoundingClientRect().right <= innerWidth, "Dropdown must fit viewport");
   const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
   contactPicker.search.dispatchEvent(enter);
-  check(enter.defaultPrevented, "Enter in contact search must not submit the fax form");
+  check(enter.defaultPrevented, "Enter in search must not submit fax form");
   const choices = document.querySelectorAll("#contactResults button");
   check(choices.length === 2, "Both fax numbers must be selectable");
+  check(document.querySelectorAll(".destination-group-name").length === 1, "Multiple faxes must share one contact heading");
   choices[1].click();
   check(numberInput.value === "+18335555678", "Other fax must populate existing destination");
-  numberInput.value = "+18015550000";
-  numberInput.dispatchEvent(new Event("input"));
+  check(dropdown.hidden, "Selection must close dropdown");
+  check(contactPicker.search.value === "Albuquerque SSA • (833) 555-5678", "Selected state must display name and formatted fax");
+  check(numberInput.type === "hidden", "No second visible fax input");
+  clearDestination.click();
+  check(!numberInput.value && !contactPicker.search.value, "X must clear unlocked destination");
+  query("San Antonio");
+  check(document.querySelectorAll("#contactResults button").length === 1, "One fax must have one whole-row button");
+  document.querySelector("#contactResults button").click();
+  check(numberInput.value === "+18339502396", "Whole-row selection must preserve E.164");
+  check(contactPicker.search.value.includes("Downtown LO"), "Actual LO contact name must be preserved");
+  clearDestination.click();
+  query("Albu");
+  document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  check(dropdown.hidden, "Outside click must close dropdown");
+  query("Albu");
+  contactPicker.search.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  check(dropdown.hidden, "Escape must close dropdown");
+  query("Albu");
+  contactPicker.search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+  check(document.activeElement === document.querySelector("#contactResults button"), "ArrowDown must focus a choice");
+  contactPicker.search.focus();
+  query("8015550000");
+  check(document.querySelector("#contactResults button").textContent.includes("(801) 555-0000"), "Manual number must appear formatted");
+  document.querySelector("#contactResults button").click();
+  check(numberInput.value === "+18015550000", "Manual selection must set normalized destination");
   await batch.addFiles([new File(["%PDF-1.4"], "test.pdf", { type: "application/pdf" })]);
-  check(!button.disabled, "Manual entry must remain usable");
+  check(!button.disabled, "Manual entry must enable sending");
   await batch.run(numberInput.value);
-  check(submissions[0] === "+18015550000", "Manual override must be the only destination");
-  check(contactPicker.search.disabled && numberInput.disabled, "Destination must lock");
+  check(submissions[0] === "+18015550000", "Manual number must be sole destination");
+  check(contactPicker.search.disabled && numberInput.disabled && clearDestination.disabled, "Destination and X must lock");
   contactPicker.select(fixtures[0], fixtures[0].faxNumbers[0]);
-  check(numberInput.value === "+18015550000", "Locked destination cannot change");
+  contactPicker.select(null, { number: "+18015559999" });
+  contactPicker.clear();
+  check(numberInput.value === "+18015550000", "Contact, manual, and clear actions cannot bypass lock");
   clearButton.click();
-  check(!contactPicker.search.disabled && !numberInput.disabled, "Clear All must unlock");
-  contactPicker.select(fixtures[0], fixtures[0].faxNumbers[0]);
-  check(numberInput.value === "+18665551234", "New destination after Clear All");
-  contactPicker.search.value = "no fax"; contactPicker.render();
-  check(document.querySelectorAll("#contactResults button").length === 0, "Contact without fax cannot be selected");
+  check(!contactPicker.search.disabled && !numberInput.value, "Clear All must unlock and reset destination");
+  query("San Antonio"); document.querySelector("#contactResults button").click();
+  check(numberInput.value === "+18339502396", "New destination after Clear All");
+  clearDestination.click();
+  query("no fax");
+  check(document.querySelectorAll("#contactResults button").length === 0, "No-fax contact cannot be selected");
+  const beforeRefresh = contactCalls;
+  holdContacts = true;
+  contactPicker.reload.click();
+  check(contactPicker.loading && contactPicker.reload.disabled, "Refresh must indicate loading and disable repeated clicks");
+  contactPicker.reload.click(); await contactPicker.load(true);
+  check(contactCalls === beforeRefresh + 1, "Refresh cannot be spammed");
+  releaseContacts(); holdContacts = false;
+  for (let attempt = 0; contactPicker.loading && attempt < 100; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  check(!contactPicker.loading, "Refresh must finish");
   failContacts = true;
   await contactPicker.load(true);
-  check(contactPicker.message.textContent.includes("Enter a fax number manually"), "Failure must explain manual fallback");
-  numberInput.value = "+18015551111"; numberInput.dispatchEvent(new Event("input"));
+  check(contactPicker.message.textContent.includes("You can still enter a fax number"), "Failure must explain fallback");
+  query("8015551111");
+  document.querySelector("#contactResults button").click();
   await batch.addFiles([new File(["%PDF-1.4"], "manual.pdf", { type: "application/pdf" })]);
-  check(!button.disabled, "Loading failure must not disable manual faxing");
+  check(!button.disabled, "Contact failure must not disable manual faxing");
   await batch.run(numberInput.value);
-  check(submissions[1] === "+18015551111", "Manual faxing must still run after contact failure");
-  document.getElementById("browserResult").textContent = "PASS: contact selection, local search, multiple faxes, manual override, destination lock, Clear All, no-fax contacts, and loading-failure fallback";
+  check(submissions[1] === "+18015551111", "Manual faxing must work after contact failure");
+  document.getElementById("browserResult").textContent = "PASS: overlay layout, close/keyboard behavior, contact rows, multiple faxes, formatted E.164 selection, manual fallback, X, refresh guarding, lock and Clear All";
 } catch (error) { document.getElementById("browserResult").textContent = "FAIL: " + error.stack; }
 `;
 html = html.replace("</body>", `<pre id="browserResult">RUNNING</pre><script type="module">${script}</script></body>`);
 const path = join(directory, "check.html");
 await writeFile(path, html);
-const { stdout } = await promisify(execFile)(browser, ["--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
-  `--user-data-dir=${join(directory, "profile")}`, "--dump-dom", "--virtual-time-budget=5000", pathToFileURL(path).href
-], { timeout: 60_000, maxBuffer: 2_000_000, windowsHide: true });
-const result = stdout.match(/<pre id="browserResult">([\s\S]*?)<\/pre>/)?.[1] || "FAIL: no browser result";
-console.log(result);
-if (!result.startsWith("PASS:")) process.exitCode = 1;
+for (const viewport of ["1280,900", "390,844"]) {
+  const { stdout } = await promisify(execFile)(browser, ["--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+    `--user-data-dir=${join(directory, 'profile-' + viewport)}`, `--window-size=${viewport}`, "--dump-dom", "--virtual-time-budget=5000", pathToFileURL(path).href
+  ], { timeout: 60_000, maxBuffer: 2_000_000, windowsHide: true });
+  const result = stdout.match(/<pre id="browserResult">([\s\S]*?)<\/pre>/)?.[1] || "FAIL: no browser result";
+  console.log(`${viewport}: ${result}`);
+  if (!result.startsWith("PASS:")) process.exitCode = 1;
+}

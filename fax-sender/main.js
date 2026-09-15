@@ -13,6 +13,7 @@ const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
 const batch = new FaxBatch({ onChange: render });
 const contactPicker = new ContactPicker({
+  root: document.getElementById("destinationControl"), dropdown: document.getElementById("contactDropdown"), clear: document.getElementById("clearDestination"),
   search: document.getElementById("contactSearch"), results: document.getElementById("contactResults"),
   message: document.getElementById("contactMessage"), reload: document.getElementById("reloadContacts"),
   numberInput, batch, onSelect: render
@@ -60,13 +61,14 @@ function render() {
   document.getElementById("documentCount").textContent = `Documents — ${docs.length}`;
   document.getElementById("batchReview").textContent = batch.adding
     ? "Checking selected PDFs…"
-    : ready ? `${ready} documents ready to fax separately${valid ? ` to ${number}` : ". Enter a valid LO fax number"}.`
+    : ready ? `${ready} documents ready to fax separately${valid ? ` to ${number}` : ". Select a valid fax destination"}.`
     : tracking ? `${submitted} of ${docs.length} submitted.`
     : docs.length ? "" : "Select PDFs to begin.";
   document.getElementById("batchReview").hidden = !batch.adding && !ready && !tracking && Boolean(docs.length);
   document.getElementById("numberHelp").textContent = batch.destination
-    ? `Batch destination: ${batch.destination}. Clear All to start a new batch with another number.`
-    : "Include + and the country code (+1 for US numbers). All documents go to this number.";
+    ? "Destination locked for this batch. Clear All to choose another destination."
+    : "";
+  document.getElementById("numberHelp").hidden = !batch.destination;
   document.getElementById("retryHelp").hidden = !failed;
   result.textContent = batch.running
     ? `Processing fax ${batch.progress.current} of ${batch.progress.total}${batch.progress.name ? `: ${batch.progress.name}` : ""}. ${submitted} / ${docs.length} submitted; ${failed} failed.`
@@ -123,8 +125,8 @@ form.addEventListener("submit", event => {
 });
 retryButton.addEventListener("click", () => batch.run(numberInput.value, "Failed"));
 clearButton.addEventListener("click", () => {
-  contactPicker.search.value = "";
   batch.clear();
+  contactPicker.clear();
   validation.textContent = "";
 });
 window.addEventListener("beforeunload", event => {
