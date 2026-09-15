@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/send-fax.js": { "maxDuration": 60 },
-    "api/fax-status.js": { "maxDuration": 30 }
+    "api/fax-status.js": { "maxDuration": 30 },
+    "api/ringcentral-contacts.js": { "maxDuration": 60 }
   },
   "rewrites": [
     {

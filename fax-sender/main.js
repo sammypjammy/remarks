@@ -1,5 +1,7 @@
 ﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
 
+import { ContactPicker } from "./contacts.js";
+
 const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
 const fileInput = document.getElementById("pdfFile");
@@ -10,6 +12,11 @@ const validation = document.getElementById("validation");
 const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
 const batch = new FaxBatch({ onChange: render });
+const contactPicker = new ContactPicker({
+  search: document.getElementById("contactSearch"), results: document.getElementById("contactResults"),
+  message: document.getElementById("contactMessage"), reload: document.getElementById("reloadContacts"),
+  numberInput, batch, onSelect: render
+});
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -27,15 +34,17 @@ function rowAction(label, action) {
 }
 
 function render() {
+  contactPicker.render();
   const docs = batch.documents;
   const ready = docs.filter(doc => doc.state === "Ready").length;
   const failed = docs.filter(doc => doc.state === "Failed").length;
   const submitted = docs.filter(doc => doc.messageId).length;
-  const delivered = docs.filter(doc => doc.state === "Delivered").length;
+  // Keep the internal state names and retry rules unchanged; these are display labels only.
+  const sent = docs.filter(doc => doc.state === "Delivered").length;
   const unknown = docs.filter(doc => doc.state === "Status Unknown").length;
   const tracking = docs.some(doc => doc.tracking);
-  const summary = docs.length && delivered === docs.length ? `${delivered} of ${docs.length} faxes delivered.` :
-    `${delivered} delivered; ${failed} failed${unknown ? `; ${unknown} status unknown` : ""}${ready ? `; ${ready} ready` : ""}.`;
+  const summary = docs.length && sent === docs.length ? `${sent} of ${docs.length} faxes sent.` :
+    `${sent} sent; ${failed} failed${unknown ? `; ${unknown} status unknown` : ""}${ready ? `; ${ready} ready` : ""}.`;
   const number = batch.destination || normalizeFaxNumber(numberInput.value);
   const valid = validFaxNumber(number);
   numberInput.disabled = batch.busy || Boolean(batch.destination);
@@ -52,16 +61,17 @@ function render() {
   document.getElementById("batchReview").textContent = batch.adding
     ? "Checking selected PDFs…"
     : ready ? `${ready} documents ready to fax separately${valid ? ` to ${number}` : ". Enter a valid LO fax number"}.`
-    : tracking ? `${submitted} of ${docs.length} submitted. Checking delivery status…`
-    : docs.length ? summary : "Select PDFs to begin.";
+    : tracking ? `${submitted} of ${docs.length} submitted.`
+    : docs.length ? "" : "Select PDFs to begin.";
+  document.getElementById("batchReview").hidden = !batch.adding && !ready && !tracking && Boolean(docs.length);
   document.getElementById("numberHelp").textContent = batch.destination
     ? `Batch destination: ${batch.destination}. Clear All to start a new batch with another number.`
     : "Include + and the country code (+1 for US numbers). All documents go to this number.";
   document.getElementById("retryHelp").hidden = !failed;
   result.textContent = batch.running
-    ? `Submitting fax ${batch.progress.current} of ${batch.progress.total}${batch.progress.name ? `: ${batch.progress.name}` : ""}. ${submitted} / ${docs.length} submitted; ${failed} failed.`
-    : docs.length ? `${summary}${tracking ? " Checking delivery status…" : ""}` : "No documents selected.";
-  result.dataset.complete = String(Boolean(docs.length) && delivered === docs.length);
+    ? `Processing fax ${batch.progress.current} of ${batch.progress.total}${batch.progress.name ? `: ${batch.progress.name}` : ""}. ${submitted} / ${docs.length} submitted; ${failed} failed.`
+    : docs.length ? `${summary}${tracking ? " Checking fax status…" : ""}` : "No documents selected.";
+  result.dataset.complete = String(Boolean(docs.length) && sent === docs.length);
 
   list.replaceChildren();
   for (const doc of docs) {
@@ -82,7 +92,7 @@ function render() {
     if (doc.state === "Status Unknown") details.append(element("p", "Status Unknown — Check RingCentral before retrying", "fax-error"));
     if (doc.error) details.append(element("p", doc.error, "fax-error"));
     const actions = element("div", "", "fax-document-actions");
-    const label = { Submitting: "Submitting…", Queued: "Queued / Processing", Delivered: "✓ Delivered", Failed: "✕ Failed" }[doc.state] || doc.state;
+    const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[doc.state] || doc.state;
     actions.append(element("span", label, "fax-state"));
     if (doc.retryable) {
       const retry = rowAction("Retry", () => batch.run(numberInput.value, "Failed", doc.id));
@@ -113,6 +123,7 @@ form.addEventListener("submit", event => {
 });
 retryButton.addEventListener("click", () => batch.run(numberInput.value, "Failed"));
 clearButton.addEventListener("click", () => {
+  contactPicker.search.value = "";
   batch.clear();
   validation.textContent = "";
 });

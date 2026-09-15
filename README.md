@@ -24,7 +24,51 @@ PDFs must be nonempty, named `.pdf`, have a PDF header, and be at most 4,000,000
 RingCentral performs document conversion; use a readable, unencrypted PDF.
 The upload remains in server memory and is sent as one attachment with no automatic cover page.
 
-### Local testing
+### RingCentral contact destinations (v.2.4)
+
+Focus **Search RingCentral contacts** to load the JWT user's personal address book.
+Search by name, company, business city/state, or fax number. Select the labeled Business
+fax or Other fax button to fill the existing LO Fax Number field. You may instead type
+or edit that number manually. The batch's existing destination lock applies to both;
+Clear All unlocks selection for the next batch. Enter in the search field does not send
+faxes; Arrow Down moves to the first fax choice, and Tab navigates the other choices.
+
+The page caches contacts only in memory and filters locally (no network request per
+keystroke). **Refresh contacts** explicitly reloads changes from RingCentral. Results
+show at most 30 matching contacts at once; refine the search to find other matches.
+Contacts without a usable fax are shown without a selection button. No mobile/home/
+business phone field is ever substituted for a fax. Contact API errors leave manual
+faxing available and offer an explicit load-again action.
+
+`GET /api/ringcentral-contacts` authenticates using the same server-only JWT pattern and
+reads `GET /restapi/v1.0/account/~/extension/~/address-book/contact?page=N&perPage=1000`.
+Enable app permission **ReadContacts**; the JWT user needs **ReadPersonalContacts**.
+No write permissions or new environment variables are required.
+
+Schema verified against RingCentral's official SDK definitions:
+[PersonalContactResource](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/PersonalContactResource.cs),
+[ContactList](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/ContactList.cs),
+[ListContactsParameters](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/ListContactsParameters.cs).
+Returned picker data includes `id`, a name built from `firstName`/`middleName`/`lastName`
+(fallback `nickName`, company, or ID), `company`, business-address `city`/`state`, and
+labeled `faxNumbers` from `businessFax` and `otherFax`. Identical fax values are deduplicated.
+E.164 numbers with formatting punctuation are normalized; missing country codes or
+extensions are not guessed. Emails, notes, street addresses, and non-fax phones are omitted.
+
+All pages are requested sequentially using `paging.totalPages` / `navigation.nextPage`,
+with page-size fallback when metadata is absent. Upstream next-page URLs are never followed.
+The API returns the complete normalized list or a safe error, never a partial list marked
+complete. Personal books support up to 10,000 contacts; no database caching is added.
+The request has a 45-second deadline and a 4 MB normalized response guard. Excessive
+size, malformed pagination, rate limits, or timeout fall back to manual entry.
+
+Browser integration check (all contacts and fax submissions mocked):
+
+```powershell
+node tests/contacts-browser-check.mjs "C:\Program Files\Google\Chrome\Application\chrome.exe"
+```
+
+### Running locally
 
 Use Node 22.12+ (or Node 24) and run from the project root:
 

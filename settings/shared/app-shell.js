@@ -54,13 +54,13 @@ function renderAppShell() {
         <div class="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
-          <span>Packard Toolkit v1.0.0</span>
+          <span>${document.body.dataset.footerVersion || "Packard Toolkit v1.0.0"}</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Built by Sam Jensen</span>
           <span class="app-footer-links">
-            <a class="app-footer-link" href="https://github.com/sammypjammy/remarks/commits/main/" target="_blank" rel="noopener noreferrer">Version history</a>
+            <a class="app-footer-link" href="${document.body.dataset.versionHistory || "https://github.com/sammypjammy/remarks/commits/main/"}" ${document.body.dataset.versionHistory ? "" : 'target="_blank" rel="noopener noreferrer"'}>Version history</a>
             <a class="app-footer-link" href="${routes.settings}">Settings</a>
           </span>
         </div>

@@ -1,4 +1,14 @@
 .fax-panel { max-width: 960px; }
+#contactResults { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow-y: auto; display: grid; gap: 8px; }
+#contactResults:empty { display: none; }
+#contactResults li { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); overflow-wrap: anywhere; }
+#contactResults strong { color: var(--text); }
+#contactResults button { margin: 8px 8px 0 0; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+#reloadContacts[hidden] { display: none; }
+.fax-version-history { margin-top: 24px; scroll-margin-top: 90px; }
+.fax-version-history h2 { margin-bottom: 12px; color: var(--text); font-size: 1.1rem; }
+.fax-version-history summary { cursor: pointer; color: var(--text); }
+.fax-version-history details p { margin-top: 12px; }
 .fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
 .fax-panel label { color: var(--text); font-weight: 700; }
 .fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
