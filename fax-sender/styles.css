@@ -1,4 +1,4 @@
-.fax-panel { max-width: 720px; }
+.fax-panel { max-width: 960px; }
 .fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
 .fax-panel label { color: var(--text); font-weight: 700; }
 .fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
@@ -7,3 +7,22 @@
 .fax-panel label:not(:first-child), .fax-note { margin-top: 16px; }
 #faxResult { margin-top: 20px; overflow-wrap: anywhere; color: var(--text); }
 #validation, #faxResult[data-error="true"] { color: var(--danger); }
+#validation { white-space: pre-line; overflow-wrap: anywhere; }
+.fax-list-heading, .fax-batch-actions, .fax-document-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fax-list-heading { justify-content: space-between; margin-top: 12px; }
+.fax-list-heading h2 { color: var(--text); font-size: 1.1rem; }
+#documentList { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.fax-document { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
+.fax-document-details { min-width: 0; overflow-wrap: anywhere; }
+.fax-filename { color: var(--text); display: block; }
+.fax-size, .fax-document-details p { font-size: 0.85rem; }
+.fax-document-actions { flex-shrink: 0; }
+.fax-state { font-size: 0.85rem; font-weight: 700; color: var(--text); }
+[data-state="Submitted"] .fax-state { color: var(--accent); }
+.fax-error, [data-state="Failed"] .fax-state { color: var(--danger); }
+#batchReview { color: var(--text); font-weight: 650; }
+.fax-batch-actions [hidden], #retryHelp[hidden] { display: none; }
+@media (max-width: 640px) {
+  .fax-document { flex-direction: column; }
+  .fax-document-actions { width: 100%; }
+}

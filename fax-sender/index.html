@@ -15,23 +15,34 @@
     <main class="app-shell">
       <section class="page-intro" aria-labelledby="pageTitle">
         <h1 id="pageTitle">Fax Sender</h1>
-        <p class="subtitle">Send one PDF as one fax through RingCentral.</p>
+        <p class="subtitle">Select PDFs and send each document as a separate fax through RingCentral.</p>
       </section>
       <section class="panel fax-panel" aria-label="Send a fax">
         <form id="faxForm">
           <fieldset id="faxFields">
-            <label for="faxNumber">Destination fax number</label>
+            <label for="faxNumber">LO Fax Number</label>
             <input id="faxNumber" name="faxNumber" type="tel" placeholder="+18015551234" required aria-describedby="numberHelp" />
             <p id="numberHelp">Include + and the country code (+1 for US numbers).</p>
-            <label for="pdfFile">PDF document</label>
-            <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" required aria-describedby="fileHelp" />
-            <p id="fileHelp">One PDF, up to 4 MB. No automatic cover page is added.</p>
+            <label for="pdfFile">PDF documents</label>
+            <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" multiple aria-describedby="fileHelp" />
+            <p id="fileHelp">Up to 4 MB per PDF. Each PDF is a separate fax. No automatic cover page is added. Selecting more files adds them to the list.</p>
             <p id="validation" aria-live="polite"></p>
-            <button id="sendFax" class="primary-btn" type="submit" disabled>Send Fax</button>
+            <div class="fax-list-heading">
+              <h2 id="documentCount">Documents — 0</h2>
+              <button id="clearAll" class="secondary-btn" type="button" disabled>Clear All</button>
+            </div>
+            <ul id="documentList" aria-labelledby="documentCount"></ul>
+            <p id="batchReview"></p>
+            <div class="fax-batch-actions">
+              <button id="sendFax" class="primary-btn" type="submit" disabled>Send 0 Faxes</button>
+              <button id="retryFailed" class="secondary-btn" type="button" hidden>Retry Failed</button>
+            </div>
+            <p id="retryHelp" hidden>Before retrying a timeout or unconfirmed submission, check RingCentral to avoid sending a duplicate. Retry only attempts the failed documents.</p>
           </fieldset>
         </form>
         <p id="faxResult" role="status" aria-live="polite"></p>
         <p class="fax-note">Acceptance is not delivery confirmation. Check the final delivery status in RingCentral.</p>
+        <p class="fax-note">Keep this tab open while sending. Documents and results stay in this tab only. Clear All or reloading removes this list and its duplicate protection.</p>
       </section>
     </main>
     <div data-app-footer></div>
