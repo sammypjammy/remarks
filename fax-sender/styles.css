@@ -18,7 +18,9 @@
 .fax-size, .fax-document-details p { font-size: 0.85rem; }
 .fax-document-actions { flex-shrink: 0; }
 .fax-state { font-size: 0.85rem; font-weight: 700; color: var(--text); }
-[data-state="Submitted"] .fax-state { color: var(--accent); }
+[data-state="Queued"] .fax-state { color: var(--accent); }
+[data-state="Delivered"] .fax-state, #faxResult[data-complete="true"] { color: var(--text); font-weight: 800; }
+[data-state="Delivered"] { border-color: var(--accent); background: var(--accent-soft); }
 .fax-error, [data-state="Failed"] .fax-state { color: var(--danger); }
 #batchReview { color: var(--text); font-weight: 650; }
 .fax-batch-actions [hidden], #retryHelp[hidden] { display: none; }

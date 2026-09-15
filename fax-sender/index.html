@@ -34,14 +34,14 @@
             <ul id="documentList" aria-labelledby="documentCount"></ul>
             <p id="batchReview"></p>
             <div class="fax-batch-actions">
-              <button id="sendFax" class="primary-btn" type="submit" disabled>Send 0 Faxes</button>
+              <button id="sendFax" class="primary-btn" type="submit" disabled hidden>Send Faxes</button>
               <button id="retryFailed" class="secondary-btn" type="button" hidden>Retry Failed</button>
             </div>
-            <p id="retryHelp" hidden>Before retrying a timeout or unconfirmed submission, check RingCentral to avoid sending a duplicate. Retry only attempts the failed documents.</p>
+            <p id="retryHelp" hidden>Retry is available only when RingCentral reports a definitive fax failure. Unknown outcomes cannot be retried here.</p>
           </fieldset>
         </form>
         <p id="faxResult" role="status" aria-live="polite"></p>
-        <p class="fax-note">Acceptance is not delivery confirmation. Check the final delivery status in RingCentral.</p>
+        <p class="fax-note">Delivery is confirmed only when RingCentral reports Sent. Checks stop after 15 minutes; unresolved faxes remain Status Unknown.</p>
         <p class="fax-note">Keep this tab open while sending. Documents and results stay in this tab only. Clear All or reloading removes this list and its duplicate protection.</p>
       </section>
     </main>

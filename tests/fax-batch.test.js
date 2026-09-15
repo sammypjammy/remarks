@@ -7,7 +7,7 @@ const pdf = (name, content = "%PDF-1.4\n%%EOF", options = {}) =>
 const noPause = async () => {};
 
 test("validates selections, adds files, skips duplicates, and removes/clears ready rows", async () => {
-  const batch = new FaxBatch();
+  const batch = new FaxBatch({ tracking: { schedule: () => 1, cancel: () => {} } });
   const errors = await batch.addFiles([
     pdf("one.pdf"), pdf("one.pdf"), pdf("text.txt"), pdf("empty.pdf", ""),
     pdf("fake.pdf", "not a pdf"), pdf("large.pdf", "%PDF-" + "a".repeat(4_000_000)),
@@ -33,7 +33,7 @@ test("eight PDFs produce eight sequential requests with distinct results", async
   const calls = [];
   const progress = [];
   let gaps = 0;
-  const batch = new FaxBatch({
+  const batch = new FaxBatch({ tracking: { schedule: () => 1, cancel: () => {} },
     pause: async () => { gaps++; },
     onChange: () => {
       if (batch.progress) progress.push({ ...batch.progress });
@@ -53,7 +53,7 @@ test("eight PDFs produce eight sequential requests with distinct results", async
   assert.equal(gaps, 7);
   assert.ok(calls.every(([, number]) => number === "+18015551234"));
   assert.equal(new Set(batch.documents.map(doc => doc.messageId)).size, 8);
-  assert.ok(batch.documents.every(doc => doc.state === "Submitted" && doc.status === "Queued"));
+  assert.ok(batch.documents.every(doc => doc.state === "Queued" && doc.status === "Queued"));
   assert.ok(progress.some(item => item.current === 8 && item.total === 8));
   await batch.run("+18015551234");
   await batch.run("+18015551234", "Failed");
@@ -65,19 +65,19 @@ test("eight PDFs produce eight sequential requests with distinct results", async
 test("failure does not stop queue; individual and batch retries never resend submitted rows", async () => {
   const calls = [];
   let fail = true;
-  const batch = new FaxBatch({ pause: noPause, submit: async (file, number) => {
+  const batch = new FaxBatch({ tracking: { schedule: () => 1, cancel: () => {} }, pause: noPause, submit: async (file, number) => {
     calls.push([file.name, number]);
-    if (fail && file.name !== "one.pdf") throw new Error("Rate limit reached. Wait before retrying.");
+    if (fail && file.name !== "one.pdf") return { messageId: String(calls.length), status: "SendingFailed" };
     return { messageId: String(calls.length), status: "Queued" };
   } });
   await batch.addFiles([pdf("one.pdf"), pdf("two.pdf"), pdf("three.pdf")]);
   await batch.run("+18015551234");
-  assert.deepEqual(batch.documents.map(doc => doc.state), ["Submitted", "Failed", "Failed"]);
-  assert.match(batch.documents[1].error, /Rate limit/);
+  assert.deepEqual(batch.documents.map(doc => doc.state), ["Queued", "Failed", "Failed"]);
+  assert.equal(batch.documents[1].retryable, true);
   const firstMessage = batch.documents[0].messageId;
   fail = false;
   await batch.run("+18015559999", "Failed", batch.documents[1].id);
-  assert.deepEqual(batch.documents.map(doc => doc.state), ["Submitted", "Submitted", "Failed"]);
+  assert.deepEqual(batch.documents.map(doc => doc.state), ["Queued", "Queued", "Failed"]);
   await batch.run("+18015559999", "Failed");
   assert.deepEqual(calls.map(([name]) => name), ["one.pdf", "two.pdf", "three.pdf", "two.pdf", "three.pdf"]);
   assert.ok(calls.every(([, number]) => number === "+18015551234"));
@@ -92,7 +92,7 @@ test("failure does not stop queue; individual and batch retries never resend sub
 test("invalid destination, double click, and mutations during sending cannot start extra work", async () => {
   let release;
   let calls = 0;
-  const batch = new FaxBatch({ pause: noPause, submit: async () => {
+  const batch = new FaxBatch({ tracking: { schedule: () => 1, cancel: () => {} }, pause: noPause, submit: async () => {
     calls++;
     await new Promise(resolve => { release = resolve; });
     return { messageId: "123", status: "Queued" };
@@ -112,7 +112,7 @@ test("invalid destination, double click, and mutations during sending cannot sta
   release();
   await running;
   assert.equal(batch.running, false);
-  assert.equal(batch.documents[0].state, "Submitted");
+  assert.equal(batch.documents[0].state, "Queued");
   batch.clear();
   assert.equal(batch.destination, "");
 });

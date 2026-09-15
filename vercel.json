@@ -1,6 +1,7 @@
 {
   "functions": {
-    "api/send-fax.js": { "maxDuration": 60 }
+    "api/send-fax.js": { "maxDuration": 60 },
+    "api/fax-status.js": { "maxDuration": 30 }
   },
   "rewrites": [
     {

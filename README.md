@@ -41,15 +41,18 @@ No credentials are passed to Vite's browser code. Never rename them with a `VITE
 Environment files remain gitignored. `npm run preview` serves static output only;
 use `npm run dev` or `npx vercel dev` to exercise the API.
 
-1. Check that Send is disabled with no documents or an invalid LO fax number.
+1. Check that Send is hidden with no ready documents and disabled with an invalid LO fax number.
 2. Enter a test fax number you control, including country code, and select several small PDFs.
 3. Review the list. Add more PDFs, remove a document, or use Clear All before sending.
-4. Click **Send N Faxes** once. Each row moves from Ready to Sending to Submitted or Failed.
+4. Click **Send N Faxes** once. Each row moves from Ready to Submitting to Queued / Processing.
    Expect a separate message ID and initial RingCentral status for each submitted PDF.
 5. Check RingCentral's sent faxes for final delivery and verify receipt of each separate document.
    Acceptance is not proof of delivery. If the connection fails, check RingCentral before retrying.
-6. If an attempt fails, the queue continues. **Retry Failed** retries only failed rows;
-   a row's **Retry** button retries just that document. Submitted rows cannot be resent.
+6. Status checks update each row independently to Delivered, Failed, or Status Unknown.
+   **Retry Failed** and row **Retry** are available only after RingCentral reports
+   `SendingFailed`. Submission errors, polling errors, and timeouts never enable Retry.
+   Delivered and queued documents cannot be resent. A retry retains its old message ID
+   under Previous attempts and tracks its new message ID independently.
 
 Requests run one at a time with a one-second gap; failures are never retried automatically.
 The destination is locked after the first attempt so retries and additional documents go
@@ -61,12 +64,53 @@ State is kept in memory in the current tab only. Clear All, reload, or leaving t
 discards files/results and resets duplicate protection. Keep the tab open during sending;
 the browser is asked to warn before leaving an active batch. No background execution,
 persistent history, or cross-tab duplicate protection is provided. Timeout/network failures
-may already have been accepted upstream; check RingCentral before an explicit retry.
+may already have been accepted upstream; check RingCentral. V2.1 intentionally does not
+offer an in-tool retry for these uncertain outcomes.
+
+### V2.1 delivery tracking
+
+The new `GET /api/fax-status?messageId=...` endpoint validates a single numeric ID and
+uses `GET /restapi/v1.0/account/~/extension/~/message-store/{messageId}` on the production
+RingCentral platform. The response must match the ID, `type: Fax`, and `direction: Outbound`.
+Only message ID, status, and a terminal flag are returned; raw message content and error
+payloads are never forwarded. A definitive `SendingFailed` is preserved, but detailed
+provider failure reasons are not reliably exposed here; consult the RingCentral app.
+
+**Required RingCentral permission: ReadMessages**, in addition to Faxes. Enable it in
+the app's Developer Console configuration, and ensure the JWT user can read messages.
+No new environment variables are needed. The new route uses the existing JWT approach;
+its tokens are cached only in server memory for at most five minutes (and less than
+their remaining lifetime). Status 401/403 invalidates that cache. Fax sending is unchanged.
+
+`tracking.js` starts checks about 10 seconds after acceptance, repeats no sooner than
+30 seconds per document, and serializes all lookups with a minimum five-second gap.
+Larger batches may have longer intervals. Tracking stops after 15 minutes per attempt;
+an in-flight lookup can take up to 25 seconds, and browser background throttling can delay
+updates. An unresolved outcome becomes **Status Unknown**, never a fax failure. Transient
+lookup errors continue to be checked within the original window. Clearing/leaving stops
+tracking and ignores any stale in-flight response. This is browser-tab tracking, not a
+background service. Keep the tab open through completion.
+
+Status interpretation follows the [RingCentral message status documentation](https://github.com/ringcentral/ringcentral-api-docs/blob/main/docs/messaging/message-store/messaging.md):
+
+- `Queued`: pending fax transmission.
+- `Sent`: terminal fax success, shown as **Delivered** (successful transmission, not proof of human review).
+- `SendingFailed`: terminal fax failure, shown as **Failed**, eligible for explicit retry.
+- `Delivered` and `DeliveryFailed`: documented for SMS, not used to infer fax outcomes.
+- `Received`: inbound status, not used to infer outbound fax success.
+
+The last three values, if unexpectedly returned for an outbound fax, remain Status Unknown
+and are polled within the same bounded window. Unrecognized values fail safely without
+inventing a RingCentral status. In particular, the existing sender's `Accepted` fallback
+is not displayed as an actual RingCentral message-store status.
+
+When no Ready documents remain, Send is hidden. The page shows tracking progress or a
+terminal summary, with a positive completed state only when every document is Delivered.
 
 Automated verification (uses dummy credentials and mocked RingCentral calls; sends no faxes):
 
 ```sh
-node --test tests/send-fax.test.js tests/fax-batch.test.js
+node --test tests/*.test.js
 npm run build
 ```
 
@@ -95,10 +139,11 @@ the page's “Internal use only” label does not enforce access control.
 - HTTP 502 or connection timeout: submission may be ambiguous. Check RingCentral before retrying.
 
 The 4 MB PDF cap leaves multipart overhead below Vercel's 4.5 MB function request limit.
-There is no automatic retry, delivery polling, persistent history, or client workspace.
+There is no automatic fax resend, persistent history, or client workspace.
 The V1 API still authenticates separately for each document; large batches can encounter
 authentication or fax rate limits even with sequential requests. Failed rows retain errors
-for manual retry. No RingCentral authentication or fax transport code was changed for V2.
+for review. Only definitive terminal fax failures can be retried. The existing RingCentral
+authentication test and fax-send transport code were preserved for V2.1.
 
 References: [RingCentral fax API guide](https://developers.ringcentral.com/guide/messaging/fax/sending-faxes),
 [RingCentral permissions](https://developers.ringcentral.com/guide/basics/permissions),

@@ -3,6 +3,7 @@ import { cpSync, mkdirSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import sendFax from "./api/send-fax.js";
+import faxStatus from "./api/fax-status.js";
 
 function localFaxApi(server) {
   // Server process only. Existing process variables take precedence, then root .env.local.
@@ -14,10 +15,13 @@ function localFaxApi(server) {
     if (!process.env[key] && env[key]) process.env[key] = env[key];
   }
   server.middlewares.use((req, res, next) => {
-    if (!["/api/send-fax", "/api/send-fax.js"].includes(req.url?.split("?")[0])) return next();
+    const path = req.url?.split("?")[0];
+    const handler = ["/api/send-fax", "/api/send-fax.js"].includes(path) ? sendFax :
+      ["/api/fax-status", "/api/fax-status.js"].includes(path) ? faxStatus : null;
+    if (!handler) return next();
     res.status = code => { res.statusCode = code; return res; };
     res.json = data => { res.setHeader("Content-Type", "application/json"); res.end(JSON.stringify(data)); };
-    return sendFax(req, res);
+    return handler(req, res);
   });
 }
 
