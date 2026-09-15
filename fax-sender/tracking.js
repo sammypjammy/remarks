@@ -11,19 +11,35 @@ export function faxState(status) {
 }
 
 export async function lookupFax(messageId) {
-  const response = await fetch(`/api/fax-status?messageId=${encodeURIComponent(messageId)}`, {
-    cache: "no-store", signal: AbortSignal.timeout(25_000)
-  });
+  let response;
+  try {
+    response = await globalThis.fetch(`/api/fax-status?messageId=${encodeURIComponent(messageId)}`, {
+      cache: "no-store", signal: AbortSignal.timeout(25_000)
+    });
+  } catch (error) {
+    // Do not surface arbitrary browser/network exception text.
+    const timedOut = ["TimeoutError", "AbortError"].includes(error?.name);
+    throw new Error(timedOut ? "Status lookup timed out; delivery is still unconfirmed." :
+      "Could not reach the status endpoint; delivery is still unconfirmed.");
+  }
   const data = await response.json().catch(() => null);
   if (!response.ok || !data?.success || data.messageId !== messageId) {
-    throw new Error(data?.error || "Status lookup unavailable. Checking will continue within the tracking window.");
+    const errors = {
+      403: "Status access denied (HTTP 403). Check RingCentral ReadMessages permission.",
+      404: "Fax status record not available yet (HTTP 404).",
+      429: "Status lookup rate limited (HTTP 429). Checking will continue within the tracking window."
+    };
+    throw new Error(errors[response.status] || "Status lookup returned no valid result. Checking will continue within the tracking window.");
   }
   return data;
 }
 
 // One lookup at a time across the tab, at least five seconds apart.
 export class FaxTracker {
-  constructor({ lookup = lookupFax, now = Date.now, schedule = setTimeout, cancel = clearTimeout, onChange = () => {} } = {}) {
+  constructor({ lookup = lookupFax, now = Date.now,
+    // Native Window timers require the global receiver, not the FaxTracker instance.
+    schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
+    cancel = timer => globalThis.clearTimeout(timer), onChange = () => {} } = {}) {
     Object.assign(this, { lookup, now, schedule, cancel, onChange });
     this.pending = new Map();
     this.timer = null;

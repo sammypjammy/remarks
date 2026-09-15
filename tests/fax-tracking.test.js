@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FaxTracker, TRACKING_TIMEOUT, faxState } from "../fax-sender/tracking.js";
+import { FaxTracker, TRACKING_TIMEOUT, faxState, lookupFax } from "../fax-sender/tracking.js";
 import { FaxBatch } from "../fax-sender/batch.js";
 
 function harness(lookup) {
@@ -9,6 +9,54 @@ function harness(lookup) {
   return { tracker, step: async ms => { time += ms; await tracker.tick(); } };
 }
 const document = id => ({ id, messageId: String(id), status: "Queued", error: "" });
+
+test("default timers preserve global receiver for initial poll, rearming, and cancellation", async t => {
+  const originalSet = globalThis.setTimeout, originalClear = globalThis.clearTimeout;
+  t.after(() => { globalThis.setTimeout = originalSet; globalThis.clearTimeout = originalClear; });
+  const timers = new Map();
+  let next = 0, time = 0, calls = 0;
+  globalThis.setTimeout = function (callback, delay) {
+    assert.equal(this, globalThis, "Window timer called with wrong receiver");
+    timers.set(++next, { callback, delay });
+    return next;
+  };
+  globalThis.clearTimeout = function (timer) {
+    assert.equal(this, globalThis, "Window cancellation called with wrong receiver");
+    timers.delete(timer);
+  };
+  const tracker = new FaxTracker({ now: () => time, lookup: async id => {
+    calls++; return { messageId: id, status: "Queued" };
+  } });
+  tracker.start(document(1));
+  assert.equal(timers.get(1).delay, 10000);
+  time = 10000;
+  const first = timers.get(1); timers.delete(1);
+  await first.callback();
+  assert.equal(calls, 1);
+  assert.equal(timers.get(2).delay, 5000);
+  tracker.clear();
+  assert.equal(timers.size, 0);
+});
+
+test("status lookup uses the expected GET path and exposes only safe errors", async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async function (url, options) {
+    assert.equal(this, globalThis);
+    assert.equal(url, "/api/fax-status?messageId=3207964623007");
+    assert.equal(options.method, undefined); // fetch defaults to GET.
+    assert.equal(options.cache, "no-store");
+    assert.ok(options.signal instanceof AbortSignal);
+    return Response.json({ success: true, messageId: "3207964623007", status: "Queued" });
+  };
+  assert.equal((await lookupFax("3207964623007")).status, "Queued");
+  globalThis.fetch = async () => { throw new Error("sensitive browser exception"); };
+  await assert.rejects(lookupFax("123"), error => /Could not reach/.test(error.message) && !/sensitive/.test(error.message));
+  globalThis.fetch = async () => { throw new DOMException("sensitive", "TimeoutError"); };
+  await assert.rejects(lookupFax("123"), /Status lookup timed out/);
+  globalThis.fetch = async () => Response.json({ error: "sensitive payload" }, { status: 403 });
+  await assert.rejects(lookupFax("123"), error => /ReadMessages/.test(error.message) && !/sensitive/.test(error.message));
+});
 
 test("Queued -> Sent stops polling; a confirmed failure does not affect another fax", async () => {
   const calls = [];
