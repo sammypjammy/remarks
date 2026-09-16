@@ -39,41 +39,35 @@ function render() {
   const docs = batch.documents;
   const ready = docs.filter(doc => doc.state === "Ready").length;
   const failed = docs.filter(doc => doc.state === "Failed").length;
-  const submitted = docs.filter(doc => doc.messageId).length;
   // Keep the internal state names and retry rules unchanged; these are display labels only.
   const sent = docs.filter(doc => doc.state === "Delivered").length;
   const unknown = docs.filter(doc => doc.state === "Status Unknown").length;
   const tracking = docs.some(doc => doc.tracking);
-  const summary = docs.length && sent === docs.length ? `${sent} of ${docs.length} faxes sent.` :
-    `${sent} sent; ${failed} failed${unknown ? `; ${unknown} status unknown` : ""}${ready ? `; ${ready} ready` : ""}.`;
+  const allSent = Boolean(docs.length) && sent === docs.length;
+  const summary = allSent ? (sent === 1 ? "✓ Fax sent successfully" : `✓ ${sent} faxes sent successfully`) :
+    [sent ? `${sent} sent` : "", failed ? `${failed} failed` : "", unknown ? `${unknown} status unknown` : ""].filter(Boolean).join(" · ");
   const number = batch.destination || normalizeFaxNumber(numberInput.value);
   const valid = validFaxNumber(number);
   numberInput.disabled = batch.busy || Boolean(batch.destination);
   fileInput.disabled = batch.busy;
   button.disabled = batch.busy || !valid || !ready;
   button.hidden = !ready;
-  button.textContent = `Send ${ready} ${ready === 1 ? "Fax" : "Faxes"}`;
+  button.textContent = ready === 1 ? "Send Fax" : `Send ${ready} Faxes`;
   retryButton.hidden = !failed;
   retryButton.disabled = batch.busy || !valid;
   retryButton.textContent = `Retry Failed (${failed})`;
   clearButton.disabled = batch.busy || (!docs.length && !batch.destination);
   form.setAttribute("aria-busy", String(batch.busy));
-  document.getElementById("documentCount").textContent = `Documents — ${docs.length}`;
-  document.getElementById("batchReview").textContent = batch.adding
-    ? "Checking selected PDFs…"
-    : ready ? `${ready} documents ready to fax separately${valid ? ` to ${number}` : ". Select a valid fax destination"}.`
-    : tracking ? `${submitted} of ${docs.length} submitted.`
-    : docs.length ? "" : "Select PDFs to begin.";
-  document.getElementById("batchReview").hidden = !batch.adding && !ready && !tracking && Boolean(docs.length);
   document.getElementById("numberHelp").textContent = batch.destination
     ? "Destination locked for this batch. Clear All to choose another destination."
     : "";
   document.getElementById("numberHelp").hidden = !batch.destination;
   document.getElementById("retryHelp").hidden = !failed;
   result.textContent = batch.running
-    ? `Processing fax ${batch.progress.current} of ${batch.progress.total}${batch.progress.name ? `: ${batch.progress.name}` : ""}. ${submitted} / ${docs.length} submitted; ${failed} failed.`
-    : docs.length ? `${summary}${tracking ? " Checking fax status…" : ""}` : "No documents selected.";
-  result.dataset.complete = String(Boolean(docs.length) && sent === docs.length);
+    ? `Sending ${Math.max(1, batch.progress.current)} of ${batch.progress.total}...`
+    : tracking ? "Checking fax status..." : ready ? "" : summary;
+  result.hidden = !result.textContent || !docs.some(doc => doc.attempts > 0);
+  result.dataset.complete = String(allSent);
 
   list.replaceChildren();
   for (const doc of docs) {
@@ -95,7 +89,7 @@ function render() {
     if (doc.error) details.append(element("p", doc.error, "fax-error"));
     const actions = element("div", "", "fax-document-actions");
     const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[doc.state] || doc.state;
-    actions.append(element("span", label, "fax-state"));
+    if (doc.state !== "Ready") actions.append(element("span", label, "fax-state"));
     if (doc.retryable) {
       const retry = rowAction("Retry", () => batch.run(numberInput.value, "Failed", doc.id));
       retry.setAttribute("aria-label", `Retry ${doc.file.name}`);

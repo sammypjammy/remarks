@@ -49,7 +49,9 @@
 [data-state="Delivered"] .fax-state, #faxResult[data-complete="true"] { color: var(--text); font-weight: 800; }
 [data-state="Delivered"] { border-color: var(--accent); background: var(--accent-soft); }
 .fax-error, [data-state="Failed"] .fax-state { color: var(--danger); }
-#batchReview { color: var(--text); font-weight: 650; }
+#faxResult[hidden] { display: none; }
+.fax-sending-info { margin-top: 20px; font-size: 0.875rem; }
+.fax-sending-info summary { cursor: pointer; color: var(--muted); }
 .fax-batch-actions [hidden], #retryHelp[hidden] { display: none; }
 @media (max-width: 640px) {
   .fax-document { flex-direction: column; }
