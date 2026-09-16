@@ -6,7 +6,8 @@ const routes = {
   medTabs: `${routePrefix}med-tabs-generator/`,
   email: `${routePrefix}welcome-email-sender/`,
   fax: `${routePrefix}fax-sender/`,
-  settings: `${routePrefix}settings/`
+  settings: `${routePrefix}settings/`,
+  versionHistory: `${routePrefix}version-history/`
 };
 
 function renderAppShell() {
@@ -54,13 +55,13 @@ function renderAppShell() {
         <div class="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
-          <span>${document.body.dataset.footerVersion || "Packard Toolkit v1.0.0"}</span>
+          <a class="app-footer-link" href="${routes.versionHistory}">Packard Toolkit v2.6.0</a>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Built by Sam Jensen</span>
           <span class="app-footer-links">
-            <a class="app-footer-link" href="${document.body.dataset.versionHistory || "https://github.com/sammypjammy/remarks/commits/main/"}" ${document.body.dataset.versionHistory ? "" : 'target="_blank" rel="noopener noreferrer"'}>Version history</a>
+            <a class="app-footer-link" href="${routes.versionHistory}">Version history</a>
             <a class="app-footer-link" href="${routes.settings}">Settings</a>
           </span>
         </div>

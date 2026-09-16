@@ -22,10 +22,6 @@
 #contactMessage, #numberHelp { font-size: 0.85rem; }
 .destination-dropdown[hidden], .destination-clear[hidden], #contactMessage[hidden], #numberHelp[hidden], #faxNumber { display: none; }
 @media (max-width: 480px) { .destination-dropdown { right: 0; } }
-.fax-version-history { margin-top: 24px; scroll-margin-top: 90px; }
-.fax-version-history h2 { margin-bottom: 12px; color: var(--text); font-size: 1.1rem; }
-.fax-version-history summary { cursor: pointer; color: var(--text); }
-.fax-version-history details p { margin-top: 12px; }
 .fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
 .fax-panel label { color: var(--text); font-weight: 700; }
 .fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }

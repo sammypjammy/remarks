@@ -72,6 +72,7 @@ export default defineConfig({
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
         welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),
         settings: resolve(import.meta.dirname, "settings/index.html"),
+        versionHistory: resolve(import.meta.dirname, "version-history/index.html"),
         authCallback: resolve(import.meta.dirname, "welcome-email-sender/callback.html")
       }
     }

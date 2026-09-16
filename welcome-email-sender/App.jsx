@@ -24,7 +24,7 @@ function getToolkitNavigation(isSettingsPage) {
       { id: "med-tabs", label: "Med Tabs", href: "/med-tabs-generator/" },
       { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
       { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
-      { id: "fax", label: "Fax Sender", status: "Coming soon" },
+      { id: "fax", label: "Fax Sender", href: "/fax-sender/" },
     ],
   },
   {
@@ -635,13 +635,13 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <span>Packard Toolkit v1.0.0</span>
+          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.6.0</a>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Built by Sam Jensen</span>
           <span className="app-footer-links">
-            <a className="app-footer-link" href="https://github.com/sammypjammy/remarks/commits/main/" target="_blank" rel="noopener noreferrer">Version history</a>
+            <a className="app-footer-link" href="/version-history/">Version history</a>
             <a className="app-footer-link" href="/settings/">Settings</a>
           </span>
         </div>

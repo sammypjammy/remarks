@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="../settings/shared/footer.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body data-page="fax" data-footer-version="Fax Sender v2.5.2" data-version-history="#version-history">
+  <body data-page="fax">
     <div data-app-header></div>
     <div data-app-menu></div>
     <main class="app-shell">
@@ -57,29 +57,6 @@
           <summary>ⓘ Fax sending info</summary>
           <p class="fax-note">A fax is marked Sent only when RingCentral reports the final Sent status. Checks stop after 15 minutes; unresolved faxes remain Status Unknown. Sent does not confirm human receipt or review.</p>
           <p class="fax-note">Keep this tab open while sending. Documents and results stay in this tab only. Clear All or reloading removes this list and its duplicate protection.</p>
-        </details>
-      </section>
-      <section id="version-history" class="panel fax-panel fax-version-history" aria-labelledby="versionHistoryTitle">
-        <h2 id="versionHistoryTitle">Version history</h2>
-        <details>
-          <summary>v2.5.2 — September 15, 2026</summary>
-          <p>Streamlined document and fax-status UI, removing redundant pre-send counters and destination text while making document cards the primary status display.</p>
-        </details>
-        <details>
-          <summary>v.2.5 — September 15, 2026</summary>
-          <p>Combined contact search and manual fax entry into one compact destination control with an overlay dropdown, readable numbers, selected-state clearing, and icon refresh. Batch destination locking and fax processing are unchanged.</p>
-        </details>
-        <details>
-          <summary>v.2.4 — September 15, 2026</summary>
-          <p>Added a searchable RingCentral personal-contact fax destination picker with separate fax choices, manual entry fallback, and existing batch destination locking.</p>
-        </details>
-        <details>
-          <summary>v.2.3 — September 15, 2026</summary>
-          <p>Updated fax labels to Processing, Submitted, and Sent; clarified status-checking copy and removed the duplicate completion summary. Sending, polling, and retry safety are unchanged.</p>
-        </details>
-        <details>
-          <summary>v.2.2 — September 15, 2026</summary>
-          <p>Fixed the browser timer binding error that prevented automatic fax status tracking. Improved safe status lookup errors and added browser regression coverage. Fax submission behavior is unchanged.</p>
         </details>
       </section>
     </main>

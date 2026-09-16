@@ -160,7 +160,7 @@ try {
   check(info.open && info.textContent.includes("15 minutes") && info.textContent.includes("duplicate protection"), "Info must expand with original safety explanations");
   info.querySelector("summary").click();
   check(!info.open, "Info must collapse again");
-  check(document.body.dataset.footerVersion === "Fax Sender v2.5.2", "Release version must be v2.5.2");
+  check(!document.getElementById("version-history"), "Fax page must not contain an inline version history");
   document.getElementById("browserResult").textContent = "PASS: overlay layout, close/keyboard behavior, contact rows, multiple faxes, formatted E.164 selection, manual fallback, X, refresh guarding, lock and Clear All";
 } catch (error) { document.getElementById("browserResult").textContent = "FAIL: " + error.stack; }
 `;
