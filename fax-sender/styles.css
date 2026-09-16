@@ -1,9 +1,19 @@
-.fax-panel { max-width: 960px; }
+.fax-panel { max-width: 960px; min-width: 0; }
+.fax-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.fax-layout aside { min-width: 0; }
+.fax-history { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--panel); }
+.fax-history summary { cursor: pointer; font-weight: 700; color: var(--text); }
+.fax-history-note, #faxHistoryEmpty { margin-top: 12px; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
+#faxHistoryList { list-style: none; padding: 0; margin: 12px 0 0; max-height: 560px; overflow-y: auto; }
+.fax-history-entry { display: grid; gap: 4px; padding: 12px 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.fax-history-entry + .fax-history-entry { border-top: 1px solid var(--border); }
+.fax-history-entry strong { color: var(--text); }
+@media (max-width: 1099px) { .fax-layout { grid-template-columns: minmax(0, 1fr); } }
 .destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 8px; }
 .destination-input-wrap { position: relative; min-width: 0; }
 .fax-panel #contactSearch { height: 48px; padding-right: 44px; text-overflow: ellipsis; }
 .destination-clear { position: absolute; top: 4px; right: 4px; width: 40px; height: 40px; background: transparent; color: var(--muted); border-radius: 8px; font-size: 1.4rem; }
-.destination-refresh { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
+.destination-refresh { width: 48px; height: 48px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
 .destination-refresh svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .destination-refresh.is-loading svg { animation: contacts-spin 1.1s linear infinite; }
 @keyframes contacts-spin { to { transform: rotate(360deg); } }

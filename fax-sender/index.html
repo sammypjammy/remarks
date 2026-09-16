@@ -17,6 +17,7 @@
         <h1 id="pageTitle">Fax Sender</h1>
         <p class="subtitle">Select PDFs and send each document as a separate fax through RingCentral.</p>
       </section>
+      <div class="fax-layout">
       <section class="panel fax-panel" aria-label="Send a fax">
         <form id="faxForm">
           <fieldset id="faxFields">
@@ -27,7 +28,7 @@
                 <button id="clearDestination" class="destination-clear" type="button" aria-label="Clear fax destination" title="Clear fax destination" hidden>&times;</button>
               </div>
               <button id="reloadContacts" type="button" class="destination-refresh" aria-label="Refresh RingCentral contacts" title="Refresh RingCentral contacts">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17" /></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.34 5.66" /></svg>
               </button>
               <div id="contactDropdown" class="destination-dropdown" role="dialog" aria-label="Choose a fax destination" hidden>
                 <ul id="contactResults" aria-label="Fax destinations"></ul>
@@ -59,6 +60,15 @@
           <p class="fax-note">Keep this tab open while sending. Documents and results stay in this tab only. Clear All or reloading removes this list and its duplicate protection.</p>
         </details>
       </section>
+      <aside aria-label="Recent fax history">
+        <details id="faxHistory" class="fax-history">
+          <summary>Fax History</summary>
+          <p class="fax-history-note">Last 10 attempts in this tab. Retained after Clear All; cleared when you reload or leave. Clear All stops status checks.</p>
+          <p id="faxHistoryEmpty">No fax history yet. Recent attempts will appear here when you send a fax.</p>
+          <ol id="faxHistoryList" aria-label="Recent fax attempts, newest first"></ol>
+        </details>
+      </aside>
+      </div>
     </main>
     <div data-app-footer></div>
     <script src="../settings/shared/settings-storage.js"></script>

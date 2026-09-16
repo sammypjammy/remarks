@@ -133,7 +133,7 @@ test("confirmed failed fax retries with a new ID and preserves old ID; delivered
   assert.deepEqual(batch.documents.map(doc => doc.state), ["Failed", "Delivered", "Status Unknown"]);
   await batch.run("+18015559999", "Failed");
   assert.equal(calls, 4);
-  assert.deepEqual(batch.documents[0].history, [{ messageId: "1", status: "SendingFailed" }]);
+  assert.deepEqual(batch.documents[0].history.map(({ messageId, status }) => ({ messageId, status })), [{ messageId: "1", status: "SendingFailed" }]);
   assert.equal(batch.documents[0].messageId, "4");
   assert.equal(batch.documents[1].messageId, "2");
   await batch.run("+18015551234", "Failed");

@@ -10,6 +10,12 @@ export function validFaxNumber(value) {
 
 const uncertainSubmission = "Submission could not be confirmed. Check RingCentral's sent faxes before retrying to avoid duplicates.";
 
+// Metadata only: never retain the PDF in recent history.
+function attemptSummary(doc) {
+  const { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber } = doc;
+  return { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber, filename: doc.file.name };
+}
+
 // Reuse the production API: every call contains one recipient and one file.
 export async function submitDocument(file, faxNumber) {
   const body = new FormData();
@@ -56,10 +62,19 @@ export class FaxBatch {
     this.onChange = onChange;
     this.pause = pause;
     this.nextId = 1;
+    this.nextAttempt = 1;
+    this.recentArchive = [];
+    this.recipientName = "";
     this.tracker = new FaxTracker({ ...tracking, onChange });
   }
 
   get busy() { return this.running || this.adding; }
+
+  get recentFaxes() {
+    return [...this.recentArchive, ...this.documents.flatMap(doc =>
+      doc.attempts ? [...doc.history, attemptSummary(doc)] : [])]
+      .sort((a, b) => b.sequence - a.sequence).slice(0, 10);
+  }
 
   async addFiles(files) {
     if (this.busy) return [];
@@ -91,14 +106,18 @@ export class FaxBatch {
 
   clear() {
     if (this.busy) return;
+    // Clearing still stops polling. Unfinished results must not imply a final outcome.
+    this.recentArchive = this.recentFaxes.map(entry => ["Delivered", "Failed"].includes(entry.state)
+      ? entry : { ...entry, state: "Status Unknown" });
     this.tracker.clear();
     this.documents = [];
     this.destination = "";
+    this.recipientName = "";
     this.progress = null;
     this.onChange();
   }
 
-  async run(number, state = "Ready", onlyId = null) {
+  async run(number, state = "Ready", onlyId = null, recipientName = "") {
     if (this.busy || !["Ready", "Failed"].includes(state)) return;
     const destination = this.destination || normalizeFaxNumber(number);
     if (!validFaxNumber(destination)) return;
@@ -106,13 +125,18 @@ export class FaxBatch {
     const queue = this.documents.filter(doc => doc.state === state && (state === "Ready" ? !doc.messageId : doc.retryable) &&
       (onlyId === null || doc.id === onlyId));
     if (!queue.length) return;
+    if (!this.destination) this.recipientName = recipientName;
     this.destination = destination;
     this.running = true;
     this.progress = { current: 0, total: queue.length, name: "" };
     this.onChange();
     try {
       for (const [index, doc] of queue.entries()) {
-        if (doc.messageId) doc.history.push({ messageId: doc.messageId, status: doc.status });
+        if (doc.messageId) doc.history.push(attemptSummary(doc));
+        doc.attemptedAt = new Date().toISOString();
+        doc.sequence = this.nextAttempt++;
+        doc.recipientName = this.recipientName;
+        doc.faxNumber = destination;
         doc.messageId = null;
         doc.status = null;
         doc.retryable = false;

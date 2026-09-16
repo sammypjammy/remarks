@@ -2,7 +2,7 @@
 // Run after npm.cmd run build: node tests/navigation-browser-check.mjs "C:\path\to\chrome.exe"
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile, mkdtemp } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, extname, sep } from "node:path";
 import { spawn } from "node:child_process";
@@ -95,7 +95,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.6.0')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.7.0')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -117,9 +117,42 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 6, "Current release plus all five recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 7, "Current release plus all six recorded historical releases");
     await visit("/fax-sender/");
     assert(await evaluate("!document.getElementById('version-history') && !document.getElementById('faxSendingInfo').open && document.querySelectorAll('#faxResult').length === 1"), "Fax UI remains streamlined");
+    assert(await evaluate(`document.getElementById('faxHistory').open === (innerWidth >= 1100) && !document.getElementById('faxHistoryEmpty').hidden`), "Responsive history and empty state");
+    // Exercise the built app with mock sends; never contact RingCentral.
+    await evaluate(`(() => {
+      let id = 0;
+      globalThis.fetch = async (url, options) => {
+        if (url === '/api/ringcentral-contacts') return Response.json({success:true, contacts:[]});
+        if (url === '/api/send-fax' && options.method === 'POST') return Response.json({success:true, messageId:String(++id), status:'Sent'});
+        throw new Error('Unexpected mock request');
+      };
+      const search = document.getElementById('contactSearch');
+      search.value = '8015551234'; search.dispatchEvent(new Event('input'));
+    })()`);
+    await until(() => evaluate("!!document.querySelector('#contactResults button')"), "manual destination");
+    await evaluate(`document.querySelector('#contactResults button').click();
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['%PDF-1.4'], 'example.pdf', {type:'application/pdf'}));
+      document.getElementById('pdfFile').files = transfer.files;
+      document.getElementById('pdfFile').dispatchEvent(new Event('change'));`);
+    await until(() => evaluate("!document.getElementById('sendFax').disabled"), "PDF validated");
+    await evaluate("document.getElementById('sendFax').click()");
+    await until(() => evaluate("document.getElementById('faxHistoryList').textContent.includes('Sent')"), "sent fax in history");
+    await evaluate("document.getElementById('faxHistory').open = true; document.activeElement.blur()");
+    assert(await evaluate("document.documentElement.scrollWidth <= innerWidth"), "Populated fax history must fit viewport");
+    assert(await evaluate(`(() => {
+      const button = document.getElementById('reloadContacts').getBoundingClientRect();
+      const icon = document.querySelector('#reloadContacts svg').getBoundingClientRect();
+      return button.right <= innerWidth && Math.abs(button.x + button.width/2 - icon.x - icon.width/2) < 1;
+    })()`), "Refresh icon fits and centers at actual viewport width");
+    const metrics = await cdp("Page.getLayoutMetrics");
+    const screenshot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
+    const screenshotPath = join(profile, `fax-history-${width}.png`);
+    await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
+    console.log(`Fax History screenshot: ${screenshotPath}`);
     console.log(`PASS (${width}px): Settings/history, both footer links on all 7 pages, every primary-menu link including Email → Fax, no inline history, no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");

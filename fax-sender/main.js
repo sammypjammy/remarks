@@ -37,6 +37,7 @@ function rowAction(label, action) {
 function render() {
   contactPicker.render();
   const docs = batch.documents;
+  renderHistory();
   const ready = docs.filter(doc => doc.state === "Ready").length;
   const failed = docs.filter(doc => doc.state === "Failed").length;
   // Keep the internal state names and retry rules unchanged; these are display labels only.
@@ -105,6 +106,33 @@ function render() {
   }
 }
 
+function renderHistory() {
+  const historyList = document.getElementById("faxHistoryList");
+  const entries = batch.recentFaxes;
+  document.getElementById("faxHistoryEmpty").hidden = Boolean(entries.length);
+  historyList.replaceChildren();
+  for (const entry of entries) {
+    const row = element("li", "", "fax-history-entry");
+    const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[entry.state] || "Status Unknown";
+    row.append(element("strong", entry.recipientName || entry.faxNumber));
+    if (entry.recipientName) row.append(element("span", entry.faxNumber));
+    row.append(element("span", entry.filename));
+    const time = element("time", `Attempted ${new Date(entry.attemptedAt).toLocaleString()}`);
+    time.dateTime = entry.attemptedAt;
+    row.append(time, element("span", `${label} · 1 document`, "fax-state"));
+    if (entry.messageId) row.append(element("span", `Message ID: ${entry.messageId}`));
+    if (entry.status) row.append(element("span", `RingCentral status: ${entry.status}`));
+    if (entry.state === "Status Unknown") row.append(element("span", "Check RingCentral before retrying."));
+    historyList.append(row);
+  }
+}
+
+const historyPanel = document.getElementById("faxHistory");
+const historyDesktop = window.matchMedia("(min-width: 1100px)");
+function setHistoryLayout() { historyPanel.open = historyDesktop.matches; }
+historyDesktop.addEventListener("change", setHistoryLayout);
+setHistoryLayout();
+
 numberInput.addEventListener("input", render);
 fileInput.addEventListener("change", async () => {
   const files = [...fileInput.files];
@@ -115,7 +143,7 @@ fileInput.addEventListener("change", async () => {
 });
 form.addEventListener("submit", event => {
   event.preventDefault();
-  batch.run(numberInput.value);
+  batch.run(numberInput.value, "Ready", null, contactPicker.selectedName);
 });
 retryButton.addEventListener("click", () => batch.run(numberInput.value, "Failed"));
 clearButton.addEventListener("click", () => {

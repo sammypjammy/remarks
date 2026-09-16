@@ -37,6 +37,17 @@ const query = value => {
 const dropdown = document.getElementById("contactDropdown");
 const clearDestination = document.getElementById("clearDestination");
 try {
+  const historyPanel = document.getElementById("faxHistory");
+  check(historyPanel.open === (innerWidth >= 1100), "History must open on desktop and collapse on mobile");
+  check(!document.getElementById("faxHistoryEmpty").hidden, "Empty history must explain where attempts appear");
+  if (!historyPanel.open) historyPanel.querySelector("summary").click();
+  const refreshRect = document.getElementById("reloadContacts").getBoundingClientRect();
+  const iconRect = document.querySelector("#reloadContacts svg").getBoundingClientRect();
+  check(Math.abs((refreshRect.left + refreshRect.right - iconRect.left - iconRect.right) / 2) < 1, "Refresh icon must be horizontally centered");
+  check(Math.abs((refreshRect.top + refreshRect.bottom - iconRect.top - iconRect.bottom) / 2) < 1 && iconRect.width === 20, "Refresh icon must be centered and 20px");
+  const panelRect = document.querySelector(".fax-panel").getBoundingClientRect();
+  const historyRect = historyPanel.getBoundingClientRect();
+  check(innerWidth >= 1100 ? historyRect.left >= panelRect.right && panelRect.width > historyRect.width : historyRect.top >= panelRect.bottom, "History must be secondary on right or below workflow");
   const submissions = [];
   batch.submit = async (file, number) => { submissions.push(number); return { messageId: String(submissions.length), status: "Sent" }; };
   await contactPicker.load();
@@ -88,6 +99,8 @@ try {
   check(button.textContent === "Send Fax", "Single-document button must say Send Fax");
   check(!button.disabled, "Manual entry must enable sending");
   await batch.run(numberInput.value);
+  check(document.querySelectorAll("#faxHistoryList li").length === 1 && document.getElementById("faxHistoryEmpty").hidden, "Sending must populate history");
+  check(document.getElementById("faxHistoryList").textContent.includes("Sent ✓") && document.getElementById("faxHistoryList").textContent.includes("+18015550000"), "History must show sent status and destination");
   check(submissions[0] === "+18015550000", "Manual number must be sole destination");
   check(result.textContent === "✓ Fax sent successfully", "One successful fax must use singular completion summary");
   check(document.querySelector("#documentList .fax-state").textContent === "Sent ✓", "Post-send card status must remain");
@@ -123,12 +136,33 @@ try {
   check(!button.disabled, "Contact failure must not disable manual faxing");
   await batch.run(numberInput.value);
   check(submissions[1] === "+18015551111", "Manual faxing must work after contact failure");
+  check(document.querySelectorAll("#faxHistoryList li").length === 2, "History must retain prior cleared batch");
+  check(document.querySelector("#faxHistoryList li").textContent.includes("manual.pdf"), "Newest fax must appear first");
+  // Exercise the form -> batch -> tracker -> history path with a named recipient.
+  clearButton.click();
+  contactPicker.select(fixtures[0], fixtures[0].faxNumbers[0]);
+  await batch.addFiles([new File(["%PDF-1.4"], "tracked.pdf", { type: "application/pdf" })]);
+  let trackingClock = 0;
+  batch.tracker.now = () => trackingClock;
+  batch.tracker.schedule = () => 1;
+  batch.tracker.cancel = () => {};
+  batch.tracker.lookup = async messageId => ({ messageId, status: "Sent" });
+  batch.submit = async () => ({ messageId: "3", status: "Queued" });
+  form.dispatchEvent(new Event("submit", { cancelable: true }));
+  for (let i = 0; batch.running && i < 20; i++) await Promise.resolve();
+  check(document.querySelector("#faxHistoryList li").textContent.includes("Albuquerque SSA"), "Form submission must retain recipient name");
+  check(document.querySelector("#faxHistoryList li").textContent.includes("Submitted"), "Queued history must not imply Sent");
+  trackingClock = 10000;
+  await batch.tracker.tick();
+  check(document.querySelector("#faxHistoryList li").textContent.includes("Sent ✓"), "Tracking must update history to Sent");
   // Presentation-only fixtures: preserve the existing sending/tracking tests above.
   clearButton.click();
   await batch.addFiles(["one.pdf", "two.pdf", "three.pdf"].map(name => new File(["%PDF-1.4"], name, { type: "application/pdf" })));
   check(button.textContent === "Send 3 Faxes", "Multiple-document send label must include the count");
   check(result.hidden, "New batch must reset the summary");
   batch.documents.forEach((doc, index) => {
+    doc.attemptedAt = new Date().toISOString(); doc.sequence = batch.nextAttempt++;
+    doc.faxNumber = "+18015551234"; doc.recipientName = "Example recipient";
     doc.attempts = 1; doc.messageId = String(100 + index); doc.state = "Delivered"; doc.status = "Sent";
   });
   batch.documents[1].state = "Queued"; batch.documents[1].status = "Queued"; batch.documents[1].tracking = true;
@@ -151,6 +185,7 @@ try {
   check(!retryButton.hidden && document.querySelector('[aria-label="Retry three.pdf"]'), "Failure retry controls must remain");
   check(document.getElementById("documentList").textContent.includes("Message ID: 102") && document.getElementById("documentList").textContent.includes("SendingFailed") && document.getElementById("documentList").textContent.includes("Safe failure detail"), "Post-send diagnostics must remain");
   batch.documents[2].state = "Status Unknown"; batch.documents[2].retryable = false;
+  batch.documents[2].status = "Queued";
   render();
   check(result.textContent === "2 sent · 1 status unknown", "Unknown must not count as failed");
   check(retryButton.hidden && !document.querySelector('[aria-label="Retry three.pdf"]'), "Unknown must not enable Retry");
@@ -169,9 +204,11 @@ const path = join(directory, "check.html");
 await writeFile(path, html);
 for (const viewport of ["1280,900", "390,844"]) {
   const { stdout } = await promisify(execFile)(browser, ["--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+    `--screenshot=${join(directory, 'fax-' + viewport + '.png')}`,
     `--user-data-dir=${join(directory, 'profile-' + viewport)}`, `--window-size=${viewport}`, "--dump-dom", "--virtual-time-budget=5000", pathToFileURL(path).href
   ], { timeout: 60_000, maxBuffer: 2_000_000, windowsHide: true });
   const result = stdout.match(/<pre id="browserResult">([\s\S]*?)<\/pre>/)?.[1] || "FAIL: no browser result";
   console.log(`${viewport}: ${result}`);
+  console.log(`Screenshot: ${join(directory, 'fax-' + viewport + '.png')}`);
   if (!result.startsWith("PASS:")) process.exitCode = 1;
 }
