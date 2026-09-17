@@ -73,7 +73,7 @@ try {
     });
   }
   async function evaluate(expression) {
-    const result = await cdp("Runtime.evaluate", { expression, returnByValue: true });
+    const result = await cdp("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true, userGesture: true });
     if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
     return result.result.value;
   }
@@ -91,12 +91,14 @@ try {
   await cdp("Runtime.enable");
   await cdp("Log.enable");
   await cdp("Page.enable");
+  await cdp("Emulation.setFocusEmulationEnabled", { enabled: true });
+  await cdp("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
   const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/settings/", "/version-history/"];
   for (const width of [1280, 390]) {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.2')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.10.0')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -119,9 +121,10 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 11, "Current release plus all ten recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 12, "Current release plus all eleven recorded historical releases");
     await checkIntake({ visit, click, evaluate, width, capture: async () => {
-      const shot = await cdp("Page.captureScreenshot", { format: "png" });
+      const metrics = await cdp("Page.getLayoutMetrics");
+      const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
       const path = join(profile, `intake-workspace-${width}.png`);
       await writeFile(path, Buffer.from(shot.data, "base64"));
       console.log(`Intake workspace screenshot: ${path}`);

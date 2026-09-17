@@ -1,4 +1,5 @@
 import { intakeRules } from "./rules.js";
+import { reviewFields } from "./review-fields.js";
 
 const definitions = [...Object.values(intakeRules.sections), ...Object.values(intakeRules.records)];
 const plainSections = new Set([
@@ -11,6 +12,7 @@ const plainFields = new Set(definitions.flatMap(rule => [
 // Known conditional/optional labels not listed in the required-field configuration.
 for (const label of ["Last Visit Date", "Have you ever worked", "Used other names in medical records", "Other first name", "Other last name", "Remarks/Comments"]) plainFields.add(label);
 const plainRecords = Object.values(intakeRules.records).filter(rule => rule.heading);
+for (const label of reviewFields) plainFields.add(label);
 
 // Internal metadata follows node lifetime; it does not change the validation data shape.
 const sourceRanges = new WeakMap();

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { checkReview } from "./review-browser-check.mjs";
 // All fixtures are synthetic and were not copied from real clients or intakes.
 import { intakeRules } from "./rules.js";
 
@@ -23,7 +24,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   const summary = await evaluate("document.getElementById('intakeSummary').textContent");
   for (const expected of ["Sections Found3", "ClientAlex Rivera", "Medical Providers2", "Medications1", "Work History Entries1"]) assert(summary.includes(expected), expected);
   assert(await evaluate("!document.getElementById('intakeDebug') && !document.getElementById('parsedIntake')"), "Debug UI must be removed");
-  assert(await evaluate("document.getElementById('validationIssues').textContent.includes('Email is required') && document.getElementById('validationLimits').textContent.includes('Prior-marriage')"), "Validation errors and deferred rules are visible");
+  assert(await evaluate("document.getElementById('validationIssues').textContent.includes('Email is required') && !document.getElementById('validationLimits') && !document.getElementById('validationReport').textContent.includes('Prior-marriage')"), "Validation errors remain visible without developer notes");
   assert(await evaluate("!document.querySelector('#intakeResults img') && document.documentElement.scrollWidth <= innerWidth"), `Safe text rendering and layout at ${width}px`);
   assert.equal(await evaluate("window.intakeRequests"), 0);
   assert.equal(await evaluate("JSON.stringify([localStorage, sessionStorage])"), storageBefore);
@@ -42,7 +43,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   assert.equal(await evaluate("JSON.stringify([localStorage, sessionStorage])"), storageBefore);
   await evaluate("document.getElementById('intakeText').value = 'Unrecognized text'; document.querySelector('#intakeForm button[type=submit]').click()");
   assert.equal(await evaluate("document.getElementById('resultsTitle').textContent"), "Review Parsed Intake");
-  assert(await evaluate("document.getElementById('validationReport').hidden && !document.getElementById('validationIssues').children.length && document.getElementById('intakeMessage').textContent.includes('Validation was not run')"), "Zero sections must skip validation and clear stale errors");
+  assert(await evaluate("document.getElementById('intakeReview').hidden && document.getElementById('validationReport').hidden && !document.getElementById('validationIssues').children.length && document.getElementById('intakeMessage').textContent.includes('Validation was not run')"), "Zero sections must skip validation and clear stale errors");
   const plainComplete = complete.replace(/\*\*([^*]+):\*\*/g, "$1:\n").replace(/\*\*([^*]+)\*\*/g, "$1");
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(plainComplete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
@@ -77,9 +78,6 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   await evaluate("document.getElementById('clearIntake').click()");
   assert(await evaluate("document.getElementById('intakeText').selectionStart === 0 && document.getElementById('intakeText').selectionEnd === 0 && !document.querySelector('.intake-locate')"), "Reset clears selections and locate state");
   assert(await evaluate("!document.getElementById('intakeText').value && document.getElementById('intakeResults').hidden"));
-  if (capture) {
-    await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify("PERSONAL INFORMATION\nFirst Name:\nSynthetic\nEmail:\nNot provided")}; document.querySelector('#intakeForm button[type=submit]').click(); window.scrollTo(0,0)`);
-    await capture();
-  }
+  await checkReview({ evaluate, capture, width });
   console.log(`PASS (${width}px): Intake direct route, hidden home entry, parsing, summary, locate actions, missing values, safe rendering, no storage/fetch, edit/reset, unsupported input.`);
 }

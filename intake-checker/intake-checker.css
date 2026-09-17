@@ -4,7 +4,7 @@
 .intake-page label { display: block; font-weight: 700; color: var(--text); }
 .intake-page p { line-height: 1.5; }
 #intakeHelp { margin: 8px 0 16px; }
-#intakeText { width: 100%; height: max(420px, calc(100vh - 390px)); resize: vertical; min-height: 320px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); color: var(--text); font: inherit; line-height: 1.5; }
+#intakeText { width: 100%; height: clamp(320px, calc(100vh - 480px), 420px); resize: vertical; min-height: 240px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); color: var(--text); font: inherit; line-height: 1.5; }
 .intake-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 #intakeMessage { margin-top: 16px; }
 #intakeResults { margin: 0; }
@@ -15,7 +15,6 @@
 #validationReport { margin-top: 16px; }
 #validationSummary { font-weight: 700; margin: 12px 0; color: var(--text); }
 #validationSummary[data-success="true"] { padding: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; }
-#validationLimits { color: var(--muted); font-size: 0.875rem; }
 #validationIssues { padding: 0; list-style: none; display: grid; gap: 12px; margin-top: 16px; }
 #validationIssues li { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
 #validationIssues li[data-severity="error"] { border-left-color: var(--danger); }
@@ -25,5 +24,14 @@
 @media (max-width: 1080px) {
   .intake-workspace { grid-template-columns: minmax(0, 1fr); }
   .intake-output { border-left: 0; border-top: 1px solid var(--border); padding: 20px 0 0; max-height: none; overflow: visible; }
-  #intakeText { height: 420px; }
+  #intakeText { height: 320px; }
 }
+
+#reviewDivider { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+#reviewItems { list-style: none; padding: 0; display: grid; gap: 12px; }
+#reviewItems li { border: 1px solid #8a5c00; border-left-width: 3px; background: #fffaeb; color: #8a5c00; padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
+[data-theme="dark"] #reviewItems li { border-color: #ffd166; background: #292416; color: #ffd166; }
+#reviewItems button + button { margin-left: 8px; }
+.review-copy { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.copy-status { margin-left: 8px; font-size: 0.875rem; color: var(--muted); }
+#reviewEmpty { color: var(--muted); font-size: 0.875rem; }

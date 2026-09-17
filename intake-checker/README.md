@@ -20,7 +20,17 @@ Limitations: unknown plain-text labels/headings, tables, HTML, and multiple fiel
 
 ## V1 validation
 
-Flow: `parser.js` → `validation.js` → UI report. The UI skips validation when no sections are recognized, showing a parsing review message. Validation rules are unchanged in v2.9.2. `rules.js` centralizes exact required/optional labels, record recognition, and the deferred prior-marriage rule. `validateIntake(intake, rules, { now })` returns structured issues with section, record when applicable, field, severity, reason, and a record location. The default clock is the user's local date; tests inject a fixed date.
+Flow: `parser.js` → structured intake → independent `review.js` and `validation.js` → UI. The UI skips both systems when no sections are recognized, showing a parsing review message. Validation rules remain unchanged from v2.9.2. `rules.js` centralizes exact required/optional labels, record recognition, and the deferred prior-marriage rule. `validateIntake(intake, rules, { now })` returns structured issues with section, record when applicable, field, severity, reason, and a record location. The default clock is the user's local date; tests inject a fixed date. The developer-only deferred-rule note is not displayed in the report.
+
+## Review
+
+`reviewIntake(parsed)` returns a masked identifier, email, and review items with parser source ranges. It does not mutate parsed data or validation results. The plain-text parser recognizes the exact optional labels in `review-fields.js`, supplied with the release request, without adding required fields. Review uses native keyboard-accessible buttons and the Clipboard API; copy failures are reported without replacing the displayed value. Review flags use the Toolkit's light/dark yellow palette. Dismissal removes only the current UI row; every check, edit, Clear, or page exit discards it. No client or review data is persisted or transmitted.
+
+Conditions: more than ten populated medical problems; explicit Yes/true for Currently working in EMPLOYMENT INFORMATION, Used other names in medical records in OTHER NAMES, and the Financial Support receipt fields for veteran benefits, retirement/pension, and borrowing money. Income produces one consolidated item. Amounts alone and ambiguous housing, family/friend support, part-time work, unspecified support, and other wage fields are not used. Food Stamps do not trigger income review.
+
+TODO: Separation requires a confirmed exact DeLorean field/value. Neither incomplete spouse information nor an unconfirmed marital-status enum is used.
+
+Failed work attempts evaluate each recognized WORK HISTORY record independently: valid day-precision Start Date strictly after Onset date of disability, End Date on/after Start Date and on/before the three-calendar-month anniversary. The anniversary clamps month ends (January 31 → April 30); UTC calendar arithmetic avoids timezone/DST drift. Missing, invalid, month-only, or duplicate dates are skipped. Find in Intake uses the original record heading range, including separate ranges for repeated headings.
 
 Conditional checks cover vehicle ownership, at least one medical problem, provider visit dates, current-calendar-year job addresses, and current spouse requirements. Child records require only First Name and Last Name. Prior marriages are not checked until exact labels are supplied.
 

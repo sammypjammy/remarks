@@ -22,7 +22,7 @@
         <form id="intakeForm">
           <label for="intakeText">DeLorean intake text</label>
           <p id="intakeHelp">Processed only in this browser. Nothing is sent or saved.</p>
-          <textarea id="intakeText" rows="16" spellcheck="false" autocomplete="off" aria-describedby="intakeHelp" placeholder="Paste the copied intake here"></textarea>
+          <textarea id="intakeText" rows="12" spellcheck="false" autocomplete="off" aria-describedby="intakeHelp" placeholder="Paste the copied intake here"></textarea>
           <div class="intake-actions">
             <button class="primary-btn" type="submit">Check Intake</button>
             <button id="clearIntake" class="secondary-btn" type="button">Clear</button>
@@ -35,10 +35,16 @@
           <div id="intakeResults" hidden>
           <h2 id="resultsTitle">Intake results</h2>
           <dl id="intakeSummary"></dl>
+          <section id="intakeReview" aria-labelledby="reviewTitle" hidden>
+            <h2 id="reviewTitle">Review</h2>
+            <div id="reviewClient"></div>
+            <ul id="reviewItems"></ul>
+            <p id="reviewEmpty">No additional review items</p>
+          </section>
+          <hr id="reviewDivider" hidden />
           <section id="validationReport" aria-labelledby="validationTitle">
             <h2 id="validationTitle">Validation report</h2>
             <p id="validationSummary" role="status"></p>
-            <p id="validationLimits"></p>
             <ol id="validationIssues"></ol>
           </section>
           </div>
