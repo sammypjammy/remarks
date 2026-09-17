@@ -49,7 +49,7 @@ export function safeFaxMessage(messageId, data) {
     })) : [],
     from: data.from ? { location: data.from.location || null, phoneNumber: data.from.phoneNumber || null } : null,
     receiptAvailable: false,
-    receiptNote: "RingCentral provided the transmitted fax document, but no separate receipt or transmission-confirmation document.",
+    receiptNote: "RingCentral did not provide a separate confirmation document. The available Fax Receipt is the fax document returned as a RenderedDocument.",
     attachments
   };
 }

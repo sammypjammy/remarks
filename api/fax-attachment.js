@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     if (response.status === 403) return fail(403, "Fax document access denied. Check the application's ReadMessages permission.");
     if (response.status === 404) return fail(404, "Fax record is not currently available.");
     if (!response.ok) return fail(502, "RingCentral fax document is temporarily unavailable.");
-    if (data.messageStatus !== "Sent") return fail(409, "The transmitted fax document is available only after RingCentral reports Sent.");
+    if (data.messageStatus !== "Sent") return fail(409, "The Fax Receipt is available only after RingCentral reports Sent.");
     const attachment = Array.isArray(data.attachments)
       ? data.attachments.find(item => String(item?.id) === attachmentIds[0])
       : null;

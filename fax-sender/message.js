@@ -16,15 +16,26 @@ export async function lookupFaxMessage(messageId) {
   return data;
 }
 
-export async function downloadFaxAttachment(downloadUrl, filename = "transmitted-fax-document.pdf") {
+export function validLastFour(value) {
+  return /^\d{4}$/.test(value);
+}
+
+export function receiptFilename(originalName, lastFour) {
+  if (!(typeof originalName === "string" && originalName)) return `Fax Receipt - Document ${lastFour}.pdf`;
+  const baseName = originalName.replace(/\.pdf$/i, "");
+  const safeBase = baseName.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, " ").trim();
+  return `Fax Receipt - ${(safeBase || `Document ${lastFour}`).slice(0, 180)} ${lastFour}.pdf`;
+}
+
+export async function downloadFaxAttachment(downloadUrl, filename = "Fax Receipt.pdf") {
   let response;
   try {
     response = await fetch(downloadUrl, { cache: "no-store", signal: AbortSignal.timeout(35_000) });
   } catch (error) {
     const timedOut = ["TimeoutError", "AbortError"].includes(error?.name);
-    throw new Error(timedOut ? "Download timed out." : "Could not reach the fax document endpoint.");
+    throw new Error(timedOut ? "Fax Receipt download timed out." : "Could not reach the Fax Receipt endpoint.");
   }
-  if (!response.ok) throw new Error("The transmitted fax document is currently unavailable.");
+  if (!response.ok) throw new Error("The Fax Receipt is currently unavailable.");
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

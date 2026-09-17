@@ -40,6 +40,9 @@
             <label for="pdfFile">PDF documents</label>
             <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" multiple aria-describedby="fileHelp" />
             <p id="fileHelp">Up to 4 MB per PDF. Each PDF is a separate fax. No automatic cover page is added. Selecting more files adds them to the list.</p>
+            <label for="lastFourSsn">Last 4 of SSN</label>
+            <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" aria-describedby="lastFourHelp" />
+            <p id="lastFourHelp">Used only to name Fax Receipt downloads. It is not sent or saved.</p>
             <p id="validation" aria-live="polite"></p>
             <div class="fax-list-heading">
               <h2 id="documentCount">Documents</h2>

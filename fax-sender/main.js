@@ -1,11 +1,12 @@
 ﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
 
 import { ContactPicker } from "./contacts.js";
-import { downloadFaxAttachment, lookupFaxMessage } from "./message.js";
+import { downloadFaxAttachment, lookupFaxMessage, receiptFilename, validLastFour } from "./message.js";
 
 const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
 const fileInput = document.getElementById("pdfFile");
+const lastFourInput = document.getElementById("lastFourSsn");
 const button = document.getElementById("sendFax");
 const retryButton = document.getElementById("retryFailed");
 const clearButton = document.getElementById("clearAll");
@@ -102,9 +103,15 @@ function render() {
       for (const attachment of doc.transmissionDetails.attachments || []) {
         const attachmentRow = element("p", `${attachment.fileName} · ${attachment.contentType}`);
         if (attachment.downloadUrl) {
-          const download = rowAction("Download transmitted PDF", async () => {
+          const download = rowAction("Download Fax Receipt", async () => {
+            const lastFour = batch.lastFourSsn;
+            if (!validLastFour(lastFour)) {
+              validation.textContent = "Enter exactly four digits in Last 4 of SSN before downloading a Fax Receipt.";
+              lastFourInput.focus();
+              return;
+            }
             download.disabled = true;
-            try { await downloadFaxAttachment(attachment.downloadUrl, attachment.fileName); }
+            try { await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(doc.file?.name, lastFour)); }
             catch (error) { doc.transmissionDetailsError = error.message; render(); }
           });
           attachmentRow.append(" ", download);
@@ -132,7 +139,7 @@ function render() {
       actions.append(retry);
     }
     if (doc.state === "Delivered" && !doc.transmissionDetails && (!doc.transmissionDetailsRequested || doc.transmissionDetailsError)) {
-      const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Transmission Details" : "View Transmission Details", async () => {
+      const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Transmission Details" : "View Fax Receipt Details", async () => {
         doc.transmissionDetailsRequested = true;
         doc.transmissionDetailsError = "";
         try { doc.transmissionDetails = await lookupFaxMessage(doc.messageId); }
@@ -179,6 +186,9 @@ historyDesktop.addEventListener("change", setHistoryLayout);
 setHistoryLayout();
 
 numberInput.addEventListener("input", render);
+lastFourInput.addEventListener("input", () => {
+  batch.lastFourSsn = lastFourInput.value;
+});
 fileInput.addEventListener("change", async () => {
   const files = [...fileInput.files];
   fileInput.value = ""; // The list owns the files; subsequent selections add to it.
@@ -194,6 +204,7 @@ retryButton.addEventListener("click", () => batch.run(numberInput.value, "Failed
 clearButton.addEventListener("click", () => {
   batch.clear();
   contactPicker.clear();
+  lastFourInput.value = "";
   validation.textContent = "";
 });
 window.addEventListener("beforeunload", event => {

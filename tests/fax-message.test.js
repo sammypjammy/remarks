@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import messageHandler, { safeFaxMessage } from "../api/fax-message.js";
 import attachmentHandler from "../api/fax-attachment.js";
+import { receiptFilename, validLastFour } from "../fax-sender/message.js";
 
 function response() {
   return {
@@ -46,7 +47,7 @@ test("fax message endpoint returns safe outbound metadata and identifies transmi
   await messageHandler({ method: "GET", url: "/api/fax-message?messageId=3207964623007" }, res);
   assert.equal(res.code, 200);
   assert.equal(res.data.receiptAvailable, false);
-  assert.match(res.data.receiptNote, /no separate receipt/);
+  assert.match(res.data.receiptNote, /separate confirmation document/);
   assert.deepEqual(res.data.attachments[0], {
     id: "3207964623007", type: "RenderedDocument", contentType: "application/pdf",
     fileName: "Fax document 3207964623007.pdf", size: 482183, downloadable: true,
@@ -108,4 +109,18 @@ test("safeFaxMessage does not expose RingCentral URLs or private fields", () => 
   const result = safeFaxMessage("1", { ...message, secret: "private", attachments: [{ id: 2, type: "RenderedDocument", contentType: "application/pdf", uri: "https://private" }] });
   assert.doesNotMatch(JSON.stringify(result), /private/);
   assert.equal(result.attachments[0].downloadUrl, "/api/fax-attachment?messageId=1&attachmentId=2");
+});
+
+test("Fax Receipt filenames use each original document name and the batch last four", () => {
+  assert.equal(receiptFilename("827.pdf", "2134"), "Fax Receipt - 827 2134.pdf");
+  assert.equal(receiptFilename("DIB DR.pdf", "1234"), "Fax Receipt - DIB DR 1234.pdf");
+  assert.equal(receiptFilename("Form.PDF", "0007"), "Fax Receipt - Form 0007.pdf");
+  assert.equal(receiptFilename("SSA-827 FINAL.pdf", "9876"), "Fax Receipt - SSA-827 FINAL 9876.pdf");
+  assert.equal(receiptFilename("one.pdf", "2134"), "Fax Receipt - one 2134.pdf");
+  assert.equal(receiptFilename("two.PDF", "2134"), "Fax Receipt - two 2134.pdf");
+  assert.equal(receiptFilename("bad:/name?.pdf", "2134"), "Fax Receipt - bad__name_ 2134.pdf");
+  assert.equal(receiptFilename(undefined, "2134"), "Fax Receipt - Document 2134.pdf");
+  assert.equal(validLastFour("2134"), true);
+  assert.equal(validLastFour("0007"), true);
+  for (const value of ["", "123", "12345", "21A4", "12-34"]) assert.equal(validLastFour(value), false);
 });

@@ -65,6 +65,7 @@ export class FaxBatch {
     this.nextAttempt = 1;
     this.recentArchive = [];
     this.recipientName = "";
+    this.lastFourSsn = "";
     this.tracker = new FaxTracker({ ...tracking, onChange });
   }
 
@@ -113,6 +114,7 @@ export class FaxBatch {
     this.documents = [];
     this.destination = "";
     this.recipientName = "";
+    this.lastFourSsn = "";
     this.progress = null;
     this.onChange();
   }
