@@ -96,7 +96,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.1')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.2')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -108,7 +108,8 @@ try {
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
-      assert.equal(links.length, page === "/version-history/" ? 7 : 6, `All other tools linked from ${page}`);
+      assert.equal(links.length, ["/version-history/", "/fax-sender/", "/intake-checker/"].includes(page) ? 5 : 4, `Released tools linked from ${page}`);
+      assert(await evaluate(`![...document.querySelectorAll('a[href]')].some(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)) && !/Fax Sender|Intake Checker/.test(document.querySelector('.toolkit-navigation').textContent)`), `No unreleased tool entry points on ${page}`);
       for (const link of links) {
         await visit(page);
         await evaluate(`document.querySelector('.app-menu-toggle').click()`);
@@ -118,8 +119,13 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 10, "Current release plus all nine recorded historical releases");
-    await checkIntake({ visit, click, evaluate, width });
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 11, "Current release plus all ten recorded historical releases");
+    await checkIntake({ visit, click, evaluate, width, capture: async () => {
+      const shot = await cdp("Page.captureScreenshot", { format: "png" });
+      const path = join(profile, `intake-workspace-${width}.png`);
+      await writeFile(path, Buffer.from(shot.data, "base64"));
+      console.log(`Intake workspace screenshot: ${path}`);
+    } });
     await visit("/fax-sender/");
     assert(await evaluate("!document.getElementById('version-history') && !document.getElementById('faxSendingInfo').open && document.querySelectorAll('#faxResult').length === 1"), "Fax UI remains streamlined");
     assert(await evaluate(`document.getElementById('faxHistory').open === (innerWidth >= 1100) && !document.getElementById('faxHistoryEmpty').hidden`), "Responsive history and empty state");
@@ -155,7 +161,7 @@ try {
     const screenshotPath = join(profile, `fax-history-${width}.png`);
     await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
     console.log(`Fax History screenshot: ${screenshotPath}`);
-    console.log(`PASS (${width}px): Settings/history, both footer links on all 8 pages, every primary-menu link including Email → Fax, no inline history, no overflow.`);
+    console.log(`PASS (${width}px): Settings/history, footer links on all 8 pages, released-tool menus, hidden development tools with working direct URLs, no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");
   console.log("PASS: no broken resources, console/runtime errors, or API calls.");

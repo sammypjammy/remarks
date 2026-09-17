@@ -12,6 +12,10 @@ const plainFields = new Set(definitions.flatMap(rule => [
 for (const label of ["Last Visit Date", "Have you ever worked", "Used other names in medical records", "Other first name", "Other last name", "Remarks/Comments"]) plainFields.add(label);
 const plainRecords = Object.values(intakeRules.records).filter(rule => rule.heading);
 
+// Internal metadata follows node lifetime; it does not change the validation data shape.
+const sourceRanges = new WeakMap();
+export const sourceRange = node => sourceRanges.get(node) || null;
+
 // Ordered arrays preserve duplicate headings/labels without inventing field names.
 export function parseIntake(rawText) {
   const result = { sections: [], unparsed: [] };
@@ -27,7 +31,12 @@ export function parseIntake(rawText) {
     lines = [];
   }
   function node(title) { return { title, fields: [], subsections: [] }; }
-  for (const [index, rawLine] of String(rawText).replace(/\r\n?/g, "\n").split("\n").entries()) {
+  let index = -1;
+  // Preserve original UTF-16 offsets, including CRLF, for textarea selection APIs.
+  for (const sourceLine of String(rawText).matchAll(/([^\r\n]*)(\r\n|\r|\n|$)/g)) {
+    index++;
+    const rawLine = sourceLine[1];
+    const range = { start: sourceLine.index, end: sourceLine.index + rawLine.length };
     const line = rawLine.trim();
     const plainField = line.match(/^([^:]+):(.*)$/);
     const knownField = plainField && (plainFields.has(plainField[1]) || intakeRules.medicalProblemLabel.test(plainField[1]));
@@ -41,6 +50,7 @@ export function parseIntake(rawText) {
       const level = heading ? heading[1].length : plainRecord ? 4 : 2;
       const title = (heading ? heading[2] : boldHeading ? boldHeading[1] : line).replace(/^\*\*(.*?)\*\*$/, "$1");
       const next = node(title);
+      sourceRanges.set(next, range);
       if (level <= 3) {
         result.sections.push(next);
         section = next;
@@ -58,11 +68,13 @@ export function parseIntake(rawText) {
       if (!target) result.unparsed.push({ line: index + 1, text: rawLine });
       else {
         field = { label: match[1], value: null };
+        sourceRanges.set(field, range);
         target.fields.push(field);
         lines = [match[2]];
       }
     } else if (field) {
       lines.push(rawLine);
+      if (rawLine.trim()) sourceRanges.get(field).end = range.end;
     } else if (line) {
       result.unparsed.push({ line: index + 1, text: rawLine });
     }

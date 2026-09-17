@@ -1,22 +1,29 @@
-.intake-page { max-width: 1040px; }
+.intake-workspace { display: grid; grid-template-columns: minmax(0, 45fr) minmax(0, 55fr); gap: 24px; align-items: start; }
+.intake-input, .intake-output { min-width: 0; }
+.intake-output { border-left: 1px solid var(--border); padding-left: 24px; max-height: max(600px, calc(100vh - 220px)); overflow-y: auto; padding-right: 8px; }
 .intake-page label { display: block; font-weight: 700; color: var(--text); }
 .intake-page p { line-height: 1.5; }
 #intakeHelp { margin: 8px 0 16px; }
-#intakeText { width: 100%; resize: vertical; min-height: 280px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); color: var(--text); font: inherit; line-height: 1.5; }
+#intakeText { width: 100%; height: max(420px, calc(100vh - 390px)); resize: vertical; min-height: 320px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); color: var(--text); font: inherit; line-height: 1.5; }
 .intake-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 #intakeMessage { margin-top: 16px; }
-#intakeResults { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 24px; }
+#intakeResults { margin: 0; }
 #intakeResults h2 { color: var(--text); font-size: 1.25rem; }
 #intakeSummary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 20px; margin: 16px 0; overflow-wrap: anywhere; }
 #intakeSummary dt { font-weight: 700; }
 #intakeSummary dd { margin: 0; }
-#intakeDebug { margin-top: 16px; }
-#validationReport { margin-top: 24px; }
+#validationReport { margin-top: 16px; }
 #validationSummary { font-weight: 700; margin: 12px 0; color: var(--text); }
+#validationSummary[data-success="true"] { padding: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; }
 #validationLimits { color: var(--muted); font-size: 0.875rem; }
 #validationIssues { padding: 0; list-style: none; display: grid; gap: 12px; margin-top: 16px; }
 #validationIssues li { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
 #validationIssues li[data-severity="error"] { border-left-color: var(--danger); }
 #validationIssues p { margin-top: 6px; }
-#intakeDebug summary { cursor: pointer; color: var(--text); }
-#parsedIntake { max-height: 600px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--panel-alt); padding: 16px; border-radius: 12px; margin-top: 12px; }
+.intake-locate { margin-top: 8px; font-size: 0.8rem; }
+#validationIssues small { display: block; margin-top: 6px; color: var(--muted); }
+@media (max-width: 1080px) {
+  .intake-workspace { grid-template-columns: minmax(0, 1fr); }
+  .intake-output { border-left: 0; border-top: 1px solid var(--border); padding: 20px 0 0; max-height: none; overflow: visible; }
+  #intakeText { height: 420px; }
+}
