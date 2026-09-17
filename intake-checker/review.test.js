@@ -10,7 +10,7 @@ const messages = text => review(text).items.map(item => item.message);
 const personal = "PERSONAL INFORMATION\nFirst Name: Synthetic\nLast Name: Example\nEmail: synthetic@example.test\nSocial Security Number: ";
 test("summary returns only last four, preserving leading zeroes", () => {
   const result = review(personal + "900-00-0742");
-  assert.equal(result.identifier, "Synthetic Example — 0742");
+  assert.equal(result.identifier, "Synthetic Example 0742");
   assert.equal(result.email, "synthetic@example.test");
   assert(!JSON.stringify(result).includes("900-00-0742"));
 });

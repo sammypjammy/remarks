@@ -54,7 +54,7 @@ function renderAppShell() {
         <div class="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
-          <a class="app-footer-link" href="${routes.versionHistory}">Packard Toolkit v2.10.0</a>
+          <a class="app-footer-link" href="${routes.versionHistory}">Packard Toolkit v2.10.1</a>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>

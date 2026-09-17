@@ -1,15 +1,14 @@
-import { parseIntake, summarizeIntake } from "./parser.js";
+import { parseIntake } from "./parser.js";
 import { validateIntake } from "./validation.js";
 import { issueSource, findInTextarea } from "./source-location.js";
 import { reviewIntake } from "./review.js";
+import { createAcknowledgements, validationSummary } from "./acknowledgements.js";
 
 const input = document.getElementById("intakeText");
 const results = document.getElementById("intakeResults");
 const message = document.getElementById("intakeMessage");
-const summary = document.getElementById("intakeSummary");
 function clearResults() {
   results.hidden = true;
-  summary.replaceChildren();
   document.getElementById("intakeEmpty").hidden = false;
   message.textContent = "";
   document.getElementById("validationIssues").replaceChildren();
@@ -36,16 +35,7 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
     return;
   }
   const parsed = parseIntake(input.value);
-  const labels = { client: "Client", sections: "Sections Found", providers: "Medical Providers", medications: "Medications", jobs: "Work History Entries" };
-  for (const [key, value] of Object.entries(summarizeIntake(parsed))) {
-    const term = document.createElement("dt");
-    const description = document.createElement("dd");
-    term.textContent = labels[key];
-    description.textContent = value;
-    summary.append(term, description);
-  }
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
-  document.getElementById("resultsTitle").textContent = partial ? "Review Parsed Intake" : "Intake Parsed Successfully";
   message.textContent = partial ? "Some text could not be placed in a section. Validation may be incomplete; review the pasted intake." : "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
     renderReview(reviewIntake(parsed));
@@ -59,12 +49,14 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
 });
 
 function renderReport(report, partial, parsed) {
-  const errors = report.issues.filter(issue => issue.severity === "error").length;
-  const warnings = report.issues.length - errors;
-  document.getElementById("validationSummary").textContent = report.issues.length
-    ? `${errors} error${errors === 1 ? "" : "s"} · ${warnings} review warning${warnings === 1 ? "" : "s"}`
-    : partial ? "No issues found in the recognized data. Parsing needs review." : "No issues found under the active V1 rules.";
-  document.getElementById("validationSummary").dataset.success = String(!report.issues.length && !partial);
+  const state = createAcknowledgements(report.issues);
+  const summary = document.getElementById("validationSummary");
+  function updateSummary() {
+    const result = validationSummary(report.issues, state.remaining(), partial);
+    summary.textContent = result.text;
+    summary.dataset.success = String(result.success);
+  }
+  updateSummary();
   const list = document.getElementById("validationIssues");
   for (const issue of report.issues) {
     const row = document.createElement("li");
@@ -74,10 +66,17 @@ function renderReport(report, partial, parsed) {
     const reason = document.createElement("p");
     reason.textContent = issue.message.replace("parsed structure", "pasted intake");
     row.append(title, reason);
+    const actions = document.createElement("div");
+    actions.className = "issue-actions";
     const range = issueSource(parsed, issue);
     if (range) {
-      row.append(locateButton(range, [issue.section, issue.record, issue.field].filter(Boolean).join(" / ")));
+      actions.append(locateButton(range, [issue.section, issue.record, issue.field].filter(Boolean).join(" / ")));
     }
+    actions.append(reviewedButton(row, title.textContent, () => {
+      state.review(issue);
+      updateSummary();
+    }, summary));
+    row.append(actions);
     if (issue.record && issue.location) {
       const location = document.createElement("small");
       location.textContent = `Record ${Number(issue.location.split("/").at(-1)) + 1} in this group`;
@@ -85,6 +84,21 @@ function renderReport(report, partial, parsed) {
     }
     list.append(row);
   }
+}
+
+function reviewedButton(row, label, acknowledge, fallback) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary-btn intake-reviewed";
+  button.textContent = "Reviewed";
+  button.setAttribute("aria-label", `Reviewed: ${label}`);
+  button.addEventListener("click", () => {
+    const next = row.nextElementSibling?.querySelector("button") || row.previousElementSibling?.querySelector("button");
+    acknowledge();
+    row.remove();
+    (next || fallback)?.focus();
+  });
+  return button;
 }
 
 function locateButton(range, label) {
@@ -107,7 +121,7 @@ function renderReview(review) {
     if (value) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "secondary-btn review-copy";
+      button.className = "review-copy";
       button.textContent = value;
       button.setAttribute("aria-label", `Copy ${label}: ${value}`);
       const status = document.createElement("span");
@@ -128,6 +142,7 @@ function renderReview(review) {
   }
   const list = document.getElementById("reviewItems");
   const empty = document.getElementById("reviewEmpty");
+  const state = createAcknowledgements(review.items);
   empty.hidden = review.items.length > 0;
   for (const item of review.items) {
     const row = document.createElement("li");
@@ -136,19 +151,12 @@ function renderReview(review) {
     title.textContent = item.message;
     row.append(title);
     const actions = document.createElement("div");
+    actions.className = "issue-actions";
     if (item.range) actions.append(locateButton(item.range, item.message));
-    const dismiss = document.createElement("button");
-    dismiss.type = "button";
-    dismiss.className = "secondary-btn intake-locate";
-    dismiss.textContent = "Reviewed";
-    dismiss.setAttribute("aria-label", `Reviewed: ${item.message}`);
-    dismiss.addEventListener("click", () => {
-      const next = row.nextElementSibling?.querySelector("button") || row.previousElementSibling?.querySelector("button");
-      row.remove();
-      empty.hidden = list.children.length > 0;
-      (next || client.querySelector("button"))?.focus();
-    });
-    actions.append(dismiss);
+    actions.append(reviewedButton(row, item.message, () => {
+      state.review(item);
+      empty.hidden = state.remaining().length > 0;
+    }, client.querySelector("button") || document.getElementById("reviewTitle")));
     row.append(actions);
     list.append(row);
   }

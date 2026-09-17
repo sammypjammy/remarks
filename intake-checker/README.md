@@ -24,7 +24,9 @@ Flow: `parser.js` → structured intake → independent `review.js` and `validat
 
 ## Review
 
-`reviewIntake(parsed)` returns a masked identifier, email, and review items with parser source ranges. It does not mutate parsed data or validation results. The plain-text parser recognizes the exact optional labels in `review-fields.js`, supplied with the release request, without adding required fields. Review uses native keyboard-accessible buttons and the Clipboard API; copy failures are reported without replacing the displayed value. Review flags use the Toolkit's light/dark yellow palette. Dismissal removes only the current UI row; every check, edit, Clear, or page exit discards it. No client or review data is persisted or transmitted.
+`reviewIntake(parsed)` returns a masked identifier, email, and review items with parser source ranges. It does not mutate parsed data or validation results. The plain-text parser recognizes the exact optional labels in `review-fields.js`, supplied with the release request, without adding required fields. Review uses native keyboard-accessible buttons styled as plain text and the Clipboard API; copy failures are reported without replacing the displayed value. The identifier joins the name and last four with a space. Review flags use the Toolkit's light/dark yellow palette. No client or review data is persisted or transmitted.
+
+Review and Validation share `createAcknowledgements` and a Reviewed button helper. Each rendering owns an in-memory Set keyed by item identity, keeping repeated-record issues independent. Original results are never mutated. Dismissal removes the acknowledged row and validation counts use the remaining items. “All validation issues reviewed” is not a success result; genuine success requires the validator to return zero issues and complete parsing. Every check, edit, Clear, or page exit discards the UI state. No acknowledgement state is stored outside the current rendering.
 
 Conditions: more than ten populated medical problems; explicit Yes/true for Currently working in EMPLOYMENT INFORMATION, Used other names in medical records in OTHER NAMES, and the Financial Support receipt fields for veteran benefits, retirement/pension, and borrowing money. Income produces one consolidated item. Amounts alone and ambiguous housing, family/friend support, part-time work, unspecified support, and other wage fields are not used. Food Stamps do not trigger income review.
 
@@ -44,7 +46,7 @@ Local preview: `npm.cmd run dev`, then open `/intake-checker/`. Production build
 
 ## Workspace and source locations
 
-The shared Toolkit panel contains a 45/55 input/report grid above 1080px; smaller screens stack the report below the input. The desktop report scrolls independently. Both tools remain available at their direct URLs, but Intake Checker and Fax Sender are temporarily absent from home cards and navigation.
+The shared Toolkit panel contains a 45/55 input/report grid above 1080px; smaller screens stack the report below the input. The textarea defaults to a fixed 350px on desktop and 260px on narrower screens, with internal scrolling and vertical resizing down to 180px. The input column aligns to the top without stretching to the report height. The desktop report scrolls independently. Review and Validation Report are separated by a divider, without a preceding parsed-intake heading or summary. Both tools remain available at their direct URLs, but Intake Checker and Fax Sender are temporarily absent from home cards and navigation.
 
 The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by its existing nodes. No labels/values or validation rules change. `issueSource` follows the validation issue record path, then resolves the exact field within that record. Missing fields fall back to the record/section heading; absent sections have no locate action.
 

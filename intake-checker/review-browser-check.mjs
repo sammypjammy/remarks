@@ -8,9 +8,14 @@ export async function checkReview({ evaluate, capture, width }) {
   assert.equal(await evaluate("document.querySelectorAll('#reviewItems li').length"), 5);
   const validation = await evaluate("document.getElementById('validationReport').innerHTML");
   assert(await evaluate("!document.getElementById('intakeReview').outerHTML.includes('900-00') && !document.getElementById('intakeReview').outerHTML.includes('900000742')"));
-  assert.equal(await evaluate("document.querySelector('.review-copy').textContent"), "Synthetic Example — 0742");
+  assert.equal(await evaluate("document.querySelector('.review-copy').textContent"), "Synthetic Example 0742");
   assert(await evaluate("!document.querySelector('#intakeReview a') && [...document.querySelectorAll('.review-copy')].every(b => b.tagName === 'BUTTON' && b.type === 'button')"));
-  for (const [index, expected] of [[0, "Synthetic Example — 0742"], [1, "synthetic@example.test"]]) {
+  assert(await evaluate(`([...document.querySelectorAll('.review-copy')].every(button => {
+    button.focus();
+    const style = getComputedStyle(button);
+    return document.activeElement === button && button.getAttribute('aria-label').startsWith('Copy ') && !button.classList.contains('secondary-btn') && style.borderTopWidth === '0px' && style.backgroundColor === 'rgba(0, 0, 0, 0)' && style.paddingTop === '0px';
+  }))`), 'Copy controls look like plain text and remain keyboard focusable');
+  for (const [index, expected] of [[0, "Synthetic Example 0742"], [1, "synthetic@example.test"]]) {
     assert.equal(await evaluate(`(async () => {
       document.querySelectorAll('.review-copy')[${index}].click();
       for (let attempt = 0; attempt < 100; attempt++) {
@@ -22,9 +27,9 @@ export async function checkReview({ evaluate, capture, width }) {
   }
   await evaluate("navigator.clipboard.writeText('')");
   await evaluate("window.copiedValue = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async value => { window.copiedValue = value; } } }); document.querySelector('.review-copy').click()");
-  assert.equal(await evaluate("window.copiedValue"), "Synthetic Example — 0742");
+  assert.equal(await evaluate("window.copiedValue"), "Synthetic Example 0742");
   assert.equal(await evaluate("document.querySelector('.copy-status').textContent"), "Copied");
-  assert.equal(await evaluate("document.querySelector('.review-copy').textContent"), "Synthetic Example — 0742");
+  assert.equal(await evaluate("document.querySelector('.review-copy').textContent"), "Synthetic Example 0742");
   await evaluate("document.querySelectorAll('.review-copy')[1].click()");
   assert.equal(await evaluate("window.copiedValue"), "synthetic@example.test");
   await evaluate("navigator.clipboard.writeText = async () => { throw new Error('Denied'); }; document.querySelector('.review-copy').click()");
@@ -33,7 +38,10 @@ export async function checkReview({ evaluate, capture, width }) {
     const review = document.getElementById('intakeReview').getBoundingClientRect();
     const divider = document.getElementById('reviewDivider').getBoundingClientRect();
     const report = document.getElementById('validationReport').getBoundingClientRect();
-    return review.bottom <= divider.top && divider.bottom <= report.top && divider.height >= 1 && document.getElementById('intakeText').getBoundingClientRect().height < 510 && document.documentElement.scrollWidth <= innerWidth;
+    const input = document.getElementById('intakeText');
+    const left = document.querySelector('.intake-input').getBoundingClientRect();
+    const right = document.querySelector('.intake-output').getBoundingClientRect();
+    return review.bottom <= divider.top && divider.bottom <= report.top && divider.height >= 1 && input.getBoundingClientRect().height === (innerWidth > 1080 ? 350 : 260) && input.scrollHeight > input.clientHeight && getComputedStyle(input).overflowY === 'auto' && (innerWidth <= 1080 || left.height < right.height) && document.documentElement.scrollWidth <= innerWidth;
   })()`), 'Compact textarea and separate ordered sections');
   assert.equal(await evaluate("getComputedStyle(document.querySelector('#reviewItems li')).backgroundColor"), "rgb(255, 250, 235)");
   await evaluate("document.documentElement.dataset.theme = 'dark'");

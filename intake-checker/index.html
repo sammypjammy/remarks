@@ -33,10 +33,8 @@
         <section class="intake-output" aria-label="Intake results">
           <p id="intakeEmpty">Check an intake to see issues here.</p>
           <div id="intakeResults" hidden>
-          <h2 id="resultsTitle">Intake results</h2>
-          <dl id="intakeSummary"></dl>
           <section id="intakeReview" aria-labelledby="reviewTitle" hidden>
-            <h2 id="reviewTitle">Review</h2>
+            <h2 id="reviewTitle" tabindex="-1">Review</h2>
             <div id="reviewClient"></div>
             <ul id="reviewItems"></ul>
             <p id="reviewEmpty">No additional review items</p>
@@ -44,7 +42,7 @@
           <hr id="reviewDivider" hidden />
           <section id="validationReport" aria-labelledby="validationTitle">
             <h2 id="validationTitle">Validation report</h2>
-            <p id="validationSummary" role="status"></p>
+            <p id="validationSummary" role="status" tabindex="-1"></p>
             <ol id="validationIssues"></ol>
           </section>
           </div>

@@ -26,7 +26,7 @@ export function reviewIntake(intake) {
   const ssn = personal.length === 1 ? field(personal, "Social Security Number")?.value : null;
   const digits = ssn?.replace(/\D/g, "") || "";
   const lastFour = digits.length >= 4 ? digits.slice(-4) : "";
-  const identifier = [name, lastFour].filter(Boolean).join(" — ");
+  const identifier = [name, lastFour].filter(Boolean).join(" ");
   const email = personal.length === 1 ? field(personal, "Email")?.value || "" : "";
   const items = [];
   const add = (message, source) => items.push({ message, range: sourceRange(source) });
