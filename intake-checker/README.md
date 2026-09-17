@@ -2,7 +2,7 @@
 
 Part of the Toolkit's existing Vite build. No intake data is sent, logged, or stored; Clear and leaving the page remove the current input/results.
 
-`parseIntake(text)` returns `{ sections, unparsed }`. Sections and subsections have an exact `title`, ordered `fields: [{ label, value }]`, and `subsections`. Arrays intentionally preserve repeated labels and identically named records. `unparsed` retains unmatched text with source line numbers; it drives the parsing review notice. There is no user-facing JSON/debug view.
+`parseIntake(text)` returns `{ sections, unparsed }`. Sections and subsections have an exact `title`, ordered `fields: [{ label, value }]`, and `subsections`. Arrays intentionally preserve repeated labels and identically named records. `unparsed` retains unmatched text with source line numbers; it drives parsing completeness handling. There is no user-facing JSON/debug view.
 
 Supported format:
 

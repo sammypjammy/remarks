@@ -35,4 +35,3 @@
 .review-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 #reviewClient p { margin: 8px 0; }
 .copy-status { margin-left: 8px; font-size: 0.875rem; color: var(--muted); }
-#reviewEmpty { color: var(--muted); font-size: 0.875rem; }

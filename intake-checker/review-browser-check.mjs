@@ -60,7 +60,7 @@ export async function checkReview({ evaluate, capture, width }) {
   assert.equal(await evaluate("document.getElementById('validationReport').innerHTML"), validation);
   assert.equal(await evaluate("document.getElementById('intakeText').value"), text);
   await evaluate("document.querySelectorAll('#reviewItems button[aria-label^=\"Reviewed:\"]').forEach(b => b.click())");
-  assert(await evaluate("!document.getElementById('reviewEmpty').hidden && document.querySelectorAll('.review-copy').length === 2"));
+  assert(await evaluate("!document.getElementById('reviewEmpty') && document.querySelectorAll('.review-copy').length === 2"));
   await check(text);
   assert.equal(await evaluate("document.querySelectorAll('#reviewItems li').length"), 5);
   if (capture) { await evaluate("document.querySelector('.intake-output').scrollTop = 0; window.scrollTo(0,0)"); await capture(); }
@@ -70,7 +70,7 @@ export async function checkReview({ evaluate, capture, width }) {
   assert.equal(await evaluate("document.querySelectorAll('#reviewItems li').length"), 5);
   await check("PERSONAL INFORMATION\nFirst Name: Synthetic\nSocial Security Number: 123");
   assert.equal(await evaluate("document.querySelector('.review-copy').textContent"), "Synthetic");
-  assert(await evaluate("document.getElementById('reviewClient').textContent.includes('Email not provided') && !document.getElementById('reviewEmpty').hidden"));
+  assert(await evaluate("document.getElementById('reviewClient').textContent.includes('Email not provided') && !document.getElementById('reviewEmpty')"));
   await check("Unrecognized intake");
   assert(await evaluate("document.getElementById('intakeReview').hidden && document.getElementById('reviewDivider').hidden && !document.getElementById('reviewClient').children.length"));
   assert.equal(await evaluate("JSON.stringify([localStorage, sessionStorage])"), storage);

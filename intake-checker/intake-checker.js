@@ -36,7 +36,7 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   }
   const parsed = parseIntake(input.value);
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
-  message.textContent = partial ? "Some text could not be placed in a section. Validation may be incomplete; review the pasted intake." : "Intake checked. Select Find in Intake to locate an issue.";
+  message.textContent = "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
     renderReview(reviewIntake(parsed));
     renderReport(validateIntake(parsed), partial, parsed);
@@ -141,9 +141,7 @@ function renderReview(review) {
     client.append(row);
   }
   const list = document.getElementById("reviewItems");
-  const empty = document.getElementById("reviewEmpty");
   const state = createAcknowledgements(review.items);
-  empty.hidden = review.items.length > 0;
   for (const item of review.items) {
     const row = document.createElement("li");
     row.dataset.severity = "warning";
@@ -155,7 +153,6 @@ function renderReview(review) {
     if (item.range) actions.append(locateButton(item.range, item.message));
     actions.append(reviewedButton(row, item.message, () => {
       state.review(item);
-      empty.hidden = state.remaining().length > 0;
     }, client.querySelector("button") || document.getElementById("reviewTitle")));
     row.append(actions);
     list.append(row);
