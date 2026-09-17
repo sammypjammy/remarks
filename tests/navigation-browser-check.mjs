@@ -96,7 +96,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.0')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.1')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -118,7 +118,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 9, "Current release plus all eight recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 10, "Current release plus all nine recorded historical releases");
     await checkIntake({ visit, click, evaluate, width });
     await visit("/fax-sender/");
     assert(await evaluate("!document.getElementById('version-history') && !document.getElementById('faxSendingInfo').open && document.querySelectorAll('#faxResult').length === 1"), "Fax UI remains streamlined");

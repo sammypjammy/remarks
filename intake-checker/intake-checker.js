@@ -14,6 +14,7 @@ function clearResults() {
   document.getElementById("validationIssues").replaceChildren();
   document.getElementById("validationSummary").textContent = "";
   document.getElementById("validationLimits").textContent = "";
+  document.getElementById("validationReport").hidden = true;
   document.getElementById("intakeDebug").open = false;
 }
 function reset() { input.value = ""; clearResults(); }
@@ -41,7 +42,12 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
   document.getElementById("resultsTitle").textContent = partial ? "Review Parsed Intake" : "Intake Parsed Successfully";
   message.textContent = partial ? "Some text could not be placed in a section. Validation may be incomplete; review the unparsed entries in the debug view." : "Parsing complete. Review the V1 validation report below.";
-  renderReport(validateIntake(parsed), partial);
+  if (parsed.sections.length) {
+    renderReport(validateIntake(parsed), partial);
+    document.getElementById("validationReport").hidden = false;
+  } else {
+    message.textContent = "The intake could not be reliably parsed: no sections were recognized. Validation was not run. Copy the intake again and review the Parsed structure below.";
+  }
   debug.textContent = JSON.stringify(parsed, null, 2);
   results.hidden = false;
 });

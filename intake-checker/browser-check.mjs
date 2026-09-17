@@ -39,6 +39,11 @@ export async function checkIntake({ visit, click, evaluate, width }) {
   assert.equal(await evaluate("JSON.stringify([localStorage, sessionStorage])"), storageBefore);
   await evaluate("document.getElementById('intakeText').value = 'Unrecognized text'; document.querySelector('#intakeForm button[type=submit]').click()");
   assert.equal(await evaluate("document.getElementById('resultsTitle').textContent"), "Review Parsed Intake");
+  assert(await evaluate("document.getElementById('validationReport').hidden && !document.getElementById('validationIssues').children.length && document.getElementById('intakeMessage').textContent.includes('Validation was not run')"), "Zero sections must skip validation and clear stale errors");
+  const plainComplete = complete.replace(/\*\*([^*]+):\*\*/g, "$1:\n").replace(/\*\*([^*]+)\*\*/g, "$1");
+  await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(plainComplete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
+  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
+  assert(await evaluate("!document.getElementById('validationReport').hidden"), "Recognized plain text must run validation");
   await evaluate("document.getElementById('clearIntake').click()");
   assert(await evaluate("!document.getElementById('intakeText').value && document.getElementById('intakeResults').hidden && !document.getElementById('parsedIntake').textContent"));
   console.log(`PASS (${width}px): Intake home link, parsing, summary, debug, missing values, safe rendering, no storage/fetch, edit/reset, unsupported input.`);

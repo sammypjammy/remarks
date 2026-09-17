@@ -1,3 +1,17 @@
+import { intakeRules } from "./rules.js";
+
+const definitions = [...Object.values(intakeRules.sections), ...Object.values(intakeRules.records)];
+const plainSections = new Set([
+  ...Object.keys(intakeRules.sections), ...intakeRules.optionalSections,
+  ...definitions.flatMap(rule => [rule.section, rule.parent].filter(Boolean)), "MEDICAL PROBLEMS"
+]);
+const plainFields = new Set(definitions.flatMap(rule => [
+  ...(rule.required || []), ...(rule.optional || []), ...(rule.currentYearAddress || [])
+]));
+// Known conditional/optional labels not listed in the required-field configuration.
+for (const label of ["Last Visit Date", "Have you ever worked", "Used other names in medical records", "Other first name", "Other last name", "Remarks/Comments"]) plainFields.add(label);
+const plainRecords = Object.values(intakeRules.records).filter(rule => rule.heading);
+
 // Ordered arrays preserve duplicate headings/labels without inventing field names.
 export function parseIntake(rawText) {
   const result = { sections: [], unparsed: [] };
@@ -15,13 +29,17 @@ export function parseIntake(rawText) {
   function node(title) { return { title, fields: [], subsections: [] }; }
   for (const [index, rawLine] of String(rawText).replace(/\r\n?/g, "\n").split("\n").entries()) {
     const line = rawLine.trim();
-    const match = line.match(/^\*\*(.+?):\*\*(.*)$/) || line.match(/^\*\*(.+?)\*\*:(.*)$/);
+    const plainField = line.match(/^([^:]+):(.*)$/);
+    const knownField = plainField && (plainFields.has(plainField[1]) || intakeRules.medicalProblemLabel.test(plainField[1]));
+    const match = line.match(/^\*\*(.+?):\*\*(.*)$/) || line.match(/^\*\*(.+?)\*\*:(.*)$/) || (knownField ? plainField : null);
     const heading = line.match(/^(#{1,6})\s+(.+?)(?:\s+#+)?$/);
     const boldHeading = !match && line.match(/^\*\*([^*]+)\*\*$/);
-    if (heading || boldHeading) {
+    const plainSection = plainSections.has(line);
+    const plainRecord = section && plainRecords.some(rule => rule.heading.test(line));
+    if (heading || boldHeading || plainSection || plainRecord) {
       finishField();
-      const level = heading ? heading[1].length : 2;
-      const title = (heading ? heading[2] : boldHeading[1]).replace(/^\*\*(.*?)\*\*$/, "$1");
+      const level = heading ? heading[1].length : plainRecord ? 4 : 2;
+      const title = (heading ? heading[2] : boldHeading ? boldHeading[1] : line).replace(/^\*\*(.*?)\*\*$/, "$1");
       const next = node(title);
       if (level <= 3) {
         result.sections.push(next);
