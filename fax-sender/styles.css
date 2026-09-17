@@ -1,13 +1,14 @@
 .fax-panel { max-width: 960px; min-width: 0; }
 .fax-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
 .fax-layout aside { min-width: 0; }
-.fax-history { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--panel); }
+.fax-history { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); }
 .fax-history summary { cursor: pointer; font-weight: 700; color: var(--text); }
-.fax-history-note, #faxHistoryEmpty { margin-top: 12px; font-size: 0.8rem; line-height: 1.5; color: var(--muted); }
-#faxHistoryList { list-style: none; padding: 0; margin: 12px 0 0; max-height: 560px; overflow-y: auto; }
-.fax-history-entry { display: grid; gap: 4px; padding: 12px 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.fax-history-note, #faxHistoryEmpty { margin: 10px 0 0; font-size: 0.8rem; line-height: 1.4; color: var(--muted); }
+#faxHistoryList { list-style: none; padding: 0; margin: 10px 0 0; max-height: 560px; overflow-y: auto; }
+.fax-history-entry { display: grid; gap: 3px; min-width: 0; padding: 10px 0; font-size: 0.8rem; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
 .fax-history-entry + .fax-history-entry { border-top: 1px solid var(--border); }
-.fax-history-entry strong { color: var(--text); }
+.fax-history-entry strong { color: var(--text); overflow-wrap: anywhere; }
+.fax-history-entry time { color: var(--muted); }
 @media (max-width: 1099px) { .fax-layout { grid-template-columns: minmax(0, 1fr); } }
 .destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 8px; }
 .destination-input-wrap { position: relative; min-width: 0; }
@@ -49,7 +50,8 @@
 .fax-document-details { min-width: 0; overflow-wrap: anywhere; }
 .fax-filename { color: var(--text); display: block; }
 .fax-size, .fax-document-details p { font-size: 0.85rem; }
-.fax-document-actions { flex-shrink: 0; }
+.fax-document-actions { flex-shrink: 0; align-items: flex-start; }
+.fax-receipt-status { color: var(--muted); font-size: 0.85rem; }
 .fax-state { font-size: 0.85rem; font-weight: 700; color: var(--text); }
 [data-state="Queued"] .fax-state { color: var(--accent); }
 [data-state="Delivered"] .fax-state, #faxResult[data-complete="true"] { color: var(--text); font-weight: 800; }

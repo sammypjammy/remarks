@@ -1,4 +1,5 @@
 import { FaxTracker } from "./tracking.js";
+import { validLastFour } from "./message.js";
 
 export function normalizeFaxNumber(value) {
   return value.replace(/[\s().-]/g, "");
@@ -52,7 +53,7 @@ async function validatePdf(file) {
 
 // Tab-only state. No PDFs or results are written to browser storage.
 export class FaxBatch {
-  constructor({ submit = submitDocument, onChange = () => {}, pause = () => new Promise(resolve => setTimeout(resolve, 1000)), tracking = {} } = {}) {
+  constructor({ submit = submitDocument, onChange = () => {}, onValidationError = () => {}, pause = () => new Promise(resolve => setTimeout(resolve, 1000)), tracking = {} } = {}) {
     this.documents = [];
     this.destination = "";
     this.running = false;
@@ -60,6 +61,7 @@ export class FaxBatch {
     this.progress = null;
     this.submit = submit;
     this.onChange = onChange;
+    this.onValidationError = onValidationError;
     this.pause = pause;
     this.nextId = 1;
     this.nextAttempt = 1;
@@ -127,6 +129,10 @@ export class FaxBatch {
     const queue = this.documents.filter(doc => doc.state === state && (state === "Ready" ? !doc.messageId : doc.retryable) &&
       (onlyId === null || doc.id === onlyId));
     if (!queue.length) return;
+    if (!validLastFour(this.lastFourSsn)) {
+      this.onValidationError("Enter the client's 4-digit SSN last four before sending.");
+      return;
+    }
     if (!this.destination) this.recipientName = recipientName;
     this.destination = destination;
     this.running = true;

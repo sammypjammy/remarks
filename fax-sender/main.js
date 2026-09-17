@@ -15,13 +15,24 @@ const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
 const batch = new FaxBatch({
   onChange: render,
+  onValidationError: message => {
+    validation.textContent = message;
+    lastFourInput.focus();
+  },
   tracking: {
     onSent: async doc => {
+      doc.receiptError = "";
       try {
         const details = await lookupFaxMessage(doc.messageId);
-        if (doc.messageId === details.messageId) doc.transmissionDetails = details;
+        if (doc.messageId === details.messageId) {
+          doc.transmissionDetails = details;
+          if (!receiptAttachment(doc)) doc.receiptError = "Fax Receipt is unavailable for this fax.";
+        }
       } catch (error) {
-        if (doc.messageId) doc.transmissionDetailsError = error.message;
+        if (doc.messageId) {
+          doc.transmissionDetailsError = error.message;
+          doc.receiptError = error.message;
+        }
       }
       render();
     }
@@ -41,12 +52,37 @@ function element(tag, text, className) {
   return node;
 }
 
-function rowAction(label, action) {
-  const control = element("button", label, "secondary-btn");
+function rowAction(label, action, className = "secondary-btn") {
+  const control = element("button", label, className);
   control.type = "button";
   control.disabled = batch.busy;
   control.addEventListener("click", action);
   return control;
+}
+
+function receiptAttachment(doc) {
+  return doc.transmissionDetails?.attachments?.find(attachment => attachment.downloadUrl);
+}
+
+function receiptAction(doc, attachment) {
+  const download = rowAction(doc.receiptError ? "Retry Fax Receipt" : "Download Fax Receipt", async () => {
+    const lastFour = batch.lastFourSsn;
+    if (!validLastFour(lastFour)) {
+      validation.textContent = "Enter exactly four digits in Last 4 of SSN before downloading a Fax Receipt.";
+      lastFourInput.focus();
+      return;
+    }
+    download.disabled = true;
+    try {
+      await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(doc.file?.name, lastFour));
+      doc.receiptError = "";
+    } catch (error) {
+      doc.receiptError = error.message;
+      render();
+    }
+  }, "primary-btn");
+  download.setAttribute("aria-label", `${doc.receiptError ? "Retry" : "Download"} Fax Receipt for ${doc.file.name}`);
+  return download;
 }
 
 function render() {
@@ -102,20 +138,6 @@ function render() {
       if (doc.transmissionDetails.faxPageCount) transmission.append(element("p", `${doc.transmissionDetails.faxPageCount} pages · ${doc.transmissionDetails.faxResolution || "Resolution unavailable"}`));
       for (const attachment of doc.transmissionDetails.attachments || []) {
         const attachmentRow = element("p", `${attachment.fileName} · ${attachment.contentType}`);
-        if (attachment.downloadUrl) {
-          const download = rowAction("Download Fax Receipt", async () => {
-            const lastFour = batch.lastFourSsn;
-            if (!validLastFour(lastFour)) {
-              validation.textContent = "Enter exactly four digits in Last 4 of SSN before downloading a Fax Receipt.";
-              lastFourInput.focus();
-              return;
-            }
-            download.disabled = true;
-            try { await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(doc.file?.name, lastFour)); }
-            catch (error) { doc.transmissionDetailsError = error.message; render(); }
-          });
-          attachmentRow.append(" ", download);
-        }
         transmission.append(attachmentRow);
       }
       details.append(transmission);
@@ -133,13 +155,19 @@ function render() {
     const actions = element("div", "", "fax-document-actions");
     const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[doc.state] || doc.state;
     if (doc.state !== "Ready") actions.append(element("span", label, "fax-state"));
+    const attachment = receiptAttachment(doc);
+    if (doc.state === "Delivered" && attachment) actions.append(receiptAction(doc, attachment));
+    if (doc.state === "Delivered" && !attachment && !doc.transmissionDetailsError) {
+      actions.append(element("span", "Preparing receipt...", "fax-receipt-status"));
+    }
+    if (doc.receiptError) actions.append(element("span", `Receipt unavailable: ${doc.receiptError}`, "fax-error"));
     if (doc.retryable) {
       const retry = rowAction("Retry", () => batch.run(numberInput.value, "Failed", doc.id));
       retry.setAttribute("aria-label", `Retry ${doc.file.name}`);
       actions.append(retry);
     }
     if (doc.state === "Delivered" && !doc.transmissionDetails && (!doc.transmissionDetailsRequested || doc.transmissionDetailsError)) {
-      const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Transmission Details" : "View Fax Receipt Details", async () => {
+      const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Fax Receipt Lookup" : "View Fax Receipt Details", async () => {
         doc.transmissionDetailsRequested = true;
         doc.transmissionDetailsError = "";
         try { doc.transmissionDetails = await lookupFaxMessage(doc.messageId); }
@@ -188,6 +216,7 @@ setHistoryLayout();
 numberInput.addEventListener("input", render);
 lastFourInput.addEventListener("input", () => {
   batch.lastFourSsn = lastFourInput.value;
+  if (validLastFour(batch.lastFourSsn)) validation.textContent = "";
 });
 fileInput.addEventListener("change", async () => {
   const files = [...fileInput.files];

@@ -143,6 +143,7 @@ test("confirmed failed fax retries with a new ID and preserves old ID; delivered
       lookup: async id => ({ messageId: id, status: id === "1" ? "SendingFailed" : "Sent" }) }
   });
   await batch.addFiles(["failed.pdf", "delivered.pdf", "unknown.pdf"].map(name => new File(["%PDF-1.4"], name, { type: "application/pdf" })));
+  batch.lastFourSsn = "2134";
   await batch.run("+18015551234");
   time = 10000; await batch.tracker.tick();
   time = 15000; await batch.tracker.tick();

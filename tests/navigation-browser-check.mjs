@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.11.1')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.11.2')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -121,7 +121,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 15, "Current release plus all fourteen recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 16, "Current release plus all fifteen recorded historical releases");
     await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -138,6 +138,7 @@ try {
       globalThis.fetch = async (url, options) => {
         if (url === '/api/ringcentral-contacts') return Response.json({success:true, contacts:[]});
         if (url === '/api/send-fax' && options.method === 'POST') return Response.json({success:true, messageId:String(++id), status:'Sent'});
+        if (url.startsWith('/api/fax-message')) return Response.json({success:true, messageId:'1', receiptNote:'Receipt available', attachments:[{downloadUrl:'/api/fax-attachment?messageId=1&attachmentId=1', fileName:'RenderedDocument.pdf', contentType:'application/pdf'}]});
         throw new Error('Unexpected mock request');
       };
       const search = document.getElementById('contactSearch');
@@ -150,8 +151,11 @@ try {
       document.getElementById('pdfFile').files = transfer.files;
       document.getElementById('pdfFile').dispatchEvent(new Event('change'));`);
     await until(() => evaluate("!document.getElementById('sendFax').disabled"), "PDF validated");
+    await evaluate("document.getElementById('lastFourSsn').value = '0007'; document.getElementById('lastFourSsn').dispatchEvent(new Event('input'))");
     await evaluate("document.getElementById('sendFax').click()");
     await until(() => evaluate("document.getElementById('faxHistoryList').textContent.includes('Sent')"), "sent fax in history");
+    await until(() => evaluate("!![...document.querySelectorAll('#documentList button')].find(button => button.textContent === 'Download Fax Receipt')"), "receipt action");
+    assert(await evaluate("document.querySelector('#documentList button.primary-btn')?.textContent === 'Download Fax Receipt'"), "Sent card exposes primary receipt action");
     await evaluate("document.getElementById('faxHistory').open = true; document.activeElement.blur()");
     assert(await evaluate("document.documentElement.scrollWidth <= innerWidth"), "Populated fax history must fit viewport");
     assert(await evaluate(`(() => {

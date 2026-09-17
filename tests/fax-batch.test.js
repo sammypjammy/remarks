@@ -47,6 +47,7 @@ test("eight PDFs produce eight sequential requests with distinct results", async
     }
   });
   await batch.addFiles(Array.from({ length: 8 }, (_, i) => pdf(`${i}.pdf`)));
+  batch.lastFourSsn = "2134";
   await batch.run("+1 (801) 555-1234");
   assert.equal(calls.length, 8);
   assert.equal(maxActive, 1);
@@ -71,6 +72,7 @@ test("failure does not stop queue; individual and batch retries never resend sub
     return { messageId: String(calls.length), status: "Queued" };
   } });
   await batch.addFiles([pdf("one.pdf"), pdf("two.pdf"), pdf("three.pdf")]);
+  batch.lastFourSsn = "2134";
   await batch.run("+18015551234");
   assert.deepEqual(batch.documents.map(doc => doc.state), ["Queued", "Failed", "Failed"]);
   assert.equal(batch.documents[1].retryable, true);
@@ -98,6 +100,7 @@ test("invalid destination, double click, and mutations during sending cannot sta
     return { messageId: "123", status: "Queued" };
   } });
   await batch.addFiles([pdf("one.pdf")]);
+  batch.lastFourSsn = "2134";
   await batch.run("");
   assert.equal(calls, 0);
   const running = batch.run("+18015551234");
@@ -115,6 +118,26 @@ test("invalid destination, double click, and mutations during sending cannot sta
   assert.equal(batch.documents[0].state, "Queued");
   batch.clear();
   assert.equal(batch.destination, "");
+});
+
+test("Last 4 is required before the queue starts and leading zeroes are allowed", async () => {
+  const calls = [];
+  const batch = new FaxBatch({ tracking: { schedule: () => 1, cancel: () => {} }, pause: noPause,
+    submit: async (file, number, ...extra) => {
+      calls.push({ file: file.name, number, extra });
+      return { messageId: String(calls.length), status: "Queued" };
+    } });
+  await batch.addFiles([pdf("one.pdf"), pdf("two.pdf")]);
+  for (const value of ["", "123", "12345", "21A4", "12-34"]) {
+    batch.lastFourSsn = value;
+    await batch.run("+18015551234");
+    assert.equal(calls.length, 0, `invalid Last 4 ${JSON.stringify(value)} submitted a fax`);
+    assert.ok(batch.documents.every(doc => doc.state === "Ready"));
+  }
+  batch.lastFourSsn = "0007";
+  await batch.run("+18015551234");
+  assert.equal(calls.length, 2);
+  assert.ok(calls.every(call => call.number === "+18015551234" && call.extra.length === 0));
 });
 
 test("client transport sends one multipart PDF per request and treats ambiguous failures carefully", async t => {
