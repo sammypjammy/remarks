@@ -39,8 +39,8 @@ export class FaxTracker {
   constructor({ lookup = lookupFax, now = Date.now,
     // Native Window timers require the global receiver, not the FaxTracker instance.
     schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
-    cancel = timer => globalThis.clearTimeout(timer), onChange = () => {} } = {}) {
-    Object.assign(this, { lookup, now, schedule, cancel, onChange });
+    cancel = timer => globalThis.clearTimeout(timer), onChange = () => {}, onSent = () => {} } = {}) {
+    Object.assign(this, { lookup, now, schedule, cancel, onChange, onSent });
     this.pending = new Map();
     this.timer = null;
     this.checking = false;
@@ -49,10 +49,17 @@ export class FaxTracker {
   start(doc) {
     doc.state = faxState(doc.status);
     doc.retryable = doc.status === "SendingFailed";
+    if (doc.state === "Delivered") this.notifySent(doc);
     if (["Delivered", "Failed"].includes(doc.state)) return;
     doc.tracking = true;
     this.pending.set(doc.id, { doc, messageId: doc.messageId, due: this.now() + INITIAL_DELAY, deadline: this.now() + TRACKING_TIMEOUT });
     this.arm(INITIAL_DELAY);
+  }
+
+  notifySent(doc) {
+    if (doc.transmissionDetailsRequested) return;
+    doc.transmissionDetailsRequested = true;
+    Promise.resolve(this.onSent(doc)).catch(() => {});
   }
 
   arm(delay) {
@@ -95,6 +102,7 @@ export class FaxTracker {
         if (["Delivered", "Failed"].includes(doc.state)) {
           doc.tracking = false;
           this.pending.delete(doc.id);
+          if (doc.state === "Delivered") this.notifySent(doc);
         }
       } catch (error) {
         if (this.pending.get(doc.id) !== entry) return;

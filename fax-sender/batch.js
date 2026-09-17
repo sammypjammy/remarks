@@ -88,7 +88,7 @@ export class FaxBatch {
         const duplicate = this.documents.some(doc => doc.file.name === file.name &&
           doc.file.size === file.size && doc.file.lastModified === file.lastModified);
         if (duplicate) { errors.push(`${file.name}: Already in this list; not added again.`); continue; }
-        this.documents.push({ id: this.nextId++, file, state: "Ready", messageId: null, status: null, error: "", attempts: 0, history: [], retryable: false, tracking: false });
+        this.documents.push({ id: this.nextId++, file, state: "Ready", messageId: null, status: null, error: "", attempts: 0, history: [], retryable: false, tracking: false, transmissionDetails: null, transmissionDetailsError: "", transmissionDetailsRequested: false });
       }
     } finally {
       this.adding = false;
@@ -139,6 +139,9 @@ export class FaxBatch {
         doc.faxNumber = destination;
         doc.messageId = null;
         doc.status = null;
+        doc.transmissionDetails = null;
+        doc.transmissionDetailsError = "";
+        doc.transmissionDetailsRequested = false;
         doc.retryable = false;
         doc.state = "Submitting";
         doc.error = "";

@@ -64,6 +64,22 @@ test("Queued -> Sent stops polling; a confirmed failure does not affect another 
     calls.push(id);
     return { messageId: id, status: id === "1" ? "SendingFailed" : "Sent" };
   });
+
+  test("Sent status triggers one transmission-details lookup without changing fax status", async () => {
+    let time = 0, detailsCalls = 0;
+    const { tracker, step } = harness(async () => ({ messageId: "1", status: "Sent" }));
+    tracker.onSent = async doc => { detailsCalls++; doc.transmissionDetails = { messageId: doc.messageId }; };
+    const doc = document(1);
+    tracker.start(doc);
+    await step(10000);
+    assert.equal(doc.state, "Delivered");
+    assert.equal(doc.status, "Sent");
+    await Promise.resolve();
+    assert.equal(detailsCalls, 1);
+    tracker.start(doc);
+    await Promise.resolve();
+    assert.equal(detailsCalls, 1);
+  });
   const first = document(1), second = document(2);
   tracker.start(first); tracker.start(second);
   await step(9000);

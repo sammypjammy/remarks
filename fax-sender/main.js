@@ -1,6 +1,7 @@
 ﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
 
 import { ContactPicker } from "./contacts.js";
+import { downloadFaxAttachment, lookupFaxMessage } from "./message.js";
 
 const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
@@ -11,7 +12,20 @@ const clearButton = document.getElementById("clearAll");
 const validation = document.getElementById("validation");
 const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
-const batch = new FaxBatch({ onChange: render });
+const batch = new FaxBatch({
+  onChange: render,
+  tracking: {
+    onSent: async doc => {
+      try {
+        const details = await lookupFaxMessage(doc.messageId);
+        if (doc.messageId === details.messageId) doc.transmissionDetails = details;
+      } catch (error) {
+        if (doc.messageId) doc.transmissionDetailsError = error.message;
+      }
+      render();
+    }
+  }
+});
 const contactPicker = new ContactPicker({
   root: document.getElementById("destinationControl"), dropdown: document.getElementById("contactDropdown"), clear: document.getElementById("clearDestination"),
   search: document.getElementById("contactSearch"), results: document.getElementById("contactResults"),
@@ -80,6 +94,27 @@ function render() {
     if (doc.messageId) {
       details.append(element("p", `Message ID: ${doc.messageId} · RingCentral status: ${doc.status || "Not yet available"}`));
     }
+    if (doc.transmissionDetails) {
+      const transmission = document.createElement("details");
+      transmission.append(element("summary", "View Transmission Details"));
+      transmission.append(element("p", doc.transmissionDetails.receiptNote));
+      if (doc.transmissionDetails.faxPageCount) transmission.append(element("p", `${doc.transmissionDetails.faxPageCount} pages · ${doc.transmissionDetails.faxResolution || "Resolution unavailable"}`));
+      for (const attachment of doc.transmissionDetails.attachments || []) {
+        const attachmentRow = element("p", `${attachment.fileName} · ${attachment.contentType}`);
+        if (attachment.downloadUrl) {
+          const download = rowAction("Download transmitted PDF", async () => {
+            download.disabled = true;
+            try { await downloadFaxAttachment(attachment.downloadUrl, attachment.fileName); }
+            catch (error) { doc.transmissionDetailsError = error.message; render(); }
+          });
+          attachmentRow.append(" ", download);
+        }
+        transmission.append(attachmentRow);
+      }
+      details.append(transmission);
+    } else if (doc.transmissionDetailsError) {
+      details.append(element("p", `Transmission details unavailable: ${doc.transmissionDetailsError}`, "fax-error"));
+    }
     if (doc.history.length) {
       const history = document.createElement("details");
       history.append(element("summary", "Previous attempts"));
@@ -95,6 +130,16 @@ function render() {
       const retry = rowAction("Retry", () => batch.run(numberInput.value, "Failed", doc.id));
       retry.setAttribute("aria-label", `Retry ${doc.file.name}`);
       actions.append(retry);
+    }
+    if (doc.state === "Delivered" && !doc.transmissionDetails && (!doc.transmissionDetailsRequested || doc.transmissionDetailsError)) {
+      const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Transmission Details" : "View Transmission Details", async () => {
+        doc.transmissionDetailsRequested = true;
+        doc.transmissionDetailsError = "";
+        try { doc.transmissionDetails = await lookupFaxMessage(doc.messageId); }
+        catch (error) { doc.transmissionDetailsError = error.message; }
+        render();
+      });
+      actions.append(detailsButton);
     }
     if (doc.state === "Ready") {
       const remove = rowAction("Remove", () => batch.remove(doc.id));
