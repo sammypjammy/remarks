@@ -25,6 +25,7 @@ function getToolkitNavigation(isSettingsPage) {
       { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
       { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
       { id: "fax", label: "Fax Sender", href: "/fax-sender/" },
+      { id: "intake", label: "Intake Checker", href: "/intake-checker/" },
     ],
   },
   {
@@ -635,7 +636,7 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.7.0</a>
+          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.9.0</a>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>

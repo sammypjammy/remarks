@@ -6,6 +6,7 @@ import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, extname, sep } from "node:path";
 import { spawn } from "node:child_process";
+import { checkIntake } from "../intake-checker/browser-check.mjs";
 
 const browser = process.argv[2];
 assert(browser, "Provide a Chromium executable path");
@@ -90,12 +91,12 @@ try {
   await cdp("Runtime.enable");
   await cdp("Log.enable");
   await cdp("Page.enable");
-  const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/settings/", "/version-history/"];
+  const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/settings/", "/version-history/"];
   for (const width of [1280, 390]) {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.7.0')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.9.0')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -107,7 +108,7 @@ try {
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
-      assert.equal(links.length, page === "/version-history/" ? 6 : 5, `All other tools linked from ${page}`);
+      assert.equal(links.length, page === "/version-history/" ? 7 : 6, `All other tools linked from ${page}`);
       for (const link of links) {
         await visit(page);
         await evaluate(`document.querySelector('.app-menu-toggle').click()`);
@@ -117,7 +118,8 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 7, "Current release plus all six recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 9, "Current release plus all eight recorded historical releases");
+    await checkIntake({ visit, click, evaluate, width });
     await visit("/fax-sender/");
     assert(await evaluate("!document.getElementById('version-history') && !document.getElementById('faxSendingInfo').open && document.querySelectorAll('#faxResult').length === 1"), "Fax UI remains streamlined");
     assert(await evaluate(`document.getElementById('faxHistory').open === (innerWidth >= 1100) && !document.getElementById('faxHistoryEmpty').hidden`), "Responsive history and empty state");
@@ -153,7 +155,7 @@ try {
     const screenshotPath = join(profile, `fax-history-${width}.png`);
     await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
     console.log(`Fax History screenshot: ${screenshotPath}`);
-    console.log(`PASS (${width}px): Settings/history, both footer links on all 7 pages, every primary-menu link including Email → Fax, no inline history, no overflow.`);
+    console.log(`PASS (${width}px): Settings/history, both footer links on all 8 pages, every primary-menu link including Email → Fax, no inline history, no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");
   console.log("PASS: no broken resources, console/runtime errors, or API calls.");

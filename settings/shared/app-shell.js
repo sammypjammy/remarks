@@ -6,6 +6,7 @@ const routes = {
   medTabs: `${routePrefix}med-tabs-generator/`,
   email: `${routePrefix}welcome-email-sender/`,
   fax: `${routePrefix}fax-sender/`,
+  intake: `${routePrefix}intake-checker/`,
   settings: `${routePrefix}settings/`,
   versionHistory: `${routePrefix}version-history/`
 };
@@ -55,7 +56,7 @@ function renderAppShell() {
         <div class="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
-          <a class="app-footer-link" href="${routes.versionHistory}">Packard Toolkit v2.7.0</a>
+          <a class="app-footer-link" href="${routes.versionHistory}">Packard Toolkit v2.9.0</a>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span class="app-footer-divider" aria-hidden="true">&bull;</span>
@@ -80,7 +81,8 @@ const toolkitNavigationConfig = [
       { id: "med-tabs", label: "Med Tabs", url: routes.medTabs },
       { id: "remarks", label: "Canned Remarks", url: routes.remarks },
       { id: "email", label: "Welcome Emails", url: routes.email },
-      { id: "fax", label: "Fax Sender", url: routes.fax }
+      { id: "fax", label: "Fax Sender", url: routes.fax },
+      { id: "intake", label: "Intake Checker", url: routes.intake }
     ]
   },
   {

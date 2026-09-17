@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Intake Checker | Packard Toolkit</title>
+    <link rel="icon" type="image/png" href="../settings/shared/favicon.png" />
+    <link rel="stylesheet" href="../settings/shared/style.css" />
+    <link rel="stylesheet" href="../settings/shared/footer.css" />
+    <link rel="stylesheet" href="./intake-checker.css" />
+  </head>
+  <body data-page="intake">
+    <div data-app-header></div>
+    <div data-app-menu></div>
+    <main class="app-shell intake-page">
+      <section class="page-intro" aria-labelledby="pageTitle">
+        <h1 id="pageTitle">Intake Checker</h1>
+        <p class="subtitle">Copy the intake text from DeLorean and paste it below to inspect its structure.</p>
+      </section>
+      <section class="panel">
+        <form id="intakeForm">
+          <label for="intakeText">DeLorean intake text</label>
+          <p id="intakeHelp">Processed only in this browser. Nothing is sent or saved. Checks the defined V1 intake rules; review warnings and the parsed structure for anything that could not be checked.</p>
+          <textarea id="intakeText" rows="16" spellcheck="false" autocomplete="off" aria-describedby="intakeHelp" placeholder="Paste the copied intake here"></textarea>
+          <div class="intake-actions">
+            <button class="primary-btn" type="submit">Check Intake</button>
+            <button id="clearIntake" class="secondary-btn" type="button">Clear</button>
+          </div>
+        </form>
+        <p id="intakeMessage" role="status" aria-live="polite"></p>
+        <section id="intakeResults" aria-labelledby="resultsTitle" hidden>
+          <h2 id="resultsTitle">Intake Parsed Successfully</h2>
+          <dl id="intakeSummary"></dl>
+          <p>Record counts include recognized subsection headings only. Review the parsed structure to confirm the results.</p>
+          <section id="validationReport" aria-labelledby="validationTitle">
+            <h2 id="validationTitle">Validation report</h2>
+            <p id="validationSummary" role="status"></p>
+            <p id="validationLimits"></p>
+            <ol id="validationIssues"></ol>
+          </section>
+          <details id="intakeDebug">
+            <summary>Parsed structure (debug view)</summary>
+            <pre id="parsedIntake"></pre>
+          </details>
+        </section>
+      </section>
+    </main>
+    <div data-app-footer></div>
+    <script src="../settings/shared/settings-storage.js"></script>
+    <script src="../settings/shared/app-shell.js"></script>
+    <script type="module" src="./intake-checker.js"></script>
+  </body>
+</html>

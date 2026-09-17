@@ -68,6 +68,7 @@ export default defineConfig({
       input: {
         home: resolve(import.meta.dirname, "index.html"),
         faxSender: resolve(import.meta.dirname, "fax-sender/index.html"),
+        intakeChecker: resolve(import.meta.dirname, "intake-checker/index.html"),
         cannedRemarks: resolve(import.meta.dirname, "canned-remarks/index.html"),
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
         welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),
