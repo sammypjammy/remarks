@@ -190,6 +190,18 @@ select { appearance: none; padding: 0 40px 0 14px; cursor: pointer; }
 input:hover, select:hover { border-color: var(--accent-line); }
 input:focus, select:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
 input.has-error, select.has-error { border-color: var(--danger); }
+.sender-fields { display: grid; gap: 20px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.email-mode { justify-self: start; }
+#bulk-recipients { width: 100%; box-sizing: border-box; min-height: 150px; resize: vertical; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface-inset); color: var(--text); }
+.bulk-summary { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 8px 0; }
+.bulk-details { font-size: 0.85rem; margin: 10px 0; overflow-wrap: anywhere; }
+.bulk-details summary { cursor: pointer; }
+.bulk-details ul { max-height: 180px; overflow: auto; padding-left: 22px; }
+.bulk-results:empty { display: none; }
+.bulk-results { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 10px; overflow-wrap: anywhere; }
+dialog.bulk-confirmation { margin: auto; width: min(520px, calc(100% - 32px)); box-sizing: border-box; color: var(--text); border: 1px solid var(--border); padding: 24px; }
+dialog.bulk-confirmation::backdrop { background: rgba(0, 0, 0, 0.45); }
+dialog.bulk-confirmation p { line-height: 1.5; }
 .field-error { margin: 6px 1px 0; color: var(--danger); font-size: 0.78rem; }
 
 .preview-toggle { justify-self: start; min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel-alt); color: var(--text); font-size: 0.78rem; font-weight: 700; }

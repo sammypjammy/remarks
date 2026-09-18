@@ -4,8 +4,10 @@ import {
   PublicClientApplication,
 } from "@azure/msal-browser";
 import { getManagerAttachments, outlookConfig } from "./outlookConfig.js";
+import { isValidBulkEmail } from "./bulkEmail.js";
 
 const GRAPH_SCOPES = ["Mail.ReadWrite"];
+const BULK_GRAPH_SCOPES = [...GRAPH_SCOPES, "Mail.Send"];
 const MAX_SIMPLE_ATTACHMENT_BYTES = 3_000_000;
 const UPLOAD_CHUNK_BYTES = 3 * 1024 * 1024;
 let msalInstance;
@@ -82,7 +84,7 @@ async function runInteractiveRequest(request) {
   }
 }
 
-export async function getGraphAccessToken() {
+export async function getGraphAccessToken(scopes = GRAPH_SCOPES) {
   const app = await getMsalInstance();
   let account = app.getActiveAccount() || app.getAllAccounts()[0];
   authLog(account ? "Existing account found" : "No existing account found");
@@ -90,7 +92,7 @@ export async function getGraphAccessToken() {
   if (!account) {
     authLog("loginPopup started");
     const loginResult = await runInteractiveRequest(() =>
-      app.loginPopup({ scopes: GRAPH_SCOPES }),
+      app.loginPopup({ scopes }),
     );
     authLog("loginPopup completed");
     account = loginResult.account;
@@ -109,14 +111,14 @@ export async function getGraphAccessToken() {
 
   try {
     authLog("acquireTokenSilent started");
-    const result = await app.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
+    const result = await app.acquireTokenSilent({ scopes, account });
     authLog("acquireTokenSilent completed; token acquired");
     return result.accessToken;
   } catch (error) {
     if (!(error instanceof InteractionRequiredAuthError)) throw error;
     authLog("acquireTokenPopup fallback started");
     const result = await runInteractiveRequest(() =>
-      app.acquireTokenPopup({ scopes: GRAPH_SCOPES, account }),
+      app.acquireTokenPopup({ scopes, account }),
     );
     authLog("acquireTokenPopup completed; token acquired");
     return result.accessToken;
@@ -250,11 +252,11 @@ async function addAttachment(draftId, attachment, accessToken) {
   }
 }
 
-export async function createOutlookDraft({ recipient, subject, body, managerName, language }) {
+export async function createOutlookDraft({ recipient, subject, body, managerName, language }, prepared) {
   const configuredAttachments = getManagerAttachments(managerName, language);
 
-  const accessToken = await getGraphAccessToken();
-  const attachments = await Promise.all(configuredAttachments.map(loadAttachment));
+  const accessToken = prepared?.accessToken || await getGraphAccessToken();
+  const attachments = prepared?.attachments || await Promise.all(configuredAttachments.map(loadAttachment));
   const response = await graphRequest(
     "https://graph.microsoft.com/v1.0/me/messages",
     accessToken,
@@ -274,6 +276,31 @@ export async function createOutlookDraft({ recipient, subject, body, managerName
     await addAttachment(draft.id, attachment, accessToken);
   }
 
-  if (!draft.webLink) throw new Error("The draft was created, but Outlook did not return a link to open it.");
+  if (!prepared && !draft.webLink) throw new Error("The draft was created, but Outlook did not return a link to open it.");
   return draft;
+}
+
+export async function sendOutlookEmail(content, prepared, delivery) {
+  if (!isValidBulkEmail(content.recipient)) throw new Error("Invalid email recipient.");
+  // Retain the draft identity on send failure. A retry must never create a
+  // second copy if Outlook accepted the first send but its response was lost.
+  if (!delivery.draft) delivery.draft = await createOutlookDraft(content, prepared);
+  await graphRequest(
+    `https://graph.microsoft.com/v1.0/me/messages/${encodeURIComponent(delivery.draft.id)}/send`,
+    prepared.accessToken,
+    { method: "POST" },
+  );
+}
+
+export async function prepareOutlookBulkSend(content) {
+  // Request send consent once, before starting the queue. Single mode still
+  // requests only its original draft permissions.
+  await getGraphAccessToken(BULK_GRAPH_SCOPES);
+  const attachments = await Promise.all(getManagerAttachments(content.managerName, content.language).map(loadAttachment));
+  const deliveries = new Map();
+  return async recipient => {
+    const accessToken = await getGraphAccessToken(BULK_GRAPH_SCOPES);
+    if (!deliveries.has(recipient)) deliveries.set(recipient, {});
+    await sendOutlookEmail({ ...content, recipient }, { accessToken, attachments }, deliveries.get(recipient));
+  };
 }

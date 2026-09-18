@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
-import { createOutlookDraft, getOutlookErrorMessage } from "./outlookGraph.js";
+import { createOutlookDraft, getOutlookErrorMessage, prepareOutlookBulkSend } from "./outlookGraph.js";
+import { BulkEmailBatch, parseBulkRecipients } from "./bulkEmail.js";
 import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
@@ -136,6 +137,19 @@ function formatHistoryTime(value) {
 export default function App() {
   const toolkitNavigation = getToolkitNavigation(false);
   const [clientEmail, setClientEmail] = useState(getInitialClientEmail);
+  const [mode, setMode] = useState("single");
+  const [bulkText, setBulkText] = useState("");
+  const [isBulkSending, setIsBulkSending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkError, setBulkError] = useState("");
+  const [confirmation, setConfirmation] = useState(null);
+  const bulkBatchRef = useRef(null);
+  const bulkBusyRef = useRef(false);
+  const confirmationRef = useRef(null);
+  const bulkRecipients = useMemo(() => parseBulkRecipients(bulkText), [bulkText]);
+  const isBulk = mode === "bulk";
+  const batchLocked = isBulkSending || Boolean(confirmation);
   const [selectedManager, setSelectedManager] = useState(getSavedManager);
   const [errors, setErrors] = useState({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -175,7 +189,19 @@ export default function App() {
       .map((caseManager) => caseManager.fullName),
     [allCaseManagers, language],
   );
-  const hasRequiredFields = Boolean(clientEmail.trim() && selectedManager);
+  const hasRequiredFields = Boolean((isBulk ? bulkRecipients.recipients.length : clientEmail.trim()) && selectedManager);
+
+  useEffect(() => {
+    if (confirmation) confirmationRef.current?.showModal();
+    else confirmationRef.current?.close();
+  }, [confirmation]);
+
+  useEffect(() => {
+    if (!isBulkSending) return;
+    const warnBeforeLeaving = event => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [isBulkSending]);
 
   useEffect(() => {
     if (!selectedManager) return;
@@ -299,8 +325,50 @@ export default function App() {
     if (focus) requestAnimationFrame(() => emailInputRef.current?.focus());
   }
 
+  function requestBulkSend(retry = false) {
+    if (bulkBusyRef.current || draftRequestInProgressRef.current || confirmation) return;
+    if (retry) {
+      if (bulkBatchRef.current?.failed.length) setConfirmation({ retry: true, count: bulkBatchRef.current.failed.length });
+      return;
+    }
+    if (!bulkRecipients.recipients.length || !selectedManager || !isOutlookGraphConfigured) return;
+    if (!emailSignature) { setIsSignaturePromptOpen(true); return; }
+    const batch = new BulkEmailBatch({
+      recipients: bulkRecipients.recipients,
+      content: { subject: emailSubject, body: emailBody, managerName: selectedManager, language },
+      prepare: prepareOutlookBulkSend,
+    });
+    setConfirmation({ retry: false, count: batch.recipients.length, batch });
+  }
+
+  async function startBulkSend() {
+    if (bulkBusyRef.current || !confirmation) return;
+    const batch = confirmation.retry ? bulkBatchRef.current : confirmation.batch;
+    const retry = confirmation.retry;
+    bulkBusyRef.current = true;
+    bulkBatchRef.current = batch;
+    setConfirmation(null);
+    setIsBulkSending(true);
+    setBulkProgress(null);
+    setBulkError("");
+    setBulkResult(null);
+    try {
+      await batch.run({ retry, onProgress: setBulkProgress });
+      setBulkResult({ sent: batch.sent.size, failed: [...batch.failed] });
+    } catch (error) {
+      console.error("Outlook bulk setup failed:", error);
+      setBulkError("Bulk sending could not start. Check Microsoft sign-in, send permission, and PDF availability, then try again.");
+    } finally {
+      bulkBusyRef.current = false;
+      setIsBulkSending(false);
+      setBulkProgress(null);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
+    if (bulkBusyRef.current) return;
+    if (isBulk) { requestBulkSend(); return; }
     if (!validate()) return;
 
     if (!emailSignature) {
@@ -408,6 +476,10 @@ export default function App() {
   }
 
   function handleClear() {
+    setBulkText("");
+    setBulkResult(null);
+    setBulkError("");
+    bulkBatchRef.current = null;
     resetSenderForm({ focus: true, clearStatus: true });
   }
 
@@ -491,6 +563,7 @@ export default function App() {
                 type="button"
                 role="radio"
                 aria-checked={language === "english"}
+                disabled={batchLocked}
                 onClick={() => handleLanguageChange("english")}
               >
                 English
@@ -500,6 +573,7 @@ export default function App() {
                 type="button"
                 role="radio"
                 aria-checked={language === "spanish"}
+                disabled={batchLocked}
                 onClick={() => handleLanguageChange("spanish")}
               >
                 Spanish
@@ -509,8 +583,35 @@ export default function App() {
 
           <div className="email-workspace">
           <form className="sender-card" onSubmit={handleSubmit} noValidate>
+          <fieldset className="sender-fields" disabled={batchLocked}>
+          <div className="language-selector email-mode" role="group" aria-label="Email mode">
+            {["single", "bulk"].map(value => (
+              <button key={value} type="button" className={`language-option ${mode === value ? "active" : ""}`}
+                aria-pressed={mode === value} disabled={isCreatingDraft}
+                onClick={() => { setMode(value); setErrors({}); setCopyStatus(""); }}>
+                {value === "single" ? "Single" : "Bulk"}
+              </button>
+            ))}
+          </div>
           <div className="form-fields">
             <div className="field-group">
+            {isBulk ? <>
+              <label htmlFor="bulk-recipients">Recipients</label>
+              <textarea id="bulk-recipients" rows={7} value={bulkText}
+                placeholder="Paste email addresses here…" spellCheck={false}
+                aria-describedby="bulk-recipient-summary"
+                onChange={event => setBulkText(event.target.value)} />
+              <p id="bulk-recipient-summary" className="bulk-summary" role="status">
+                {bulkRecipients.found > 0 && `${bulkRecipients.found} found · `}
+                {bulkRecipients.recipients.length} unique valid
+                {bulkRecipients.duplicates > 0 && ` · ${bulkRecipients.duplicates} duplicates removed`}
+                {bulkRecipients.invalid.length > 0 && ` · ${bulkRecipients.invalid.length} invalid`}
+              </p>
+              {bulkRecipients.invalid.length > 0 && <details className="bulk-details">
+                <summary>View rejected entries</summary>
+                <ul>{bulkRecipients.invalid.map((entry, index) => <li key={index}>{entry}</li>)}</ul>
+              </details>}
+            </> : <>
             <label htmlFor="client-email">Client Email</label>
             <input
               ref={emailInputRef}
@@ -532,6 +633,7 @@ export default function App() {
               autoFocus
             />
             {errors.email && <p className="field-error" id="email-error">{errors.email}</p>}
+            </>}
             </div>
 
             <div className="field-group">
@@ -569,7 +671,7 @@ export default function App() {
           {isPreviewOpen && (
             <section className="email-preview" aria-label="Email preview">
               <dl>
-                <div><dt>To:</dt><dd>{clientEmail.trim()}</dd></div>
+                <div><dt>To:</dt><dd>{isBulk ? `Individual copy to each of ${bulkRecipients.recipients.length} recipients` : clientEmail.trim()}</dd></div>
                 <div><dt>Subject:</dt><dd>{emailSubject}</dd></div>
               </dl>
               <pre>{emailBody}</pre>
@@ -577,19 +679,21 @@ export default function App() {
           )}
 
           <div className="actions">
-            <button className="primary-button" type="submit" disabled={!hasRequiredFields || isCreatingDraft}>
-              <span>{isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft"}</span>
+            <button className="primary-button" type="submit" disabled={!hasRequiredFields || isCreatingDraft || (isBulk && !isOutlookGraphConfigured)}>
+              <span>{isBulk ? (isBulkSending ? (bulkProgress ? `Sending ${bulkProgress.current} of ${bulkProgress.total}…` : "Preparing batch…") : `Send ${bulkRecipients.recipients.length} Emails`) : isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft"}</span>
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M7.5 4.5h8v8M15 5 8.25 11.75M15 10.5v4a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" />
               </svg>
             </button>
-            <button className="clear-button" type="button" onClick={handleClear} disabled={!clientEmail && !selectedManager && !isPreviewOpen}>
+            <button className="clear-button" type="button" onClick={handleClear} disabled={!clientEmail && !bulkText && !selectedManager && !isPreviewOpen}>
               Clear
             </button>
           </div>
 
           <p className="privacy-note">
-            {isOutlookGraphConfigured
+            {isBulk ? (isOutlookGraphConfigured
+              ? `Each recipient receives a separate email with ${managerAttachments.length} PDF attachment${managerAttachments.length === 1 ? "" : "s"}. Sending begins after confirmation.`
+              : "Bulk sending requires Microsoft Outlook integration to be configured.") : isOutlookGraphConfigured
               ? !selectedManager
                 ? `Choose a case manager to use the ${language === "spanish" ? "Spanish" : "English"} welcome packet.`
                 : managerAttachments.length
@@ -597,6 +701,22 @@ export default function App() {
                 : "No PDF is mapped to this case manager yet. The draft will still be created for review."
               : "Outlook attachment setup is pending. Until configured, the email body is copied for you to paste."}
           </p>
+          </fieldset>
+          {isBulk && <section className="bulk-results" aria-label="Bulk send results" aria-live="polite" aria-atomic="true">
+            {isBulkSending && <p role="status">{bulkProgress ? `Sending ${bulkProgress.current} of ${bulkProgress.total}…` : "Preparing batch and Microsoft sign-in…"} Keep this page open.</p>}
+            {bulkError && <p role="alert" className="field-error">{bulkError}</p>}
+            {bulkResult && <>
+              <p><strong>{bulkResult.sent} sent{bulkResult.failed.length > 0 && ` · ${bulkResult.failed.length} failed`}</strong></p>
+              <p className="bulk-summary">Sent means accepted by Outlook for delivery.</p>
+              {bulkResult.failed.length > 0 && <>
+                <details className="bulk-details" open><summary>Failed recipients</summary>
+                  <ul>{bulkResult.failed.map(recipient => <li key={recipient}>{recipient}</li>)}</ul>
+                </details>
+                <button className="clear-button" type="button" disabled={batchLocked} onClick={() => requestBulkSend(true)}>Retry Failed</button>
+                <p className="bulk-summary">Retries use the original batch content and PDFs.</p>
+              </>}
+            </>}
+          </section>}
           </form>
           <aside className="email-history-card" aria-labelledby="email-history-title">
             <div className="email-history-header">
@@ -634,7 +754,7 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.14.0</a>
+          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.13.0</a>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
@@ -653,6 +773,16 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <dialog ref={confirmationRef} className="settings-modal bulk-confirmation" onCancel={() => setConfirmation(null)}
+        aria-labelledby="bulk-confirm-title" aria-describedby="bulk-confirm-description">
+        <h2 id="bulk-confirm-title">Send {confirmation?.count} separate emails?</h2>
+        <p id="bulk-confirm-description">Each recipient will receive an individual copy. No other recipient addresses will be included.{confirmation?.retry ? " Only failed recipients will be retried, using the original batch content and PDFs." : ""}</p>
+        <div className="actions">
+          <button type="button" className="clear-button" autoFocus onClick={() => setConfirmation(null)}>Cancel</button>
+          <button type="button" className="primary-button" onClick={startBulkSend}>Send {confirmation?.count} Emails</button>
+        </div>
+      </dialog>
 
       {isSignaturePromptOpen && (
         <div className="settings-modal-backdrop" onMouseDown={(event) => {
