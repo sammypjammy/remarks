@@ -137,7 +137,8 @@ test("Last 4 is required before the queue starts and leading zeroes are allowed"
   batch.lastFourSsn = "0007";
   await batch.run("+18015551234");
   assert.equal(calls.length, 2);
-  assert.ok(calls.every(call => call.number === "+18015551234" && call.extra.length === 0));
+  for (const call of calls) assert.deepEqual(call.extra, [{includeCoverSheet:true, recipientName:""}]);
+  assert.ok(calls.every(call => call.number === "+18015551234" && call.extra.length === 1));
 });
 
 test("client transport sends one multipart PDF per request and treats ambiguous failures carefully", async t => {
@@ -149,7 +150,8 @@ test("client transport sends one multipart PDF per request and treats ambiguous 
     assert.equal(url, "/api/send-fax");
     assert.equal(options.method, "POST");
     assert.equal(options.headers, undefined);
-    assert.deepEqual([...options.body.keys()], ["faxNumber", "file"]);
+    assert.deepEqual([...options.body.keys()], ["faxNumber", "file", "includeCoverSheet"]);
+    assert.equal(options.body.get("includeCoverSheet"), "true");
     assert.equal(options.body.get("file").name, "one.pdf");
     assert.equal(options.body.get("faxNumber"), "+18015551234");
     return Response.json({ success: true, messageId: "456", status: "Queued" });
@@ -164,4 +166,35 @@ test("client transport sends one multipart PDF per request and treats ambiguous 
   await assert.rejects(submitDocument(pdf("one.pdf"), "+18015551234"), /Check RingCentral/);
   globalThis.fetch = async () => Response.json({ success: false, error: "Rate limit reached." }, { status: 429 });
   await assert.rejects(submitDocument(pdf("one.pdf"), "+18015551234"), /Rate limit/);
+});
+
+
+test("new batches default ON; three PDFs each carry the same cover choice without extra faxes", async t => {
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  for (const enabled of [true, false]) {
+    const requests = [];
+    globalThis.fetch = async (url, options) => {
+      requests.push(options.body);
+      assert.equal(url, "/api/send-fax");
+      return Response.json({success:true, messageId:String(requests.length), status:"Queued"});
+    };
+    const batch = new FaxBatch({storage:null, pause: async () => { batch.includeCoverSheet = !enabled; }, tracking:{schedule:()=>1,cancel:()=>{}}});
+    assert.equal(batch.includeCoverSheet, true);
+    batch.includeCoverSheet = enabled;
+    batch.lastFourSsn = "0007";
+    await batch.addFiles([pdf("827.pdf"),pdf("DIB DR.pdf"),pdf("SSA-3368.pdf")]);
+    await batch.run("+18015551234", "Ready", null, "Existing Contact");
+    assert.equal(requests.length, 3);
+    assert.equal(new Set(batch.documents.map(doc=>doc.messageId)).size,3);
+    for (const [i, body] of requests.entries()) {
+      assert.equal(body.get("includeCoverSheet"), String(enabled));
+      assert.equal(body.get("recipientName"), enabled ? "Existing Contact" : null);
+      assert.deepEqual([...body.keys()], ["faxNumber","file","includeCoverSheet", ...(enabled ? ["recipientName"] : [])]);
+      assert.equal(body.getAll("file").length,1);
+      assert.equal(body.get("file").name, batch.documents[i].file.name);
+    }
+    batch.clear();
+    assert.equal(batch.includeCoverSheet, true);
+  }
 });

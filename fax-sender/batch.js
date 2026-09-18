@@ -14,15 +14,17 @@ const uncertainSubmission = "Submission could not be confirmed. Check RingCentra
 
 // Metadata only: never retain the PDF in recent history.
 function attemptSummary(doc) {
-  const { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber } = doc;
-  return { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber, filename: doc.file.name };
+  const { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber, lastFourSsn } = doc;
+  return { messageId, status, state, attemptedAt, sequence, recipientName, faxNumber, lastFourSsn, filename: doc.file.name };
 }
 
 // Reuse the production API: every call contains one recipient and one file.
-export async function submitDocument(file, faxNumber) {
+export async function submitDocument(file, faxNumber, { includeCoverSheet = true, recipientName = "" } = {}) {
   const body = new FormData();
   body.append("faxNumber", faxNumber);
   body.append("file", file);
+  body.append("includeCoverSheet", String(includeCoverSheet));
+  if (includeCoverSheet && recipientName) body.append("recipientName", recipientName);
   let response;
   try {
     response = await fetch("/api/send-fax", {
@@ -52,7 +54,7 @@ async function validatePdf(file) {
   return "";
 }
 
-// Documents and SSN input are tab-only. Only allowlisted attempt metadata persists.
+// Documents are tab-only. History persists allowlisted metadata, including four-digit Last 4.
 export class FaxBatch {
   constructor({ submit = submitDocument, onChange = () => {}, onValidationError = () => {}, pause = () => new Promise(resolve => setTimeout(resolve, 1000)), tracking = {}, storage = browserHistoryStorage() } = {}) {
     this.documents = [];
@@ -73,6 +75,7 @@ export class FaxBatch {
     this.historySaved = Boolean(storage);
     this.recipientName = "";
     this.lastFourSsn = "";
+    this.includeCoverSheet = true;
     this.tracker = new FaxTracker({ ...tracking, onChange: this.onChange });
   }
 
@@ -121,6 +124,7 @@ export class FaxBatch {
     this.destination = "";
     this.recipientName = "";
     this.lastFourSsn = "";
+    this.includeCoverSheet = true;
     this.progress = null;
     this.onChange();
   }
@@ -137,7 +141,9 @@ export class FaxBatch {
       this.onValidationError("Enter the client's 4-digit SSN last four before sending.");
       return;
     }
+    const lastFourSsn = this.lastFourSsn; // Snapshot once; edits during the queue cannot relabel prior attempts.
     if (!this.destination) this.recipientName = recipientName;
+    const coverOptions = Object.freeze({ includeCoverSheet: this.includeCoverSheet, recipientName: this.recipientName });
     this.destination = destination;
     this.running = true;
     this.progress = { current: 0, total: queue.length, name: "" };
@@ -147,6 +153,7 @@ export class FaxBatch {
         if (doc.messageId) doc.history.push(attemptSummary(doc));
         doc.attemptedAt = new Date().toISOString();
         doc.sequence = this.nextAttempt++;
+        doc.lastFourSsn = lastFourSsn;
         doc.recipientName = this.recipientName;
         doc.faxNumber = destination;
         doc.messageId = null;
@@ -161,7 +168,7 @@ export class FaxBatch {
         this.progress = { current: index + 1, total: queue.length, name: doc.file.name };
         this.onChange();
         try {
-          const result = await this.submit(doc.file, destination);
+          const result = await this.submit(doc.file, destination, coverOptions);
           if (!result?.messageId) throw new Error(uncertainSubmission);
           doc.messageId = result.messageId;
           doc.status = ["Queued", "Sent", "SendingFailed", "Delivered", "DeliveryFailed", "Received"].includes(result.status) ? result.status : null;

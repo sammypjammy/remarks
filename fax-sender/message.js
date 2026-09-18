@@ -17,14 +17,14 @@ export async function lookupFaxMessage(messageId) {
 }
 
 export function validLastFour(value) {
-  return /^\d{4}$/.test(value);
+  return typeof value === "string" && /^\d{4}$/.test(value);
 }
 
 export function receiptFilename(originalName, lastFour) {
-  if (!(typeof originalName === "string" && originalName)) return `Fax Receipt - Document ${lastFour}.pdf`;
-  const baseName = originalName.replace(/\.pdf$/i, "");
+  const suffix = validLastFour(lastFour) ? ` ${lastFour}` : "";
+  const baseName = typeof originalName === "string" ? originalName.replace(/\.pdf$/i, "") : "Document";
   const safeBase = baseName.replace(/[<>:"/\\|?*]/g, "_").replace(/\s+/g, " ").trim();
-  return `Fax Receipt - ${(safeBase || `Document ${lastFour}`).slice(0, 180)} ${lastFour}.pdf`;
+  return `Fax Receipt - ${(safeBase || "Document").slice(0, 180)}${suffix}.pdf`;
 }
 
 const receiptBlobs = new WeakMap(); // Released with the document/attachment; never persisted.

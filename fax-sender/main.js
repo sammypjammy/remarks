@@ -1,6 +1,7 @@
 ﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
 
-import { ContactPicker } from "./contacts.js";
+import { ContactPicker, formatFaxNumber } from "./contacts.js";
+import { faxStatusLabel } from "./tracking.js";
 import { downloadFaxAttachment, fetchFaxAttachment, lookupFaxMessage, receiptFilename, validLastFour } from "./message.js";
 import { downloadReceiptZip } from "./receipts-zip.js";
 
@@ -8,6 +9,8 @@ const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
 const fileInput = document.getElementById("pdfFile");
 const chooseFilesButton = document.getElementById("choosePdfFiles");
+const coverSheetInput = document.getElementById("includeCoverSheet");
+const coverSheetState = document.getElementById("coverSheetState");
 const lastFourInput = document.getElementById("lastFourSsn");
 const button = document.getElementById("sendFax");
 const retryButton = document.getElementById("retryFailed");
@@ -18,6 +21,7 @@ const list = document.getElementById("documentList");
 const downloadAllButton = document.getElementById("downloadAllReceipts");
 const downloadZipButton = document.getElementById("downloadReceiptZip");
 let downloadingAll = false;
+const historyViews = new Map(); // DOM/receipt cache only; persisted records stay in FaxBatch.
 const batch = new FaxBatch({
   onChange: render,
   onValidationError: message => {
@@ -113,6 +117,9 @@ function render() {
   const number = batch.destination || normalizeFaxNumber(numberInput.value);
   const valid = validFaxNumber(number);
   numberInput.disabled = batch.busy || Boolean(batch.destination);
+  coverSheetInput.checked = batch.includeCoverSheet;
+  coverSheetInput.disabled = batch.busy || Boolean(batch.destination);
+  coverSheetState.textContent = batch.includeCoverSheet ? "ON - RingCentral Classic" : "OFF - No cover sheet";
   fileInput.disabled = batch.busy;
   chooseFilesButton.disabled = fileInput.disabled;
   button.disabled = batch.busy || !valid || !ready;
@@ -166,7 +173,7 @@ function render() {
     if (doc.state === "Status Unknown") details.append(element("p", "Status Unknown — Check RingCentral before retrying", "fax-error"));
     if (doc.error) details.append(element("p", doc.error, "fax-error"));
     const actions = element("div", "", "fax-document-actions");
-    const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[doc.state] || doc.state;
+    const label = faxStatusLabel(doc.state) + (doc.state === "Delivered" ? " ✓" : "");
     if (doc.state !== "Ready") actions.append(element("span", label, "fax-state"));
     const attachment = receiptAttachment(doc);
     if (doc.state === "Delivered" && attachment) actions.append(receiptAction(doc, attachment));
@@ -203,25 +210,86 @@ function render() {
   }
 }
 
+function createHistoryView() {
+  const row = element("li", "", "fax-history-entry");
+  const pill = document.createElement("details");
+  const header = document.createElement("summary");
+  const copy = element("span", "", "fax-history-copy");
+  const title = element("strong", "", "fax-history-title");
+  const subtitle = element("span", "", "fax-history-meta");
+  const recipient = element("span", "");
+  const time = document.createElement("time");
+  subtitle.append(recipient, document.createTextNode(" • "), time);
+  copy.append(title, subtitle);
+  const status = element("span", "", "fax-history-status");
+  const icon = element("span", "", "fax-history-icon");
+  icon.setAttribute("aria-hidden", "true");
+  const statusText = element("span", "");
+  status.append(icon, statusText);
+  header.append(copy, status);
+  const body = element("div", "", "fax-history-body");
+  const message = element("p", "");
+  const rawStatus = element("p", "");
+  const feedback = element("p", "", "fax-receipt-status");
+  feedback.setAttribute("role", "status");
+  const view = { row, pill, title, recipient, time, status, statusText, message, rawStatus, feedback, receipt: {}, downloading: false };
+  const download = rowAction("Download Fax Receipt", async () => {
+    const entry = view.entry;
+    if (view.downloading || entry.state !== "Delivered" || !entry.messageId) return;
+    view.downloading = true;
+    download.disabled = true;
+    feedback.textContent = "Preparing receipt…";
+    try {
+      // Share active attachment metadata/cache when present; restored history needs only its message ID.
+      const source = batch.documents.find(doc => doc.messageId === entry.messageId) || view.receipt;
+      if (!receiptAttachment(source)) source.transmissionDetails = await lookupFaxMessage(entry.messageId);
+      const attachment = receiptAttachment(source);
+      if (!attachment) throw new Error("Fax Receipt is unavailable for this fax.");
+      if (!historyViews.has(entry.sequence)) return; // Clear All during a lookup cancels the local download.
+      await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(entry.filename, entry.lastFourSsn), attachment);
+      feedback.textContent = "Receipt download requested.";
+    } catch (error) {
+      feedback.textContent = error.message;
+      // Receipt errors never change transmission status or enable fax retries.
+    } finally {
+      view.downloading = false;
+      download.disabled = false;
+    }
+  }, "primary-btn");
+  view.download = download;
+  body.append(message, rawStatus, download, feedback);
+  pill.append(header, body);
+  row.append(pill);
+  return view;
+}
+
 function renderHistory() {
   document.getElementById("historyStorageStatus").hidden = batch.historySaved;
   const historyList = document.getElementById("faxHistoryList");
   const entries = batch.recentFaxes;
   document.getElementById("faxHistoryEmpty").hidden = Boolean(entries.length);
-  historyList.replaceChildren();
-  for (const entry of entries) {
-    const row = element("li", "", "fax-history-entry");
-    const label = { Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent ✓", Failed: "Failed" }[entry.state] || "Status Unknown";
-    row.append(element("strong", entry.recipientName || entry.faxNumber));
-    if (entry.recipientName) row.append(element("span", entry.faxNumber));
-    row.append(element("span", entry.filename));
-    const time = element("time", `Attempted ${new Date(entry.attemptedAt).toLocaleString()}`);
-    time.dateTime = entry.attemptedAt;
-    row.append(time, element("span", `${label} · 1 document`, "fax-state"));
-    if (entry.messageId) row.append(element("span", `Message ID: ${entry.messageId}`));
-    if (entry.status) row.append(element("span", `RingCentral status: ${entry.status}`));
-    if (entry.state === "Status Unknown") row.append(element("span", "Check RingCentral before retrying."));
-    historyList.append(row);
+  const retained = new Set(entries.map(entry => entry.sequence));
+  for (const [key, view] of historyViews) {
+    if (!retained.has(key)) { view.row.remove(); historyViews.delete(key); }
+  }
+  for (const [index, entry] of entries.entries()) {
+    let view = historyViews.get(entry.sequence);
+    if (!view) { view = createHistoryView(); historyViews.set(entry.sequence, view); }
+    view.entry = entry;
+    view.title.textContent = entry.filename + (validLastFour(entry.lastFourSsn) ? " " + entry.lastFourSsn : "");
+    view.recipient.textContent = entry.recipientName || formatFaxNumber(entry.faxNumber);
+    view.time.textContent = new Date(entry.attemptedAt).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+    view.time.dateTime = entry.attemptedAt;
+    view.status.dataset.status = entry.state;
+    view.statusText.textContent = entry.state === "Failed" ? "Error" : faxStatusLabel(entry.state);
+    view.message.textContent = "Message ID: " + (entry.messageId || "Not available");
+    view.rawStatus.textContent = entry.state === "Status Unknown" ? "Check RingCentral before retrying." : (entry.status ? "RingCentral status: " + entry.status : "");
+    view.rawStatus.hidden = !view.rawStatus.textContent;
+    view.download.hidden = entry.state !== "Delivered" || !entry.messageId;
+    view.download.disabled = view.downloading;
+    view.download.setAttribute("aria-label", "Download Fax Receipt for " + entry.filename);
+    // Preserve native expansion and keyboard focus across status/queue renders.
+    if (historyList.children[index] !== view.row) historyList.insertBefore(view.row, historyList.children[index] || null);
   }
 }
 
@@ -266,6 +334,11 @@ historyDesktop.addEventListener("change", setHistoryLayout);
 setHistoryLayout();
 
 numberInput.addEventListener("input", render);
+coverSheetInput.addEventListener("change", () => {
+  if (!batch.busy && !batch.destination) batch.includeCoverSheet = coverSheetInput.checked;
+  render();
+});
+
 lastFourInput.addEventListener("input", () => {
   batch.lastFourSsn = lastFourInput.value;
   if (validLastFour(batch.lastFourSsn)) validation.textContent = "";

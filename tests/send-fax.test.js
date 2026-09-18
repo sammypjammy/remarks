@@ -112,4 +112,46 @@ test("fax endpoint validation, multipart submission, and safe failures", async t
     assert.match(res.data.error, /before retrying/);
     assert.doesNotMatch(JSON.stringify(res.data), /private-token/);
   });
+
+  await t.test("strict cover choice rejects arbitrary metadata before authentication", async () => {
+    let calls = 0;
+    globalThis.fetch = () => { calls++; throw new Error("Unexpected authentication"); };
+    for (const value of ["5", "Classic", "yes", "TRUE", "", new Blob(["true"])]) {
+      const form = upload();
+      form.append("includeCoverSheet", value);
+      assert.equal((await invoke(form)).code, 400);
+    }
+    for (const field of ["coverIndex", "coverPageText", "from", "Authorization"]) {
+      const form = upload(); form.append(field, "5");
+      assert.equal((await invoke(form)).code, 400);
+    }
+    for (const [field, values] of [["includeCoverSheet", ["true", "false"]], ["recipientName", ["A", "B"]], ["recipientName", ["A\nB"]], ["recipientName", ["A".repeat(201)]], ["recipientName", [new Blob(["A"])]]]) {
+      const form = upload(); values.forEach(value => form.append(field, value));
+      assert.equal((await invoke(form)).code, 400);
+    }
+    assert.equal(calls, 0);
+  });
+
+  await t.test("Classic and None use one unchanged attachment and one fax request", async () => {
+    for (const enabled of [true, false]) {
+      let calls = 0;
+      globalThis.fetch = async (url, options) => {
+        if (++calls === 1) return Response.json({ access_token: "private-token" });
+        assert.deepEqual([...options.body.keys()], ["json", "attachment"]);
+        assert.deepEqual(JSON.parse(await options.body.get("json").text()), {
+          to: [{phoneNumber: "+18015551234", ...(enabled ? {name: "Existing Contact"} : {})}],
+          faxResolution: "High", coverIndex: enabled ? 5 : 0
+        });
+        assert.equal(await options.body.get("attachment").text(), "%PDF-1.4\n%%EOF");
+        return Response.json({id: "123", messageStatus: "Queued"});
+      };
+      const form = upload();
+      form.append("includeCoverSheet", String(enabled));
+      form.append("recipientName", "Existing Contact");
+      const result = await invoke(form);
+      assert.equal(result.code, 200);
+      assert.equal(result.data.messageId, "123");
+      assert.equal(calls, 2);
+    }
+  });
 });

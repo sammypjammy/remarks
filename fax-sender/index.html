@@ -42,7 +42,7 @@
                 <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required aria-required="true" autocomplete="off" aria-describedby="lastFourHelp" />
               </div>
             </div>
-            <p id="lastFourHelp">SSN last four is required before sending and used only to name Fax Receipt downloads. It is not sent or saved.</p>
+            <p id="lastFourHelp">SSN last four is required before sending. It is saved in this browser's Fax History for identification and receipt filenames; it is not sent to RingCentral.</p>
             <input id="faxNumber" name="faxNumber" type="hidden" />
             <p id="contactMessage" role="status" aria-live="polite" hidden></p>
             <p id="numberHelp" hidden></p>
@@ -55,6 +55,10 @@
               <button id="cancelSaveContact" type="button" class="secondary-btn">Cancel</button>
             </div>
             <p id="saveContactStatus" role="status" hidden></p>
+            <div class="fax-cover-sheet">
+              <label for="includeCoverSheet"><input id="includeCoverSheet" type="checkbox" role="switch" checked aria-describedby="coverSheetState" /> Cover Sheet</label>
+              <span id="coverSheetState">ON &middot; RingCentral Classic</span>
+            </div>
             <div class="fax-list-heading">
               <h2 id="documentCount">PDF Documents</h2>
               <button id="clearAll" class="secondary-btn" type="button" disabled>Clear All</button>
@@ -88,7 +92,7 @@
       <aside aria-label="Recent fax history">
         <details id="faxHistory" class="fax-history">
           <summary>Fax History</summary>
-          <p class="fax-history-note">Last 10 attempts saved in this browser across reloads. SSN last four and PDFs are never saved. Clear All removes this history and stops status checks. Unfinished attempts become Status Unknown after reloading.</p>
+          <p class="fax-history-note">Recent fax activity</p>
           <p id="historyStorageStatus" role="status" hidden>History cannot be saved in this browser; it is available in this tab only.</p>
           <p id="faxHistoryEmpty">No fax history yet. Recent attempts will appear here when you send a fax.</p>
           <ol id="faxHistoryList" aria-label="Recent fax attempts, newest first"></ol>

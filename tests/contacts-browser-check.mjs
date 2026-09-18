@@ -104,7 +104,7 @@ try {
   check(!button.disabled, "Manual entry must enable sending");
   batch.lastFourSsn = "2134"; await batch.run(numberInput.value);
   check(document.querySelectorAll("#faxHistoryList li").length === 1 && document.getElementById("faxHistoryEmpty").hidden, "Sending must populate history");
-  check(document.getElementById("faxHistoryList").textContent.includes("Sent ✓") && document.getElementById("faxHistoryList").textContent.includes("+18015550000"), "History must show sent status and destination");
+  check(document.getElementById("faxHistoryList").textContent.includes("Sent") && document.getElementById("faxHistoryList").textContent.includes("(801) 555-0000"), "History must show sent status and destination");
   check(submissions[0] === "+18015550000", "Manual number must be sole destination");
   check(result.textContent === "✓ Fax sent successfully", "One successful fax must use singular completion summary");
   check(document.querySelector("#documentList .fax-state").textContent === "Sent ✓", "Post-send card status must remain");
@@ -159,7 +159,7 @@ try {
   check(document.querySelector("#faxHistoryList li").textContent.includes("Submitted"), "Queued history must not imply Sent");
   trackingClock = 10000;
   await batch.tracker.tick();
-  check(document.querySelector("#faxHistoryList li").textContent.includes("Sent ✓"), "Tracking must update history to Sent");
+  check(document.querySelector("#faxHistoryList li").textContent.includes("Sent"), "Tracking must update history to Sent");
   // Presentation-only fixtures: preserve the existing sending/tracking tests above.
   clearButton.click();
   await batch.addFiles(["one.pdf", "two.pdf", "three.pdf"].map(name => mockPdf(name)));
@@ -175,6 +175,15 @@ try {
   batch.running = true; batch.progress = { current: 2, total: 3 };
   render();
   check(result.textContent === "Sending 2 of 3...", "Active progress must be one simple message");
+  check([...document.querySelectorAll('.fax-history-status')].map(node => node.textContent).join('|') === 'Processing...|Submitted|Sent', "History preserves nonterminal statuses without false Sent/Error");
+  const disclosure = document.querySelector('#faxHistoryList details');
+  check(!disclosure.open, "New history pills default to collapsed");
+  disclosure.querySelector('summary').click();
+  check(disclosure.open, "Whole summary opens the history pill");
+  render();
+  check(document.querySelector('#faxHistoryList details') === disclosure && disclosure.open, "Queue updates preserve expansion and DOM identity");
+  disclosure.querySelector('summary').click();
+  check(!disclosure.open, "Second click collapses the pill");
   check([...document.querySelectorAll("#documentList .fax-state")].map(node => node.textContent).join("|") === "Sent ✓|Submitted|Processing...", "Active card statuses must remain meaningful");
   batch.running = false; batch.progress = null; batch.documents[2].state = "Queued";
   render();
@@ -187,12 +196,14 @@ try {
   batch.documents[2].retryable = true; batch.documents[2].error = "Safe failure detail";
   render();
   check(result.textContent === "2 sent · 1 failed", "Mixed summary must omit zero counters");
+  check(document.querySelector('.fax-history-status').textContent === 'Error' && document.querySelector('#faxHistoryList button').hidden, "Genuine failure shows Error and no receipt action");
   check(!retryButton.hidden && document.querySelector('[aria-label="Retry three.pdf"]'), "Failure retry controls must remain");
   check(document.getElementById("documentList").textContent.includes("Message ID: 102") && document.getElementById("documentList").textContent.includes("SendingFailed") && document.getElementById("documentList").textContent.includes("Safe failure detail"), "Post-send diagnostics must remain");
   batch.documents[2].state = "Status Unknown"; batch.documents[2].retryable = false;
   batch.documents[2].status = "Queued";
   render();
   check(result.textContent === "2 sent · 1 status unknown", "Unknown must not count as failed");
+  check(document.querySelector('.fax-history-status').textContent === 'Status Unknown', "Unknown history is neutral");
   check(retryButton.hidden && !document.querySelector('[aria-label="Retry three.pdf"]'), "Unknown must not enable Retry");
   const info = document.getElementById("faxSendingInfo");
   check(!info.open, "Sending info must be collapsed initially");

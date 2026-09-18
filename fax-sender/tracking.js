@@ -1,4 +1,7 @@
 export const INITIAL_DELAY = 10_000;
+export function faxStatusLabel(state) {
+  return { Ready: "Ready", Submitting: "Processing...", Queued: "Submitted", Delivered: "Sent", Failed: "Failed" }[state] || "Status Unknown";
+}
 export const POLL_INTERVAL = 30_000;
 export const TRACKING_TIMEOUT = 15 * 60_000;
 const REQUEST_GAP = 5_000;

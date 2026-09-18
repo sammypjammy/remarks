@@ -120,6 +120,9 @@ test("Fax Receipt filenames use each original document name and the batch last f
   assert.equal(receiptFilename("two.PDF", "2134"), "Fax Receipt - two 2134.pdf");
   assert.equal(receiptFilename("bad:/name?.pdf", "2134"), "Fax Receipt - bad__name_ 2134.pdf");
   assert.equal(receiptFilename(undefined, "2134"), "Fax Receipt - Document 2134.pdf");
+  assert.equal(receiptFilename("SSA-827.pdf"), "Fax Receipt - SSA-827.pdf");
+  assert.equal(receiptFilename("bad:/name?.pdf", ""), "Fax Receipt - bad__name_.pdf");
+  assert.equal(receiptFilename("SSA-827.pdf", "123456789"), "Fax Receipt - SSA-827.pdf");
   assert.equal(validLastFour("2134"), true);
   assert.equal(validLastFour("0007"), true);
   for (const value of ["", "123", "12345", "21A4", "12-34"]) assert.equal(validLastFour(value), false);

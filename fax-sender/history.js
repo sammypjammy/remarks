@@ -1,7 +1,9 @@
+import { validLastFour } from "./message.js";
+
 export const FAX_HISTORY_KEY = "packard.faxHistory.v1";
 const states = ["Submitting", "Queued", "Delivered", "Failed", "Status Unknown"];
 
-// Explicit allowlist: never serialize documents, receipt names, media URLs, or SSN input.
+// Explicit allowlist: only four-digit Last 4, never full SSN, documents, receipt names or media URLs.
 export function historyRecords(entries, restored = false) {
   if (!Array.isArray(entries)) return [];
   return entries.filter(entry => entry && typeof entry.filename === "string" &&
@@ -9,6 +11,7 @@ export function historyRecords(entries, restored = false) {
     typeof entry.faxNumber === "string" && /^\+[1-9]\d{7,14}$/.test(entry.faxNumber) &&
     states.includes(entry.state)).slice(0, 10).map((entry, index) => ({
       filename: entry.filename.slice(0, 255),
+      lastFourSsn: validLastFour(entry.lastFourSsn) ? entry.lastFourSsn : "",
       recipientName: typeof entry.recipientName === "string" ? entry.recipientName.slice(0, 180) : "",
       faxNumber: entry.faxNumber, attemptedAt: entry.attemptedAt,
       state: restored && !["Delivered", "Failed"].includes(entry.state) ? "Status Unknown" : entry.state,

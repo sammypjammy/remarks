@@ -2,16 +2,35 @@
 #batchReceipts, #saveContactPanel { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
 #batchReceipts p, #saveContactStatus { font-size: 0.85rem; overflow-wrap: anywhere; }
 #batchReceipts[hidden], #saveContactPanel[hidden], #offerSaveContact[hidden], #saveContactStatus[hidden] { display: none; }
-.fax-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.fax-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 24px; align-items: start; }
 .fax-layout aside { min-width: 0; }
 .fax-history { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); }
 .fax-history summary { cursor: pointer; font-weight: 700; color: var(--text); }
 .fax-history-note, #faxHistoryEmpty { margin: 10px 0 0; font-size: 0.8rem; line-height: 1.4; color: var(--muted); }
 #faxHistoryList { list-style: none; padding: 0; margin: 10px 0 0; max-height: 560px; overflow-y: auto; }
-.fax-history-entry { display: grid; gap: 3px; min-width: 0; padding: 10px 0; font-size: 0.8rem; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
-.fax-history-entry + .fax-history-entry { border-top: 1px solid var(--border); }
-.fax-history-entry strong { color: var(--text); overflow-wrap: anywhere; }
-.fax-history-entry time { color: var(--muted); }
+.fax-history-entry { min-width: 0; font-size: 0.8rem; line-height: 1.4; overflow-wrap: anywhere; }
+.fax-history-entry + .fax-history-entry { margin-top: 8px; }
+.fax-history-entry details { border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); overflow: hidden; }
+.fax-history-entry summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px; align-items: center; list-style: none; }
+.fax-history-entry summary::-webkit-details-marker { display: none; }
+.fax-history-entry summary:hover, .fax-history-entry details[open] > summary { background: var(--accent-soft); }
+.fax-history-entry summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.fax-history-copy { display: grid; gap: 4px; min-width: 0; }
+.fax-history-title { color: var(--text); font-size: 0.9rem; }
+.fax-history-meta { color: var(--muted); font-weight: 400; }
+.fax-history-status { display: inline-flex; gap: 6px; align-items: center; max-width: 100px; color: var(--muted); font-weight: 700; }
+.fax-history-status[data-status="Delivered"] { color: #23764b; }
+[data-theme="dark"] .fax-history-status[data-status="Delivered"] { color: #78d7a4; }
+.fax-history-status[data-status="Failed"] { color: var(--danger); }
+.fax-history-icon { display: inline-block; position: relative; width: 14px; height: 14px; flex-shrink: 0; border: 1.5px solid currentColor; border-radius: 50%; }
+.fax-history-status[data-status="Delivered"] .fax-history-icon { width: 12px; height: 7px; border: 0; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; border-radius: 0; transform: rotate(-45deg); }
+.fax-history-status[data-status="Failed"] .fax-history-icon { border: 0; }
+.fax-history-status[data-status="Failed"] .fax-history-icon::before, .fax-history-status[data-status="Failed"] .fax-history-icon::after { content: ""; position: absolute; top: 6px; left: 0; width: 14px; height: 2px; background: currentColor; transform: rotate(45deg); }
+.fax-history-status[data-status="Failed"] .fax-history-icon::after { transform: rotate(-45deg); }
+.fax-history-body { padding: 0 12px 12px; display: grid; gap: 10px; color: var(--muted); }
+.fax-history-body p { margin: 0; }
+.fax-history-body .primary-btn { justify-self: start; min-height: 44px; max-width: 100%; }
+.fax-history-body [hidden], .fax-history-body p:empty { display: none; }
 @media (max-width: 1099px) { .fax-layout { grid-template-columns: minmax(0, 1fr); } }
 .destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 8px; }
 .destination-input-wrap { position: relative; min-width: 0; }
@@ -54,7 +73,7 @@
 .fax-list-heading { justify-content: space-between; margin-top: 12px; }
 .fax-list-heading h2 { color: var(--text); font-size: 1.1rem; }
 #documentList { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
-.fax-document { display: flex; justify-content: space-between; align-items: start; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
+.fax-document { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-alt); }
 .fax-document-details { min-width: 0; overflow-wrap: anywhere; }
 .fax-filename { color: var(--text); display: block; }
 .fax-size, .fax-document-details p { font-size: 0.85rem; }
@@ -73,3 +92,8 @@
   .fax-document { flex-direction: column; }
   .fax-document-actions { width: 100%; }
 }
+
+.fax-cover-sheet { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; margin: 18px 0; }
+.fax-panel .fax-cover-sheet label { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
+.fax-panel .fax-cover-sheet input { width: 20px; height: 20px; margin: 0; padding: 0; accent-color: var(--accent, #2563eb); }
+.fax-cover-sheet span { font-size: .85rem; color: var(--text-muted, #64748b); }

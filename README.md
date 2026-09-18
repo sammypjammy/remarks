@@ -17,12 +17,33 @@ The tools use common files from `settings/shared/`. Dependencies and build confi
 `fax-sender/` supports selecting multiple PDFs and sends **each PDF as its own fax**
 to one fax destination. `batch.js` manages the tab's document list and sequential queue;
 `main.js` renders the review, progress, per-document results, and retry controls.
-Each document calls the unchanged V1 `POST /api/send-fax` endpoint separately.
-The request is multipart/form-data with `faxNumber` and `file` fields. Numbers
+Each document calls the existing `POST /api/send-fax` endpoint separately.
+The request is multipart/form-data with `faxNumber`, `file`, and `includeCoverSheet` fields, plus optional `recipientName`. Numbers
 must include `+` and country code; spaces, parentheses, dots, and hyphens are accepted.
 PDFs must be nonempty, named `.pdf`, have a PDF header, and be at most 4,000,000 bytes.
 RingCentral performs document conversion; use a readable, unencrypted PDF.
-The upload remains in server memory and is sent as one attachment with no automatic cover page.
+The upload remains in server memory and is sent as one unchanged attachment. The default-on Cover Sheet switch requests RingCentral's built-in Classic cover for each separate fax. OFF sends the document without a cover. The choice locks with the destination and resets ON after Clear All or a new page load; it is not persisted.
+
+### Built-in Classic cover: API contract and verification
+
+The browser sends the multipart string `includeCoverSheet` as exactly `"true"` or `"false"`. The server maps true to root JSON `coverIndex: 5`, false to `coverIndex: 0`. Missing flags preserve older clients' no-cover behavior. Duplicate/malformed flags, arbitrary cover IDs/metadata, and invalid optional names are rejected before authentication. Only the server owns the template ID. No additional enable flag is required. Optional `coverPageText` (maximum 1024 characters) is omitted; there is no comments UI. No cover PDF is generated, and no extra attachment, submission, or message is created.
+
+Verified against [RingCentral's official OpenAPI](https://github.com/ringcentral/ringcentral-api-docs/blob/main/specs/ringcentral_openapi3.json): `GET /restapi/v1.0/dictionary/fax-cover-page`, the **Language Setting - US** response example explicitly identifies None as 0 and Classic as 5. This mapping is for **en-US**; other language dictionaries differ and are not supported by this release. The [official CreateFaxMessageRequest schema](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/CreateFaxMessageRequest.cs) documents `coverIndex`, no-cover 0, optional text, and the account default when the index is omitted. We always explicitly send 5 or 0.
+
+With covers ON, the existing selected contact name is supplied as `to[0].name` alongside `to[0].phoneNumber`, as supported by [FaxReceiver](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/FaxReceiver.cs). Manual destinations work without a name. OFF retains the prior phone-number-only recipient payload. Recipient company/phone are not invented. No sender fields or from-number override are supplied. [RingCentral's sending guide](https://developers.ringcentral.com/guide/messaging/fax/sending-faxes) explains that the outgoing number is controlled by the extension's outbound fax settings. The exact sender and recipient fields printed by Classic must be observed in the controlled test.
+
+Receipt downloads continue through the existing verified message/RenderedDocument endpoints, including bulk and history downloads. The schema describes `faxPageCount` as page count but does not explicitly promise cover inclusion. Cover inclusion in page count, RenderedDocument, individual/bulk receipts, and history re-downloads is **not live-verified**. Tests mock transmission and never send a fax.
+
+### Controlled live cover-sheet test (manual; not performed)
+
+1. Confirm the authenticated extension uses the US English cover dictionary and review its outbound fax/cover sender settings without changing the configured number.
+2. Select only the existing known-safe test destination, enter a synthetic four-digit test identifier, and attach one small known test PDF whose original page count is known. Leave Cover Sheet ON (RingCentral Classic).
+3. Send once. Record its single message ID and wait for RingCentral's final Sent status. If the outcome is unknown, inspect RingCentral before any retry.
+4. Download Fax Receipt. Check whether its first page is the built-in Classic cover and whether every original document page follows unchanged. Record the received copy's page count too.
+5. Record exactly what is printed for recipient To, Company, Phone, Fax; sender From, Company, Phone, Fax; Date, Pages, and Comments. Note blank fields rather than assuming population.
+6. Open transmission details and record `faxPageCount` and message ID (the existing `/api/fax-message?messageId=...` response exposes safe metadata). Compare the count with the original PDF and received/RenderedDocument pages to establish whether the cover is counted.
+7. Download All Fax Receipts, then reload and re-download the same message from Fax History. Compare all copies to establish whether the cover is present through every receipt path.
+8. Only if necessary, Clear All, select the same safe destination and PDF, turn Cover Sheet OFF, and send once more. Confirm the received/receipt document has only the original pages. Record observations before treating live behavior as verified.
 
 ### Unified fax destination (v.2.5)
 
@@ -203,8 +224,9 @@ the page's “Internal use only” label does not enforce access control.
 
 The 4 MB PDF cap leaves multipart overhead below Vercel's 4.5 MB function request limit.
 There is no automatic fax resend or persistent document workspace. Fax History saves
-only the 10 newest attempt metadata records in localStorage; SSN last four, receipt
-filenames, PDFs, credentials, and authenticated media URLs are excluded. Restored
+only the 10 newest attempt records in localStorage, including validated four-digit
+SSN last four for identification and receipt filenames. Full SSN, receipt filenames,
+PDFs, credentials, and authenticated media URLs are excluded. Restored
 unfinished attempts show Status Unknown and are not automatically retried or polled.
 The V1 API still authenticates separately for each document; large batches can encounter
 authentication or fax rate limits even with sequential requests. Failed rows retain errors
@@ -232,3 +254,8 @@ their completion to this page. The ZIP fallback provides one download, preservin
 individual PDF filenames; same-named files use separate ZIP directories. Both paths
 reuse successful attachment blobs in memory, and retrieval failures leave Sent
 status unchanged. Clearing the batch releases its receipt cache references.
+
+History receipt downloads reuse `/api/fax-message` and `/api/fax-attachment` with the
+stored message ID. Older records without Last 4 use the original filename without
+an SSN suffix. The active Last 4 input is not restored from history. Clear All clears
+both visible and stored attempts. Last 4 is never sent to RingCentral or API URLs.
