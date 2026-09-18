@@ -96,7 +96,7 @@ try {
   document.querySelector("#contactResults button").click();
   check(numberInput.value === "+18015550000", "Manual selection must set normalized destination");
   await batch.addFiles([mockPdf("test.pdf")]);
-  check(document.getElementById("documentCount").textContent === "Documents", "Documents heading must not include a count");
+  check(document.getElementById("documentCount").textContent === "PDF Documents", "Documents heading must not include a count");
   check(!document.querySelector("#documentList .fax-state"), "Pre-send cards must not show Ready");
   check(result.hidden && !result.textContent, "Pre-send batch counters must be absent");
   check(!document.getElementById("batchReview"), "Redundant destination/readiness sentence must be removed");
@@ -140,7 +140,7 @@ try {
   check(!button.disabled, "Contact failure must not disable manual faxing");
   batch.lastFourSsn = "2134"; await batch.run(numberInput.value);
   check(submissions[1] === "+18015551111", "Manual faxing must work after contact failure");
-  check(document.querySelectorAll("#faxHistoryList li").length === 2, "History must retain prior cleared batch");
+  check(document.querySelectorAll("#faxHistoryList li").length === 1, "History must start fresh after Clear All");
   check(document.querySelector("#faxHistoryList li").textContent.includes("manual.pdf"), "Newest fax must appear first");
   // Exercise the form -> batch -> tracker -> history path with a named recipient.
   clearButton.click();

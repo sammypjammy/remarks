@@ -37,6 +37,11 @@
 .destination-dropdown[hidden], .destination-clear[hidden], #contactMessage[hidden], #numberHelp[hidden], #faxNumber { display: none; }
 @media (max-width: 480px) { .destination-dropdown { right: 0; } }
 .fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
+.fax-recipient-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 16px; align-items: start; }
+.fax-destination-field, .fax-last-four-field { display: grid; gap: 12px; min-width: 0; }
+.fax-panel #lastFourSsn { height: 48px; max-width: 140px; }
+.fax-panel #pdfFile[hidden] { display: none; }
+@media (max-width: 640px) { .fax-recipient-row { grid-template-columns: minmax(0, 1fr); } }
 .fax-panel label { color: var(--text); font-weight: 700; }
 .fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
 .fax-panel button { justify-self: start; }

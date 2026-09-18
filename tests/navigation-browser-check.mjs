@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.12.0')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.12.1')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -121,7 +121,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 16, "Current release plus all fifteen recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 18, "Current release plus all recorded historical releases");
     await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -130,15 +130,26 @@ try {
       console.log(`Intake workspace screenshot: ${path}`);
     } });
     await visit("/fax-sender/");
+    // Start each viewport with isolated history, then exercise real file-input events.
+    await evaluate("localStorage.removeItem('packard.faxHistory.v1')");
+    await visit("/fax-sender/");
+    assert(await evaluate(`(() => {
+      const destination = document.getElementById('contactSearch').getBoundingClientRect();
+      const lastFour = document.getElementById('lastFourSsn').getBoundingClientRect();
+      return innerWidth === ${width} && lastFour.width <= 140 && (innerWidth > 640
+        ? Math.abs(destination.top - lastFour.top) < 1 && destination.width > lastFour.width * 2
+        : lastFour.top >= destination.bottom);
+    })()`), "Destination and compact Last 4 align responsively at actual viewport width");
     assert(await evaluate("!document.getElementById('version-history') && !document.getElementById('faxSendingInfo').open && document.querySelectorAll('#faxResult').length === 1"), "Fax UI remains streamlined");
     assert(await evaluate(`document.getElementById('faxHistory').open === (innerWidth >= 1100) && !document.getElementById('faxHistoryEmpty').hidden`), "Responsive history and empty state");
     // Exercise the built app with mock sends; never contact RingCentral.
     await evaluate(`(() => {
       let id = 0;
+      window.faxSubmissions = [];
       globalThis.fetch = async (url, options) => {
         if (url === '/api/ringcentral-contacts') return Response.json({success:true, contacts:[]});
-        if (url === '/api/send-fax' && options.method === 'POST') return Response.json({success:true, messageId:String(++id), status:'Sent'});
-        if (url.startsWith('/api/fax-message')) return Response.json({success:true, messageId:'1', receiptNote:'Receipt available', attachments:[{downloadUrl:'/api/fax-attachment?messageId=1&attachmentId=1', fileName:'RenderedDocument.pdf', contentType:'application/pdf'}]});
+        if (url === '/api/send-fax' && options.method === 'POST') { window.faxSubmissions.push(options.body); return Response.json({success:true, messageId:String(++id), status:'Sent'}); }
+        if (url.startsWith('/api/fax-message')) { const messageId = new URL(url, location.origin).searchParams.get('messageId'); return Response.json({success:true, messageId, receiptNote:'Receipt available', attachments:[{type:'RenderedDocument', downloadUrl:'/api/fax-attachment?messageId='+messageId+'&attachmentId='+messageId, fileName:'RenderedDocument.pdf', contentType:'application/pdf'}]}); }
         throw new Error('Unexpected mock request');
       };
       const search = document.getElementById('contactSearch');
@@ -151,9 +162,26 @@ try {
       document.getElementById('pdfFile').files = transfer.files;
       document.getElementById('pdfFile').dispatchEvent(new Event('change'));`);
     await until(() => evaluate("!document.getElementById('sendFax').disabled"), "PDF validated");
+    assert(await evaluate(`document.querySelectorAll('#documentList .fax-filename').length === 1 && document.querySelector('.fax-filename').textContent === 'example.pdf' && getComputedStyle(document.getElementById('pdfFile')).display === 'none' && document.getElementById('choosePdfFiles').innerText === 'Choose PDF Files'`), "Custom selection control hides native empty filename display; one file appears only in document list");
+    await evaluate(`(() => {
+      const transfer = new DataTransfer();
+      for (const name of ['second.pdf', 'remove.pdf']) transfer.items.add(new File(['%PDF-1.4'], name, {type:'application/pdf'}));
+      document.getElementById('pdfFile').files = transfer.files;
+      document.getElementById('pdfFile').dispatchEvent(new Event('change'));
+    })()`);
+    await until(() => evaluate("document.querySelectorAll('#documentList li').length === 3 && !document.getElementById('choosePdfFiles').disabled"), "multiple selection appended");
+    await evaluate(`document.querySelector('[aria-label="Remove remove.pdf"]').click()`);
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('.fax-filename')].map(el => el.textContent)"), ['example.pdf', 'second.pdf'], "Remove preserves order and one filename per document");
+    for (const invalid of ['', '123', '12345', '21A4']) {
+      await evaluate(`document.getElementById('lastFourSsn').value = ${JSON.stringify(invalid)}; document.getElementById('lastFourSsn').dispatchEvent(new Event('input')); document.getElementById('faxForm').dispatchEvent(new Event('submit', {cancelable:true}));`);
+      assert.equal(await evaluate("window.faxSubmissions.length"), 0, "Invalid Last 4 causes zero fax submissions");
+    }
     await evaluate("document.getElementById('lastFourSsn').value = '0007'; document.getElementById('lastFourSsn').dispatchEvent(new Event('input'))");
     await evaluate("document.getElementById('sendFax').click()");
     await until(() => evaluate("document.getElementById('faxHistoryList').textContent.includes('Sent')"), "sent fax in history");
+    await until(() => evaluate("window.faxSubmissions.length === 2 && !document.getElementById('clearAll').disabled"), "both files sent sequentially");
+    assert.deepEqual(await evaluate("window.faxSubmissions.map(body => ({name:body.get('file').name, fields:[...body.keys()]}))"), [{name:'example.pdf',fields:['faxNumber','file']},{name:'second.pdf',fields:['faxNumber','file']}], "Original files remain associated with ordered submissions; Last 4 never sent");
+    assert(await evaluate("!localStorage.getItem('packard.faxHistory.v1').includes('0007')"), "Last 4 never persisted");
     await until(() => evaluate("!![...document.querySelectorAll('#documentList button')].find(button => button.textContent === 'Download Fax Receipt')"), "receipt action");
     assert(await evaluate("document.querySelector('#documentList button.primary-btn')?.textContent === 'Download Fax Receipt'"), "Sent card exposes primary receipt action");
     await evaluate("document.getElementById('faxHistory').open = true; document.activeElement.blur()");
@@ -163,11 +191,23 @@ try {
       const icon = document.querySelector('#reloadContacts svg').getBoundingClientRect();
       return button.right <= innerWidth && Math.abs(button.x + button.width/2 - icon.x - icon.width/2) < 1;
     })()`), "Refresh icon fits and centers at actual viewport width");
+    // Stress the existing history spacing without changing application state.
+    await evaluate(`(() => {
+      const row = document.querySelector('#faxHistoryList li');
+      row.querySelector('strong').textContent = 'Regional Social Security Office — Long Contact Name for Layout Verification';
+      row.querySelector('span').textContent = 'Long_original_document_filename_for_history_wrapping_and_spacing_verification.pdf';
+    })()`);
+    assert(await evaluate("document.documentElement.scrollWidth <= innerWidth && document.getElementById('faxHistoryList').scrollWidth <= document.getElementById('faxHistoryList').clientWidth"), "Long contact names and filenames wrap within history");
     const metrics = await cdp("Page.getLayoutMetrics");
     const screenshot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
     const screenshotPath = join(profile, `fax-history-${width}.png`);
     await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
     console.log(`Fax History screenshot: ${screenshotPath}`);
+    await visit('/fax-sender/');
+    assert.equal(await evaluate("document.querySelectorAll('#faxHistoryList li').length"), 2, "History restores on navigation");
+    assert.equal(await evaluate("document.getElementById('lastFourSsn').value"), '', "Last 4 remains memory-only");
+    await evaluate("document.getElementById('clearAll').click()");
+    assert(await evaluate("document.querySelectorAll('#faxHistoryList li').length === 0 && JSON.parse(localStorage.getItem('packard.faxHistory.v1')).length === 0"), "Clear All clears visible and persisted history even with no current documents");
     console.log(`PASS (${width}px): Settings/history, footer links on all 8 pages, released-tool menus, hidden development tools with working direct URLs, no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");

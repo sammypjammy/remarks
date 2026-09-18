@@ -7,6 +7,7 @@ import { downloadReceiptZip } from "./receipts-zip.js";
 const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
 const fileInput = document.getElementById("pdfFile");
+const chooseFilesButton = document.getElementById("choosePdfFiles");
 const lastFourInput = document.getElementById("lastFourSsn");
 const button = document.getElementById("sendFax");
 const retryButton = document.getElementById("retryFailed");
@@ -113,13 +114,14 @@ function render() {
   const valid = validFaxNumber(number);
   numberInput.disabled = batch.busy || Boolean(batch.destination);
   fileInput.disabled = batch.busy;
+  chooseFilesButton.disabled = fileInput.disabled;
   button.disabled = batch.busy || !valid || !ready;
   button.hidden = !ready;
   button.textContent = ready === 1 ? "Send Fax" : `Send ${ready} Faxes`;
   retryButton.hidden = !failed;
   retryButton.disabled = batch.busy || !valid;
   retryButton.textContent = `Retry Failed (${failed})`;
-  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination);
+  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination && !batch.recentFaxes.length);
   form.setAttribute("aria-busy", String(batch.busy));
   document.getElementById("numberHelp").textContent = batch.destination
     ? "Destination locked for this batch. Clear All to choose another destination."
@@ -268,6 +270,7 @@ lastFourInput.addEventListener("input", () => {
   batch.lastFourSsn = lastFourInput.value;
   if (validLastFour(batch.lastFourSsn)) validation.textContent = "";
 });
+chooseFilesButton.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", async () => {
   const files = [...fileInput.files];
   fileInput.value = ""; // The list owns the files; subsequent selections add to it.

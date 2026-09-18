@@ -114,9 +114,8 @@ export class FaxBatch {
 
   clear() {
     if (this.busy) return;
-    // Clearing still stops polling. Unfinished results must not imply a final outcome.
-    this.recentArchive = this.recentFaxes.map(entry => ["Delivered", "Failed"].includes(entry.state)
-      ? entry : { ...entry, state: "Status Unknown" });
+    // Clear both live and restored attempts; onChange persists the empty history.
+    this.recentArchive = [];
     this.tracker.clear();
     this.documents = [];
     this.destination = "";

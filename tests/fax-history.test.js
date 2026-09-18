@@ -25,6 +25,14 @@ test("history persists only bounded operational metadata and restores without re
   assert.equal(restored.tracker.pending.size, 0);
   saveFaxHistory(storage, Array(15).fill(batch.recentFaxes[0]));
   assert.equal(loadFaxHistory(storage).length, 10);
+  restored.clear();
+  assert.deepEqual(restored.recentFaxes, []);
+  assert.deepEqual(new FaxBatch({ storage }).recentFaxes, []);
+  assert.equal(values.get(FAX_HISTORY_KEY), "[]");
+  for (const old of ["null", "{}", '[{"filename":"old.pdf"}]']) {
+    values.set(FAX_HISTORY_KEY, old);
+    assert.deepEqual(loadFaxHistory(storage), []);
+  }
   values.set(FAX_HISTORY_KEY, "malformed");
   assert.deepEqual(loadFaxHistory(storage), []);
   const unavailable = { getItem() { throw Error(); }, setItem() { throw Error(); } };
@@ -32,7 +40,7 @@ test("history persists only bounded operational metadata and restores without re
   assert.equal(saveFaxHistory(unavailable, []), false);
   batch.tracker.clear();
 });
-test("recent history reuses tracked results, retains metadata across clear, and bounds newest-first entries", async () => {
+test("recent history reuses tracked results, clears history explicitly, and bounds newest-first entries", async () => {
   let now = 0;
   let id = 0;
   const batch = new FaxBatch({ pause: async () => {}, submit: async () => ({ messageId: String(++id), status: "Queued" }),
@@ -49,16 +57,15 @@ test("recent history reuses tracked results, retains metadata across clear, and 
   assert.ok(Date.parse(batch.recentFaxes[0].attemptedAt));
   assert.equal(batch.recentFaxes[0].file, undefined);
   batch.clear();
-  assert.equal(batch.recentFaxes[0].state, "Delivered");
+  assert.deepEqual(batch.recentFaxes, []);
   await batch.addFiles(Array.from({length: 12}, (_, i) => pdf(`${i}.pdf`)));
     batch.lastFourSsn = "2134"; await batch.run("+18015559999");
   assert.equal(batch.recentFaxes.length, 10);
   assert.deepEqual(batch.recentFaxes.map(entry => entry.messageId), Array.from({length: 10}, (_, i) => String(13 - i)));
-  batch.clear();
-  assert.equal(batch.recentFaxes[0].state, "Status Unknown");
-  assert.equal(batch.recentFaxes[0].status, "Queued");
   assert.equal(batch.recentFaxes[0].faxNumber, "+18015559999");
   assert.equal(batch.recentFaxes[0].recipientName, "");
+  batch.clear();
+  assert.deepEqual(batch.recentFaxes, []);
   assert.equal(batch.tracker.pending.size, 0);
   assert.deepEqual(new FaxBatch().recentFaxes, []);
 });
@@ -71,7 +78,7 @@ test("retry preserves distinct attempts and unknown submission never becomes sen
   await batch.run("+18015551234", "Failed");
   assert.deepEqual(batch.recentFaxes.map(entry => [entry.messageId, entry.status]), [["2", "Sent"], ["1", "SendingFailed"]]);
   batch.clear();
-  assert.equal(batch.recentFaxes.length, 2);
+  assert.equal(batch.recentFaxes.length, 0);
   batch.submit = async () => { throw new Error("Unconfirmed"); };
   await batch.addFiles([pdf("unknown.pdf")]);
     batch.lastFourSsn = "2134"; await batch.run("+18015551234");
