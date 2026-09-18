@@ -1,4 +1,7 @@
 .fax-panel { max-width: 960px; min-width: 0; }
+#batchReceipts, #saveContactPanel { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+#batchReceipts p, #saveContactStatus { font-size: 0.85rem; overflow-wrap: anywhere; }
+#batchReceipts[hidden], #saveContactPanel[hidden], #offerSaveContact[hidden], #saveContactStatus[hidden] { display: none; }
 .fax-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
 .fax-layout aside { min-width: 0; }
 .fax-history { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); }

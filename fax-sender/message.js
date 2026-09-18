@@ -27,7 +27,10 @@ export function receiptFilename(originalName, lastFour) {
   return `Fax Receipt - ${(safeBase || `Document ${lastFour}`).slice(0, 180)} ${lastFour}.pdf`;
 }
 
-export async function downloadFaxAttachment(downloadUrl, filename = "Fax Receipt.pdf") {
+const receiptBlobs = new WeakMap(); // Released with the document/attachment; never persisted.
+
+export async function fetchFaxAttachment(downloadUrl, attachment) {
+  if (attachment && receiptBlobs.has(attachment)) return receiptBlobs.get(attachment);
   let response;
   try {
     response = await fetch(downloadUrl, { cache: "no-store", signal: AbortSignal.timeout(35_000) });
@@ -37,10 +40,19 @@ export async function downloadFaxAttachment(downloadUrl, filename = "Fax Receipt
   }
   if (!response.ok) throw new Error("The Fax Receipt is currently unavailable.");
   const blob = await response.blob();
+  if (attachment) receiptBlobs.set(attachment, blob);
+  return blob;
+}
+
+export async function downloadFaxAttachment(downloadUrl, filename = "Fax Receipt.pdf", attachment) {
+  saveReceiptBlob(await fetchFaxAttachment(downloadUrl, attachment), filename);
+}
+
+export function saveReceiptBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

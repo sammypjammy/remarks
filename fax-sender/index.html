@@ -37,9 +37,18 @@
             <input id="faxNumber" name="faxNumber" type="hidden" />
             <p id="contactMessage" role="status" aria-live="polite" hidden></p>
             <p id="numberHelp" hidden></p>
+            <button id="offerSaveContact" type="button" class="secondary-btn" hidden>+ Save to RingCentral Contacts</button>
+            <div id="saveContactPanel" hidden>
+              <label for="contactName">Contact Name</label>
+              <input id="contactName" maxlength="60" autocomplete="off" />
+              <p>Fax Number: <span id="saveContactNumber"></span></p>
+              <button id="saveContact" type="button" class="primary-btn">Save Contact</button>
+              <button id="cancelSaveContact" type="button" class="secondary-btn">Cancel</button>
+            </div>
+            <p id="saveContactStatus" role="status" hidden></p>
             <label for="pdfFile">PDF documents</label>
             <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" multiple aria-describedby="fileHelp" />
-            <p id="fileHelp">Up to 4 MB per PDF. Each PDF is a separate fax. No automatic cover page is added. Selecting more files adds them to the list.</p>
+            <p id="fileHelp">Up to 4 MB per PDF. Each PDF is a separate fax. Selecting more files adds them to the list.</p>
             <label for="lastFourSsn">Last 4 of SSN</label>
             <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required aria-required="true" autocomplete="off" aria-describedby="lastFourHelp" />
             <p id="lastFourHelp">Required before sending. Used only to name Fax Receipt downloads. It is not sent or saved.</p>
@@ -47,6 +56,13 @@
             <div class="fax-list-heading">
               <h2 id="documentCount">Documents</h2>
               <button id="clearAll" class="secondary-btn" type="button" disabled>Clear All</button>
+            </div>
+            <div id="batchReceipts" hidden>
+              <button id="downloadAllReceipts" class="primary-btn" type="button" disabled>Download All Fax Receipts</button>
+              <button id="downloadReceiptZip" class="secondary-btn" type="button" disabled>Download ZIP if PDFs are blocked</button>
+              <p id="receiptAvailability" role="status"></p>
+              <p>Downloads separate PDFs with their original receipt filenames. Allow multiple downloads in your browser. If blocked, use the ZIP fallback for one download or the individual buttons below.</p>
+              <p id="receiptDownloadStatus" role="status"></p>
             </div>
             <ul id="documentList" aria-labelledby="documentCount"></ul>
             <div class="fax-batch-actions">
@@ -60,13 +76,14 @@
         <details id="faxSendingInfo" class="fax-sending-info">
           <summary>ⓘ Fax sending info</summary>
           <p class="fax-note">A fax is marked Sent only when RingCentral reports the final Sent status. Checks stop after 15 minutes; unresolved faxes remain Status Unknown. Sent does not confirm human receipt or review.</p>
-          <p class="fax-note">Keep this tab open while sending. Documents and results stay in this tab only. Clear All or reloading removes this list and its duplicate protection.</p>
+          <p class="fax-note">Keep this tab open while sending. Documents stay in this tab only. Clear All or reloading removes this document list and its duplicate protection. Recent attempt metadata remains in Fax History.</p>
         </details>
       </section>
       <aside aria-label="Recent fax history">
         <details id="faxHistory" class="fax-history">
           <summary>Fax History</summary>
-          <p class="fax-history-note">Last 10 attempts in this tab. Retained after Clear All; cleared when you reload or leave. Clear All stops status checks.</p>
+          <p class="fax-history-note">Last 10 attempts saved in this browser across reloads. SSN last four and PDFs are never saved. Clear All stops status checks. Unfinished attempts become Status Unknown after reloading.</p>
+          <p id="historyStorageStatus" role="status" hidden>History cannot be saved in this browser; it is available in this tab only.</p>
           <p id="faxHistoryEmpty">No fax history yet. Recent attempts will appear here when you send a fax.</p>
           <ol id="faxHistoryList" aria-label="Recent fax attempts, newest first"></ol>
         </details>

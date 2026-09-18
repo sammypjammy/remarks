@@ -1,7 +1,8 @@
 ﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
 
 import { ContactPicker } from "./contacts.js";
-import { downloadFaxAttachment, lookupFaxMessage, receiptFilename, validLastFour } from "./message.js";
+import { downloadFaxAttachment, fetchFaxAttachment, lookupFaxMessage, receiptFilename, validLastFour } from "./message.js";
+import { downloadReceiptZip } from "./receipts-zip.js";
 
 const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
@@ -13,6 +14,9 @@ const clearButton = document.getElementById("clearAll");
 const validation = document.getElementById("validation");
 const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
+const downloadAllButton = document.getElementById("downloadAllReceipts");
+const downloadZipButton = document.getElementById("downloadReceiptZip");
+let downloadingAll = false;
 const batch = new FaxBatch({
   onChange: render,
   onValidationError: message => {
@@ -61,7 +65,7 @@ function rowAction(label, action, className = "secondary-btn") {
 }
 
 function receiptAttachment(doc) {
-  return doc.transmissionDetails?.attachments?.find(attachment => attachment.downloadUrl);
+  return doc.transmissionDetails?.attachments?.find(attachment => attachment.type === "RenderedDocument" && attachment.downloadUrl);
 }
 
 function receiptAction(doc, attachment) {
@@ -72,16 +76,17 @@ function receiptAction(doc, attachment) {
       lastFourInput.focus();
       return;
     }
-    download.disabled = true;
+    doc.receiptDownloading = true;
+    render();
     try {
-      await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(doc.file?.name, lastFour));
+      await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(doc.file?.name, lastFour), attachment);
       doc.receiptError = "";
     } catch (error) {
       doc.receiptError = error.message;
-      render();
-    }
+    } finally { doc.receiptDownloading = false; render(); }
   }, "primary-btn");
   download.setAttribute("aria-label", `${doc.receiptError ? "Retry" : "Download"} Fax Receipt for ${doc.file.name}`);
+  download.disabled = downloadingAll || Boolean(doc.receiptDownloading);
   return download;
 }
 
@@ -93,6 +98,12 @@ function render() {
   const failed = docs.filter(doc => doc.state === "Failed").length;
   // Keep the internal state names and retry rules unchanged; these are display labels only.
   const sent = docs.filter(doc => doc.state === "Delivered").length;
+  const available = docs.filter(doc => doc.state === "Delivered" && receiptAttachment(doc)).length;
+  document.getElementById("batchReceipts").hidden = !sent;
+  downloadAllButton.disabled = downloadingAll || !available || docs.some(doc => doc.receiptDownloading);
+  downloadZipButton.disabled = downloadAllButton.disabled;
+  downloadAllButton.textContent = downloadingAll ? "Downloading Fax Receipts…" : "Download All Fax Receipts";
+  document.getElementById("receiptAvailability").textContent = `${available} of ${sent} sent fax receipts available.${sent > available ? " Remaining receipts are preparing or unavailable; see each document below." : ""}`;
   const unknown = docs.filter(doc => doc.state === "Status Unknown").length;
   const tracking = docs.some(doc => doc.tracking);
   const allSent = Boolean(docs.length) && sent === docs.length;
@@ -108,7 +119,7 @@ function render() {
   retryButton.hidden = !failed;
   retryButton.disabled = batch.busy || !valid;
   retryButton.textContent = `Retry Failed (${failed})`;
-  clearButton.disabled = batch.busy || (!docs.length && !batch.destination);
+  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination);
   form.setAttribute("aria-busy", String(batch.busy));
   document.getElementById("numberHelp").textContent = batch.destination
     ? "Destination locked for this batch. Clear All to choose another destination."
@@ -157,7 +168,7 @@ function render() {
     if (doc.state !== "Ready") actions.append(element("span", label, "fax-state"));
     const attachment = receiptAttachment(doc);
     if (doc.state === "Delivered" && attachment) actions.append(receiptAction(doc, attachment));
-    if (doc.state === "Delivered" && !attachment && !doc.transmissionDetailsError) {
+    if (doc.state === "Delivered" && !attachment && !doc.transmissionDetails && !doc.transmissionDetailsError) {
       actions.append(element("span", "Preparing receipt...", "fax-receipt-status"));
     }
     if (doc.receiptError) actions.append(element("span", `Receipt unavailable: ${doc.receiptError}`, "fax-error"));
@@ -166,12 +177,16 @@ function render() {
       retry.setAttribute("aria-label", `Retry ${doc.file.name}`);
       actions.append(retry);
     }
-    if (doc.state === "Delivered" && !doc.transmissionDetails && (!doc.transmissionDetailsRequested || doc.transmissionDetailsError)) {
+    if (doc.state === "Delivered" && !attachment && (doc.transmissionDetails || !doc.transmissionDetailsRequested || doc.transmissionDetailsError)) {
       const detailsButton = rowAction(doc.transmissionDetailsError ? "Retry Fax Receipt Lookup" : "View Fax Receipt Details", async () => {
         doc.transmissionDetailsRequested = true;
         doc.transmissionDetailsError = "";
-        try { doc.transmissionDetails = await lookupFaxMessage(doc.messageId); }
-        catch (error) { doc.transmissionDetailsError = error.message; }
+        detailsButton.disabled = true;
+        try {
+          doc.transmissionDetails = await lookupFaxMessage(doc.messageId);
+          doc.receiptError = receiptAttachment(doc) ? "" : "Fax Receipt is unavailable for this fax.";
+        }
+        catch (error) { doc.transmissionDetailsError = error.message; doc.receiptError = error.message; }
         render();
       });
       actions.append(detailsButton);
@@ -187,6 +202,7 @@ function render() {
 }
 
 function renderHistory() {
+  document.getElementById("historyStorageStatus").hidden = batch.historySaved;
   const historyList = document.getElementById("faxHistoryList");
   const entries = batch.recentFaxes;
   document.getElementById("faxHistoryEmpty").hidden = Boolean(entries.length);
@@ -206,6 +222,40 @@ function renderHistory() {
     historyList.append(row);
   }
 }
+
+async function downloadReceipts(asZip = false) {
+  if (downloadingAll || batch.documents.some(doc => doc.receiptDownloading)) return;
+  const lastFour = batch.lastFourSsn;
+  if (!validLastFour(lastFour)) {
+    validation.textContent = "Enter exactly four digits in Last 4 of SSN before downloading Fax Receipts.";
+    lastFourInput.focus(); return;
+  }
+  const documents = batch.documents.filter(doc => doc.state === "Delivered" && receiptAttachment(doc));
+  downloadingAll = true;
+  const status = document.getElementById("receiptDownloadStatus");
+  let requested = 0;
+  const failures = [];
+  const receipts = [];
+  render();
+  try {
+    for (const doc of documents) {
+      status.textContent = `Requesting receipt ${requested + failures.length + 1} of ${documents.length}…`;
+      try {
+        const attachment = receiptAttachment(doc);
+        const filename = receiptFilename(doc.file.name, lastFour);
+        if (asZip) receipts.push({ filename, blob: await fetchFaxAttachment(attachment.downloadUrl, attachment) });
+        else await downloadFaxAttachment(attachment.downloadUrl, filename, attachment);
+        doc.receiptError = ""; requested++;
+      } catch (error) { doc.receiptError = error.message; failures.push(doc.file.name); }
+    }
+    if (asZip && receipts.length) await downloadReceiptZip(receipts);
+    status.textContent = (asZip ? `${requested} receipts included in the ZIP download request.` : `${requested} PDF download${requested === 1 ? "" : "s"} requested. Check your browser's downloads; blocked downloads cannot be detected here. Use the ZIP fallback or individual buttons if needed.`) +
+      (failures.length ? ` Could not retrieve: ${failures.join(", ")}.` : "");
+  } catch { status.textContent = "Could not prepare the ZIP. Use the individual Download Fax Receipt buttons."; }
+  finally { downloadingAll = false; render(); }
+}
+downloadAllButton.addEventListener("click", () => downloadReceipts());
+downloadZipButton.addEventListener("click", () => downloadReceipts(true));
 
 const historyPanel = document.getElementById("faxHistory");
 const historyDesktop = window.matchMedia("(min-width: 1100px)");
@@ -235,6 +285,7 @@ clearButton.addEventListener("click", () => {
   contactPicker.clear();
   lastFourInput.value = "";
   validation.textContent = "";
+  document.getElementById("receiptDownloadStatus").textContent = "";
 });
 window.addEventListener("beforeunload", event => {
   if (!batch.running && !batch.documents.some(doc => doc.tracking)) return;

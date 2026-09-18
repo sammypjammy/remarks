@@ -202,7 +202,10 @@ the page's “Internal use only” label does not enforce access control.
 - HTTP 502 or connection timeout: submission may be ambiguous. Check RingCentral before retrying.
 
 The 4 MB PDF cap leaves multipart overhead below Vercel's 4.5 MB function request limit.
-There is no automatic fax resend, persistent history, or client workspace.
+There is no automatic fax resend or persistent document workspace. Fax History saves
+only the 10 newest attempt metadata records in localStorage; SSN last four, receipt
+filenames, PDFs, credentials, and authenticated media URLs are excluded. Restored
+unfinished attempts show Status Unknown and are not automatically retried or polled.
 The V1 API still authenticates separately for each document; large batches can encounter
 authentication or fax rate limits even with sequential requests. Failed rows retain errors
 for review. Only definitive terminal fax failures can be retried. The existing RingCentral
@@ -211,3 +214,21 @@ authentication test and fax-send transport code were preserved for V2.1.
 References: [RingCentral fax API guide](https://developers.ringcentral.com/guide/messaging/fax/sending-faxes),
 [RingCentral permissions](https://developers.ringcentral.com/guide/basics/permissions),
 [Vercel function limits](https://vercel.com/docs/functions/limitations).
+
+### Fax contacts and receipt downloads
+
+`POST /api/ringcentral-contacts` accepts only `{ name, faxNumber }` and creates a
+personal contact using `firstName` and `businessFax`. It uses the existing server
+JWT authentication, checks the complete current address book for the fax number,
+and returns only normalized picker data. Add **Contacts (CRUD)** to the RingCentral
+application permissions in Developer Console; **ReadContacts** alone cannot create
+contacts. The JWT user's role also needs **EditPersonalContacts**. A denied save
+does not disable contact reads or manual faxing. Live app permissions have not been
+verified by the mocked tests.
+
+Download All requests separate receipt PDFs through the existing attachment proxy.
+Browsers may require permission for multiple automatic downloads and cannot report
+their completion to this page. The ZIP fallback provides one download, preserving
+individual PDF filenames; same-named files use separate ZIP directories. Both paths
+reuse successful attachment blobs in memory, and retrieval failures leave Sent
+status unchanged. Clearing the batch releases its receipt cache references.

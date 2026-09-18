@@ -1,8 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FaxBatch } from "../fax-sender/batch.js";
+import { FAX_HISTORY_KEY, loadFaxHistory, saveFaxHistory } from "../fax-sender/history.js";
 
 const pdf = name => new File(["%PDF-1.4"], name, { type: "application/pdf" });
+test("history persists only bounded operational metadata and restores without retrying or restoring SSN", async () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) };
+  const batch = new FaxBatch({ storage, pause: async () => {}, submit: async () => ({ messageId: "42", status: "Queued" }), tracking: { schedule: () => 1, cancel: () => {} } });
+  await batch.addFiles([pdf("Form.pdf")]);
+  batch.lastFourSsn = "9876";
+  await batch.run("+18015551234");
+  const doc = batch.documents[0];
+  doc.receiptFilename = "Fax Receipt - Form 9876.pdf";
+  doc.transmissionDetails = { downloadUrl: "https://private-media", token: "secret-token" };
+  batch.onChange();
+  const saved = values.get(FAX_HISTORY_KEY);
+  assert.doesNotMatch(saved, /9876|private-media|secret-token|%PDF|receiptFilename|transmissionDetails|lastFour/);
+  const restored = new FaxBatch({ storage });
+  assert.equal(restored.lastFourSsn, "");
+  assert.deepEqual(restored.documents, []);
+  assert.equal(restored.recentFaxes[0].state, "Status Unknown");
+  assert.equal(restored.recentFaxes[0].messageId, "42");
+  assert.equal(restored.tracker.pending.size, 0);
+  saveFaxHistory(storage, Array(15).fill(batch.recentFaxes[0]));
+  assert.equal(loadFaxHistory(storage).length, 10);
+  values.set(FAX_HISTORY_KEY, "malformed");
+  assert.deepEqual(loadFaxHistory(storage), []);
+  const unavailable = { getItem() { throw Error(); }, setItem() { throw Error(); } };
+  assert.deepEqual(loadFaxHistory(unavailable), []);
+  assert.equal(saveFaxHistory(unavailable, []), false);
+  batch.tracker.clear();
+});
 test("recent history reuses tracked results, retains metadata across clear, and bounds newest-first entries", async () => {
   let now = 0;
   let id = 0;

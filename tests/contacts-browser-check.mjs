@@ -13,9 +13,13 @@ let html = await readFile(new URL("../fax-sender/index.html", import.meta.url), 
 html = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<link[^>]+>/g, "");
 const styles = await Promise.all(["../settings/shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
 html = html.replace("</head>", `<style>${styles.join("\n")}</style></head>`);
-const sources = await Promise.all(["tracking.js", "batch.js", "contacts.js", "main.js"].map(async file =>
+const sources = await Promise.all(["tracking.js", "message.js", "receipts-zip.js", "history.js", "batch.js", "contacts.js", "main.js"].map(async file =>
   (await readFile(new URL(`../fax-sender/${file}`, import.meta.url), "utf8")).replace(/^\uFEFF/, "").replace(/^import .*;\r?\n/gm, "")));
+const zipLibrary = await readFile(new URL("../node_modules/fflate/umd/index.js", import.meta.url), "utf8");
 const script = `
+const { zipSync } = fflate;
+// Keep mocked PDF reads on the microtask queue so headless virtual time is deterministic.
+const mockPdf = name => ({ name, size: 8, type: "application/pdf", lastModified: 1, slice: () => ({ text: async () => "%PDF-" }) });
 const fixtures = [
   { id: "1", name: "Albuquerque SSA", company: "Social Security", location: "Albuquerque, NM", faxNumbers: [{ label: "Business fax", number: "+18665551234" }, { label: "Other fax", number: "+18335555678" }] },
   { id: "2", name: "No Fax SSA", company: "", location: "", faxNumbers: [] },
@@ -91,14 +95,14 @@ try {
   check(document.querySelector("#contactResults button").textContent.includes("(801) 555-0000"), "Manual number must appear formatted");
   document.querySelector("#contactResults button").click();
   check(numberInput.value === "+18015550000", "Manual selection must set normalized destination");
-  await batch.addFiles([new File(["%PDF-1.4"], "test.pdf", { type: "application/pdf" })]);
+  await batch.addFiles([mockPdf("test.pdf")]);
   check(document.getElementById("documentCount").textContent === "Documents", "Documents heading must not include a count");
   check(!document.querySelector("#documentList .fax-state"), "Pre-send cards must not show Ready");
   check(result.hidden && !result.textContent, "Pre-send batch counters must be absent");
   check(!document.getElementById("batchReview"), "Redundant destination/readiness sentence must be removed");
   check(button.textContent === "Send Fax", "Single-document button must say Send Fax");
   check(!button.disabled, "Manual entry must enable sending");
-  await batch.run(numberInput.value);
+  batch.lastFourSsn = "2134"; await batch.run(numberInput.value);
   check(document.querySelectorAll("#faxHistoryList li").length === 1 && document.getElementById("faxHistoryEmpty").hidden, "Sending must populate history");
   check(document.getElementById("faxHistoryList").textContent.includes("Sent ✓") && document.getElementById("faxHistoryList").textContent.includes("+18015550000"), "History must show sent status and destination");
   check(submissions[0] === "+18015550000", "Manual number must be sole destination");
@@ -132,22 +136,23 @@ try {
   check(contactPicker.message.textContent.includes("You can still enter a fax number"), "Failure must explain fallback");
   query("8015551111");
   document.querySelector("#contactResults button").click();
-  await batch.addFiles([new File(["%PDF-1.4"], "manual.pdf", { type: "application/pdf" })]);
+  await batch.addFiles([mockPdf("manual.pdf")]);
   check(!button.disabled, "Contact failure must not disable manual faxing");
-  await batch.run(numberInput.value);
+  batch.lastFourSsn = "2134"; await batch.run(numberInput.value);
   check(submissions[1] === "+18015551111", "Manual faxing must work after contact failure");
   check(document.querySelectorAll("#faxHistoryList li").length === 2, "History must retain prior cleared batch");
   check(document.querySelector("#faxHistoryList li").textContent.includes("manual.pdf"), "Newest fax must appear first");
   // Exercise the form -> batch -> tracker -> history path with a named recipient.
   clearButton.click();
   contactPicker.select(fixtures[0], fixtures[0].faxNumbers[0]);
-  await batch.addFiles([new File(["%PDF-1.4"], "tracked.pdf", { type: "application/pdf" })]);
+  await batch.addFiles([mockPdf("tracked.pdf")]);
   let trackingClock = 0;
   batch.tracker.now = () => trackingClock;
   batch.tracker.schedule = () => 1;
   batch.tracker.cancel = () => {};
   batch.tracker.lookup = async messageId => ({ messageId, status: "Sent" });
   batch.submit = async () => ({ messageId: "3", status: "Queued" });
+  batch.lastFourSsn = "2134";
   form.dispatchEvent(new Event("submit", { cancelable: true }));
   for (let i = 0; batch.running && i < 20; i++) await Promise.resolve();
   check(document.querySelector("#faxHistoryList li").textContent.includes("Albuquerque SSA"), "Form submission must retain recipient name");
@@ -157,7 +162,7 @@ try {
   check(document.querySelector("#faxHistoryList li").textContent.includes("Sent ✓"), "Tracking must update history to Sent");
   // Presentation-only fixtures: preserve the existing sending/tracking tests above.
   clearButton.click();
-  await batch.addFiles(["one.pdf", "two.pdf", "three.pdf"].map(name => new File(["%PDF-1.4"], name, { type: "application/pdf" })));
+  await batch.addFiles(["one.pdf", "two.pdf", "three.pdf"].map(name => mockPdf(name)));
   check(button.textContent === "Send 3 Faxes", "Multiple-document send label must include the count");
   check(result.hidden, "New batch must reset the summary");
   batch.documents.forEach((doc, index) => {
@@ -196,17 +201,65 @@ try {
   info.querySelector("summary").click();
   check(!info.open, "Info must collapse again");
   check(!document.getElementById("version-history"), "Fax page must not contain an inline version history");
+  clearButton.click();
+  contactPicker.contacts = fixtures;
+  contactPicker.select(null, { number: "+18335551234" });
+  check(!document.getElementById("offerSaveContact").hidden, "Unsaved manual number must offer contact creation");
+  document.getElementById("offerSaveContact").click();
+  document.getElementById("contactName").value = "New SSA Office";
+  let createCalls = 0, releaseCreate;
+  globalThis.fetch = async (url, options) => {
+    check(url === "/api/ringcentral-contacts" && options.method === "POST", "Creation must use the server endpoint");
+    createCalls++;
+    await new Promise(resolve => { releaseCreate = resolve; });
+    return Response.json({ success: true, contact: { id: "77", name: "New SSA Office", faxNumbers: [{ label: "Business fax", number: "+18335551234" }] } });
+  };
+  const saving = contactPicker.saveContact();
+  await contactPicker.saveContact();
+  check(createCalls === 1 && document.getElementById("saveContact").disabled, "Repeated save must not create twice");
+  releaseCreate(); await saving;
+  check(contactPicker.selectedName === "New SSA Office" && document.getElementById("offerSaveContact").hidden, "Saved contact must immediately populate selection and suppress duplicate action");
+  await batch.addFiles(["827.pdf", "DIB DR.pdf", "SSA-3368.pdf", "Pending.pdf"].map(name => mockPdf(name)));
+  batch.lastFourSsn = "2134";
+  batch.documents.forEach((doc, index) => {
+    doc.state = "Delivered"; doc.messageId = String(200 + index);
+    if (index < 3) doc.transmissionDetails = { attachments: [{ type: "RenderedDocument", downloadUrl: "/api/fax-attachment?messageId=" + doc.messageId + "&attachmentId=" + doc.messageId }] };
+  });
+  render();
+  check(document.getElementById("receiptAvailability").textContent.includes("3 of 4"), "Partial readiness must be explicit");
+  let downloads = [], fetched = [], failReceipt = true;
+  const nativeClick = HTMLAnchorElement.prototype.click;
+  HTMLAnchorElement.prototype.click = function () { downloads.push(this.download); };
+  globalThis.fetch = async url => {
+    check(url.startsWith("/api/fax-attachment?"), "Bulk download must never send faxes or refetch message details");
+    fetched.push(url);
+    const blob = new Blob(["%PDF-receipt"]);
+    blob.arrayBuffer = async () => new TextEncoder().encode("%PDF-receipt").buffer;
+    return { ok: !(failReceipt && url.includes("messageId=201")), blob: async () => blob };
+  };
+  await downloadReceipts();
+  check(downloads.join("|") === "Fax Receipt - 827 2134.pdf|Fax Receipt - SSA-3368 2134.pdf", "Separate downloads must retain per-document filenames");
+  check(document.getElementById("receiptDownloadStatus").textContent.includes("DIB DR.pdf"), "Failed receipt must identify its document");
+  check(batch.documents.every(doc => doc.state === "Delivered"), "Receipt failure must preserve Sent status");
+  failReceipt = false;
+  await downloadReceipts(true);
+  check(downloads.at(-1) === "Fax Receipts.zip", "Fallback must request one ZIP download");
+  check(fetched.length === 4, "ZIP fallback must reuse successful in-memory receipt fetches");
+  check(document.querySelectorAll('#documentList button[aria-label^="Download Fax Receipt"]').length === 3, "Individual prominent receipt buttons must remain");
+  HTMLAnchorElement.prototype.click = nativeClick;
+  check(document.documentElement.scrollWidth <= innerWidth, "Release controls must fit viewport");
   document.getElementById("browserResult").textContent = "PASS: overlay layout, close/keyboard behavior, contact rows, multiple faxes, formatted E.164 selection, manual fallback, X, refresh guarding, lock and Clear All";
 } catch (error) { document.getElementById("browserResult").textContent = "FAIL: " + error.stack; }
 `;
-html = html.replace("</body>", `<pre id="browserResult">RUNNING</pre><script type="module">${script}</script></body>`);
+html = html.replace("</body>", () => `<pre id="browserResult">RUNNING</pre><script>window.addEventListener("error", event => { document.getElementById("browserResult").textContent = "FAIL: " + event.message; });</script><script>${zipLibrary}</script><script type="module">${script}</script></body>`);
 const path = join(directory, "check.html");
 await writeFile(path, html);
 for (const viewport of ["1280,900", "390,844"]) {
   const { stdout } = await promisify(execFile)(browser, ["--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
     `--screenshot=${join(directory, 'fax-' + viewport + '.png')}`,
-    `--user-data-dir=${join(directory, 'profile-' + viewport)}`, `--window-size=${viewport}`, "--dump-dom", "--virtual-time-budget=5000", pathToFileURL(path).href
+    `--user-data-dir=${join(directory, 'profile-' + viewport)}`, `--window-size=${viewport}`, "--dump-dom", "--virtual-time-budget=30000", pathToFileURL(path).href
   ], { timeout: 60_000, maxBuffer: 2_000_000, windowsHide: true });
+  await writeFile(join(directory, "dom-" + viewport + ".html"), stdout);
   const result = stdout.match(/<pre id="browserResult">([\s\S]*?)<\/pre>/)?.[1] || "FAIL: no browser result";
   console.log(`${viewport}: ${result}`);
   console.log(`Screenshot: ${join(directory, 'fax-' + viewport + '.png')}`);

@@ -1,5 +1,6 @@
 import { FaxTracker } from "./tracking.js";
 import { validLastFour } from "./message.js";
+import { browserHistoryStorage, loadFaxHistory, saveFaxHistory } from "./history.js";
 
 export function normalizeFaxNumber(value) {
   return value.replace(/[\s().-]/g, "");
@@ -51,24 +52,28 @@ async function validatePdf(file) {
   return "";
 }
 
-// Tab-only state. No PDFs or results are written to browser storage.
+// Documents and SSN input are tab-only. Only allowlisted attempt metadata persists.
 export class FaxBatch {
-  constructor({ submit = submitDocument, onChange = () => {}, onValidationError = () => {}, pause = () => new Promise(resolve => setTimeout(resolve, 1000)), tracking = {} } = {}) {
+  constructor({ submit = submitDocument, onChange = () => {}, onValidationError = () => {}, pause = () => new Promise(resolve => setTimeout(resolve, 1000)), tracking = {}, storage = browserHistoryStorage() } = {}) {
     this.documents = [];
     this.destination = "";
     this.running = false;
     this.adding = false;
     this.progress = null;
     this.submit = submit;
-    this.onChange = onChange;
+    this.onChange = () => {
+      this.historySaved = saveFaxHistory(storage, this.recentFaxes);
+      onChange();
+    };
     this.onValidationError = onValidationError;
     this.pause = pause;
     this.nextId = 1;
-    this.nextAttempt = 1;
-    this.recentArchive = [];
+    this.recentArchive = loadFaxHistory(storage);
+    this.nextAttempt = 11;
+    this.historySaved = Boolean(storage);
     this.recipientName = "";
     this.lastFourSsn = "";
-    this.tracker = new FaxTracker({ ...tracking, onChange });
+    this.tracker = new FaxTracker({ ...tracking, onChange: this.onChange });
   }
 
   get busy() { return this.running || this.adding; }

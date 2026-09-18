@@ -21,9 +21,9 @@ test("contact normalization uses only fax fields and retains multiple fax choice
   assert.equal(filterContacts([contact], "El Paso").length, 0);
 });
 
-async function request(method = "GET") {
+async function request(method = "GET", body) {
   const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
-  await handler({ method }, res);
+  await handler({ method, body }, res);
   return res;
 }
 
@@ -37,7 +37,7 @@ test("contacts endpoint authenticates server-side, paginates, and fails without 
     keys.forEach((key, i) => { if (env[i] === undefined) delete process.env[key]; else process.env[key] = env[i]; });
   });
   globalThis.fetch = () => { throw new Error("Must not fetch"); };
-  assert.equal((await request("POST")).code, 405);
+  assert.equal((await request("DELETE")).code, 405);
   for (const pagingStyle of ["totalPages", "navigation", "pageSize"]) {
     const pages = [];
     globalThis.fetch = async (url, options) => {
@@ -83,4 +83,44 @@ test("contacts endpoint authenticates server-side, paginates, and fails without 
     throw new Error("private-token");
   };
   assert.equal((await request()).data.contacts, undefined); // Never return a partial address book as complete.
+});
+
+test("contact creation validates, checks duplicates, uses businessFax, and explains write permission failures", async t => {
+  const original = globalThis.fetch;
+  const keys = ["RC_CLIENT_ID", "RC_CLIENT_SECRET", "RC_USER_JWT"];
+  const env = keys.map(key => process.env[key]);
+  keys.forEach(key => { process.env[key] = "dummy-secret"; });
+  t.after(() => {
+    globalThis.fetch = original;
+    keys.forEach((key, i) => { if (env[i] === undefined) delete process.env[key]; else process.env[key] = env[i]; });
+  });
+  const body = { name: "SSA Office", faxNumber: "+18335551234" };
+  globalThis.fetch = () => { throw new Error("Validation must precede fetch"); };
+  for (const invalid of [undefined, {}, { ...body, name: " " }, { ...body, name: "a".repeat(61) }, { ...body, faxNumber: "8335551234" }, { ...body, url: "https://example.com" }]) {
+    assert.equal((await request("POST", invalid)).code, 400);
+  }
+  let writes = 0, records = [], createStatus = 201, readStatus = 200;
+  globalThis.fetch = async (url, options) => {
+    if (url.endsWith("/oauth/token")) return Response.json({ access_token: "private-token" });
+    if (options.method !== "POST") return Response.json({ records, paging: { totalPages: 1 } }, { status: readStatus });
+    writes++;
+    assert.equal(url, "https://platform.ringcentral.com/restapi/v1.0/account/~/extension/~/address-book/contact");
+    assert.deepEqual(JSON.parse(options.body), { firstName: "SSA Office", businessFax: body.faxNumber });
+    return Response.json({ id: 9, firstName: "SSA Office", businessFax: body.faxNumber, notes: "private-token" }, { status: createStatus });
+  };
+  const created = await request("POST", body);
+  assert.equal(created.code, 201);
+  assert.equal(created.data.contact.name, "SSA Office");
+  assert.doesNotMatch(JSON.stringify(created.data), /private-token|dummy-secret|notes/);
+  records = [{ id: 7, firstName: "Already saved", otherFax: body.faxNumber }];
+  assert.equal((await request("POST", body)).data.existing, true);
+  assert.equal(writes, 1);
+  records = []; createStatus = 403;
+  const denied = await request("POST", body);
+  assert.equal(denied.code, 403);
+  assert.match(denied.data.error, /Contacts \(CRUD\).*EditPersonalContacts/);
+  readStatus = 503;
+  const before = writes;
+  assert.equal((await request("POST", body)).code, 502);
+  assert.equal(writes, before, "Incomplete duplicate check must never create a contact");
 });

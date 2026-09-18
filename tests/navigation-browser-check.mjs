@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.11.2')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.12.0')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");

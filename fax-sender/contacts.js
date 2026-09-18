@@ -31,6 +31,18 @@ export class ContactPicker {
     this.error = "";
     this.open = false;
     this.selectedName = ""; // Display metadata only; numberInput is the sole destination value.
+    this.saving = false;
+    this.saveOpen = false;
+    this.saveStatus = "";
+    this.saveUI = Object.fromEntries(["offerSaveContact", "saveContactPanel", "contactName", "saveContactNumber", "saveContact", "cancelSaveContact", "saveContactStatus"].map(id => [id, document.getElementById(id)]));
+    this.saveUI.offerSaveContact.addEventListener("click", () => {
+      this.saveOpen = true; this.saveStatus = ""; this.render(); this.saveUI.contactName.focus();
+    });
+    this.saveUI.cancelSaveContact.addEventListener("click", () => { this.saveOpen = false; this.render(); });
+    this.saveUI.saveContact.addEventListener("click", () => this.saveContact());
+    this.saveUI.contactName.addEventListener("keydown", event => {
+      if (event.key === "Enter") { event.preventDefault(); this.saveContact(); }
+    });
     search.addEventListener("focus", () => {
       if (!this.numberInput.value) this.open = true;
       this.render();
@@ -69,7 +81,43 @@ export class ContactPicker {
     this.render();
   }
 
-  get locked() { return this.batch.busy || Boolean(this.batch.destination); }
+  get locked() { return this.saving || this.batch.busy || Boolean(this.batch.destination); }
+
+  existingContact(number) {
+    return this.contacts?.find(contact => contact.faxNumbers.some(fax => normalizeFaxNumber(fax.number) === number));
+  }
+
+  async saveContact() {
+    if (this.locked) return;
+    const number = manualFaxNumber(this.numberInput.value);
+    const name = this.saveUI.contactName.value.trim();
+    if (!number || !this.contacts || this.existingContact(number)) return;
+    if (!name || name.length > 60 || /[\u0000-\u001f\u007f]/.test(name)) {
+      this.saveStatus = "Enter a contact name of 1–60 characters."; this.render(); return;
+    }
+    this.saving = true;
+    this.saveStatus = "Saving contact…";
+    this.render();
+    this.onSelect();
+    try {
+      const response = await globalThis.fetch("/api/ringcentral-contacts", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, faxNumber: number }), signal: AbortSignal.timeout(50_000)
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success || !data.contact?.faxNumbers?.some(fax => fax.number === number)) {
+        throw new Error(data.error || "Contact save could not be confirmed. Refresh contacts before retrying.");
+      }
+      this.contacts = [...this.contacts.filter(contact => contact.id !== data.contact.id), data.contact];
+      this.error = "";
+      if (this.numberInput.value === number) this.selectedName = data.contact.name;
+      this.saveOpen = false;
+      this.saveUI.contactName.value = "";
+      this.saveStatus = data.existing ? "This fax number is already saved in RingCentral Contacts." : "Contact saved to RingCentral.";
+    } catch (error) {
+      this.saveStatus = error.name === "Error" ? error.message : "Contact save could not be confirmed. Refresh contacts before retrying. Manual faxing is still available.";
+    } finally { this.saving = false; this.render(); this.onSelect(); }
+  }
 
   close() {
     this.open = false;
@@ -81,6 +129,9 @@ export class ContactPicker {
     if (this.locked) return;
     this.numberInput.value = "";
     this.selectedName = "";
+    this.saveOpen = false;
+    this.saveStatus = "";
+    this.saveUI.contactName.value = "";
     this.search.value = "";
     this.close();
     this.onSelect();
@@ -130,6 +181,16 @@ export class ContactPicker {
   }
 
   render() {
+    const number = manualFaxNumber(this.numberInput.value);
+    const canSave = Boolean(number && this.contacts && !this.loading && !this.existingContact(number));
+    this.saveUI.offerSaveContact.hidden = !canSave || this.saveOpen || this.locked;
+    this.saveUI.saveContactPanel.hidden = !canSave || !this.saveOpen || (this.locked && !this.saving);
+    this.saveUI.saveContactNumber.textContent = formatFaxNumber(number);
+    this.saveUI.saveContact.disabled = this.locked;
+    this.saveUI.cancelSaveContact.disabled = this.saving;
+    this.saveUI.contactName.disabled = this.saving;
+    this.saveUI.saveContactStatus.textContent = this.saveStatus;
+    this.saveUI.saveContactStatus.hidden = !this.saveStatus;
     const selected = Boolean(this.numberInput.value);
     if (this.locked || selected) this.open = false;
     this.search.disabled = this.locked;
