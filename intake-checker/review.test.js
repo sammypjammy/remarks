@@ -71,12 +71,14 @@ for (const [start, end, onset, expected] of [
 ]) test(`work ${start} to ${end}, onset ${onset}`, () => {
   assert.equal(review(work(start, end, onset)).items.length, Number(expected));
 });
-test("repeated work records retain independent exact source ranges", () => {
+test("only the Most Recent Job can create a failed-work-attempt review", () => {
   const text = work("2025-02-01", "2025-03-01") + "\nPrevious Job\nStart Date: 2025-02-02\nEnd Date: 2025-03-02\nPrevious Job\nStart Date: 2025-02-03\nEnd Date: 2025-03-03";
   const items = review(text).items;
-  assert.equal(items.length, 3);
-  assert.equal(new Set(items.map(item => item.range.start)).size, 3);
-  for (const item of items) assert(item.message.endsWith(text.slice(item.range.start, item.range.end)));
+  assert.equal(items.length, 1);
+  assert(items[0].message.endsWith(text.slice(items[0].range.start, items[0].range.end)));
+});
+test("an End Date on or before onset does not create the after-onset review", () => {
+  assert.deepEqual(messages(work("2025-02-01", "2024-12-31", "2025-01-01")), []);
 });
 test("ambiguous work dates are skipped", () => {
   assert.deepEqual(messages(work("2025-02-01", "2025-03-01") + "\nStart Date: 2025-01-01"), []);

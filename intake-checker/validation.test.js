@@ -9,20 +9,20 @@ const now = new Date(2031, 8, 16);
 const check = text => validateIntake(parseIntake(text), intakeRules, { now }).issues;
 const scoped = (text, section) => check(text).filter(issue => issue.section === section);
 const fields = (labels, value = "No") => labels.map(label => `**${label}:**${value}`).join("\n");
-const record = (key, extra = "", omit = []) => `**${intakeRules.records[key].section}**\n#### ${ { providers: "Clinic 1", medications: "Medication 1", jobs: "Most Recent Job", children: "Person" }[key] }\n${fields(intakeRules.records[key].required.filter(label => !omit.includes(label)))}\n${extra}`;
+const record = (key, extra = "", omit = []) => `**${intakeRules.records[key].section}**\n#### ${ { providers: "Clinic 1", medications: "Medication 1", jobs: "Most Recent Job", children: "Person" }[key] }\n${fields(intakeRules.records[key].required.filter(label => !omit.includes(label)))}\n${key === "providers" ? "**Clinic Name:**Synthetic Clinic\n" : ""}${extra}`;
 
 test("missing normalization preserves No, Yes, zero, and None", () => {
   for (const value of [null, undefined, "", " \n ", "Not provided", " *Not provided* "]) assert.equal(isMissing(value), true);
   for (const value of ["No", "Yes", "0", 0, "None", false, "*Not provided"]) assert.equal(isMissing(value), false);
 });
 
-test("every defined required field is reported when its section is absent", () => {
+test("completely absent required sections produce one grouped issue", () => {
   const issues = check("");
   for (const [section, config] of Object.entries(intakeRules.sections)) {
-    assert.deepEqual(issues.filter(issue => issue.section === section).map(issue => issue.field), config.required);
+    assert.deepEqual(issues.filter(issue => issue.section === section).map(issue => issue.field), config.required.length ? [null] : []);
   }
   assert.equal(issues.filter(issue => issue.section === "MEDICAL PROBLEMS").length, 1);
-  assert.equal(issues.length, Object.values(intakeRules.sections).reduce((sum, config) => sum + config.required.length, 0) + 1);
+  assert.equal(issues.length, Object.values(intakeRules.sections).filter(config => config.required.length).length + 1);
 });
 
 test("all configured required fields are independently required; optional fields stay optional", () => {
@@ -32,7 +32,7 @@ test("all configured required fields are independently required; optional fields
     for (const field of config.required) {
       const issues = scoped(complete.replace(`**${field}:**No`, `**${field}:** `), section);
       assert.equal(issues.length, 1, `${section}: ${field}`);
-      assert.equal(issues[0].field, field);
+      assert.equal(issues[0].field, config.required.length === 1 ? null : field);
     }
   }
   const optional = intakeRules.optionalSections.map(title => `**${title}**\n**Anything:**`).join("\n");
@@ -50,7 +50,7 @@ test("each repeating record is independent and missing entire optional record gr
     // Same name twice must still produce distinct record locations.
     const title = complete.split("\n")[1];
     const issues = scoped(withControls + `\n${title}\n**${config.required[0]}:**`, config.section);
-    assert.equal(issues.filter(issue => issue.severity === "error").length, config.required.length, key);
+    assert.equal(issues.filter(issue => issue.severity === "error").length, config.required.length + (key === "providers" ? 1 : 0), key);
     assert(issues.every(issue => issue.location.endsWith("/1")));
   }
   for (const title of ["MEDICAL PROVIDERS", "MEDICATIONS", "WORK HISTORY"]) assert.equal(scoped(`**${title}**`, title).length, 0);
@@ -62,6 +62,12 @@ test("vehicles only validate existing records when answer is Yes; No creates no 
   assert.equal(issues.length, 6);
   assert.equal(scoped(text.replace(":**Yes", ":**No"), "VEHICLES").length, 0);
   assert.equal(scoped("**VEHICLES**\n**Own any vehicles:**Yes", "VEHICLES").length, 0);
+});
+
+test("height inches accepts zero and rejects blank", () => {
+  const complete = "**VITALS**\n**Height (feet):**5\n**Height (inches):**0\n**Weight (pounds):**150";
+  assert.equal(scoped(complete, "VITALS").length, 0);
+  assert.deepEqual(scoped(complete.replace("**Height (inches):**0", "**Height (inches):**"), "VITALS").map(issue => issue.field), ["Height (inches)"]);
 });
 
 test("medical problems require one nonmissing numbered field, not every field or arbitrary notes", () => {
@@ -88,6 +94,18 @@ test("provider visit rules: optional dates, first-only, last-only, order, and mo
   assert.equal(JSON.stringify(parsed), before);
 });
 
+test("provider name requires a clinic or doctor name, but not both", () => {
+  const complete = record("providers");
+  assert.equal(providerNameIssues(complete).length, 0);
+  assert.equal(providerNameIssues(complete.replace("**Clinic Name:**Synthetic Clinic", "**Doctor First Name:**Alex\n**Doctor Last Name:**Example")).length, 0);
+  const neither = complete.replace("**Clinic Name:**Synthetic Clinic", "");
+  assert.deepEqual(providerNameIssues(neither).map(issue => issue.field), ["Clinic Name"]);
+});
+
+function providerNameIssues(text) {
+  return scoped(text, "MEDICAL PROVIDERS").filter(issue => issue.message.startsWith("Clinic Name or a doctor name"));
+}
+
 test("dates are strict calendar dates, not rolled-over or guessed values", () => {
   for (const text of ["2/29/2031", "2031-02-30", "13/2031", "2031-00-01", "September 31, 2031", "yesterday", "31/12/2031", "2031"]) assert.equal(parseCalendarDate(text), null, text);
   assert.equal(parseCalendarDate("2/29/2032").day, 29);
@@ -102,14 +120,17 @@ test("work addresses only apply in current local calendar year, not a rolling 12
   assert.equal(job("2032-01-01").length, 0);
   assert.equal(job("invalid").length, 0);
   assert.deepEqual(job("").map(issue => issue.field), ["End Date"]);
-  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No", "EMPLOYMENT INFORMATION").length, 2);
+  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No", "EMPLOYMENT INFORMATION").length, 1);
 });
 
-test("Married requires the current spouse and all known fields; prior marriages remain deferred", () => {
+test("Married requires current spouse details, with optional identity fields", () => {
   const prefix = "**MARRIAGE INFORMATION**\n**Marital Status:**Married";
-  assert.equal(scoped(prefix, "MARRIAGE INFORMATION").length, intakeRules.records.spouse.required.length + 1);
+  assert.equal(scoped(prefix, "MARRIAGE INFORMATION").length, 1);
   assert.equal(scoped(prefix + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required), "MARRIAGE INFORMATION").length, 0);
-  assert.equal(scoped(prefix.replace("Married", "Single") + "\n#### Prior Marriage 1\n**Unknown:**", "MARRIAGE INFORMATION").length, 0);
+  assert.equal(scoped(prefix + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required.filter(label => label !== "Marriage Date")), "MARRIAGE INFORMATION").map(issue => issue.field).includes("Marriage Date"), true);
+  assert.equal(scoped(prefix + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required) + "\n**Maiden Name:**\n**Social Security Number:**", "MARRIAGE INFORMATION").length, 0);
+  assert.equal(scoped(prefix.replace("Married", "Single") + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required), "MARRIAGE INFORMATION").length, 0);
+  assert.equal(scoped(prefix.replace("Married", "Single") + "\n#### Prior Marriage 1\n**First Name:**Alex\n**Type of Marriage:**", "MARRIAGE INFORMATION").length, 1);
   assert.equal(validateIntake(parseIntake(prefix)).deferred.length, 1);
 });
 
@@ -126,6 +147,16 @@ test("unknown child structure is a review warning, not invented child fields", (
   assert.equal(issues.length, 1);
   assert.equal(issues[0].severity, "warning");
   assert.equal(issues[0].field, null);
+});
+
+test("children information and child records have no required-field errors", () => {
+  const text = "**CHILDREN INFORMATION**\n**Have any children:**\n#### Child 1\n**First Name:**\n**Last Name:**\n**Age:**";
+  assert.equal(scoped(text, "CHILDREN INFORMATION").filter(issue => issue.severity === "error").length, 0);
+});
+
+test("a partially completed required section keeps individual missing fields", () => {
+  const issues = scoped("**BIRTH INFORMATION**\n**Date of Birth:**2000-01-01", "BIRTH INFORMATION");
+  assert.deepEqual(issues.map(issue => issue.field), ["City of Birth", "State of Birth", "Country of Birth"]);
 });
 
 test("a complete intake has no errors and results are deterministic without mutating input", () => {

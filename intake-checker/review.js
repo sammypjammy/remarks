@@ -44,10 +44,10 @@ export function reviewIntake(intake) {
   const onset = date(field(sections("DISABILITY INFORMATION"), "Onset date of disability"));
   const jobs = new Set(sections("WORK HISTORY").flatMap(node => descendants(node.subsections)));
   for (const job of jobs) {
-    if (!intakeRules.records.jobs.heading.test(job.title)) continue;
+    if (job.title !== "Most Recent Job") continue;
     const start = date(field([job], "Start Date"));
     const end = date(field([job], "End Date"));
-    if (!onset || !start || !end || start <= onset || end < start) continue;
+    if (!onset || !start || !end || start <= onset || end <= onset || end < start) continue;
     // Clamp the anniversary to the last day of its month (Jan 31 → Apr 30).
     const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 4, 0)).getUTCDate();
     const boundary = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, Math.min(start.getUTCDate(), lastDay)));

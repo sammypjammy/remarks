@@ -46,6 +46,14 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
   const required = (node, fields, context) => {
     for (const field of fields) if (!values(node, field).length) issue(context, field, `${field} is required but was not provided.`);
   };
+  const requiredSection = (node, fields, context, label) => {
+    if (!fields.length) return;
+    if (!node || !fields.some(field => values(node, field).length)) {
+      issue(context, null, `${label} is required but was not provided.`);
+      return;
+    }
+    required(node, fields, context);
+  };
   const contextFor = (section, entry, record = false) => ({ section, ...(record ? { record: entry.node.title } : {}), location: entry.location });
   // Multiple conflicting values cannot silently choose which condition/date applies.
   function single(node, label, context) {
@@ -60,8 +68,8 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     let entries = sections(title);
     // School fields can be directly under EDUCATION INFORMATION or its named subsection.
     if (!entries.length && config.parent) entries = sections(config.parent);
-    if (!entries.length) required(null, config.required, { section: title, location: null });
-    for (const entry of entries) required(entry.node, config.required, contextFor(title, entry));
+    if (!entries.length) requiredSection(null, config.required, { section: title, location: null }, title);
+    for (const entry of entries) requiredSection(entry.node, config.required, contextFor(title, entry), title);
   }
 
   function records(config, root) {
@@ -69,10 +77,10 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     function visit(entry) {
       for (const [index, node] of entry.node.subsections.entries()) {
         const next = { node, location: `${entry.location}/${index}` };
-        const recognized = config.heading?.test(node.title) || node.fields.some(field => config.required.includes(field.label));
+        const recognized = config.heading?.test(node.title) || node.fields.some(field => [...(config.required || []), ...(config.recognition || [])].includes(field.label));
         if (recognized) found.push(next);
         else if (node.subsections.length) visit(next);
-        else issue(contextFor(config.section, next, true), null, "Record structure is not recognized. Review the parsed structure; this record was not validated.", "warning");
+        else if (!(config.allowEmptyRecords && !node.fields.length)) issue(contextFor(config.section, next, true), null, "Record structure is not recognized. Review the parsed structure; this record was not validated.", "warning");
       }
     }
     visit(root);
@@ -100,6 +108,9 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     if (end?.year === now.getFullYear()) required(node, config.currentYearAddress, context);
   });
   checkRecords("providers", undefined, (node, context) => {
+    if (!values(node, "Clinic Name").length && !values(node, "Doctor First Name").length && !values(node, "Doctor Last Name").length) {
+      issue(context, "Clinic Name", "Clinic Name or a doctor name is required but was not provided.");
+    }
     const firstValue = single(node, "First Visit Date", context);
     const lastValue = single(node, "Last Visit Date", context);
     const nextValue = single(node, "Next Visit Date", context);
@@ -140,11 +151,16 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
   const spouse = rules.records.spouse;
   for (const root of sections("MARRIAGE INFORMATION")) {
     const context = contextFor("MARRIAGE INFORMATION", root);
+    const marriageFields = new Set([...spouse.required, ...spouse.optional]);
+    for (const entry of root.node.subsections.map((node, index) => ({ node, location: `${root.location}/${index}` }))) {
+      if (entry.node.fields.some(field => marriageFields.has(field.label)) && !values(entry.node, "Type of Marriage").length) {
+        issue(contextFor("MARRIAGE INFORMATION", entry, true), "Type of Marriage", "Type of Marriage is required when marriage details are provided.");
+      }
+    }
     if (single(root.node, "Marital Status", context) !== "Married") continue;
     const current = flatten(root.node.subsections, root.location).filter(entry => spouse.heading.test(entry.node.title));
     if (!current.length) {
       issue({ ...context, record: "Current Spouse" }, null, "Current Spouse record is required when Marital Status is Married.");
-      required(null, spouse.required, { ...context, record: "Current Spouse" });
     }
     for (const entry of current) required(entry.node, spouse.required, contextFor("MARRIAGE INFORMATION", entry, true));
   }

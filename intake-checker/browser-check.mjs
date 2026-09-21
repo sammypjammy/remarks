@@ -35,7 +35,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   const complete = Object.entries(intakeRules.sections).map(([title, config]) => `**${title}**\n${requiredFields(config.required)}`).join("\n") + "\n**MEDICAL PROBLEMS**\n**Problem one:**Example condition";
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(complete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
-  const incompleteClinic = complete + "\n**MEDICAL PROVIDERS**\n#### Clinic 1\n" + requiredFields(intakeRules.records.providers.required) + "\n#### Clinic 2\n**Clinic Name:**Example\n**First Visit Date:**2020-01-01";
+  const incompleteClinic = complete + "\n**MEDICAL PROVIDERS**\n#### Clinic 1\n**Clinic Name:**Example\n" + requiredFields(intakeRules.records.providers.required) + "\n#### Clinic 2\n**Clinic Name:**Example\n**First Visit Date:**2020-01-01";
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(incompleteClinic)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   assert(await evaluate("[...document.querySelectorAll('#validationIssues li')].every(row => row.textContent.includes('Clinic 2'))"), "Clinic 1 cannot satisfy Clinic 2 fields");
   assert(await evaluate("document.getElementById('validationIssues').textContent.includes('Last Visit Date is required when First Visit Date is provided.')"));
