@@ -133,7 +133,7 @@ function render() {
   retryButton.hidden = !failed;
   retryButton.disabled = batch.busy || !valid;
   retryButton.textContent = `Retry Failed (${failed})`;
-  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination && !batch.recentFaxes.length && !batch.coverPageText && batch.includeCoverSheet);
+  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll;
   form.setAttribute("aria-busy", String(batch.busy));
   document.getElementById("numberHelp").textContent = batch.destination
     ? "Destination locked for this batch. Clear All to choose another destination."
@@ -250,7 +250,7 @@ function createHistoryView() {
       if (!receiptAttachment(source)) source.transmissionDetails = await lookupFaxMessage(entry.messageId);
       const attachment = receiptAttachment(source);
       if (!attachment) throw new Error("Fax Receipt is unavailable for this fax.");
-      if (!historyViews.has(entry.sequence)) return; // Clear All during a lookup cancels the local download.
+      if (!historyViews.has(entry.sequence)) return; // An evicted history entry no longer needs a local download.
       await downloadFaxAttachment(attachment.downloadUrl, receiptFilename(entry.filename, entry.lastFourSsn), attachment);
       feedback.textContent = "Receipt download requested.";
     } catch (error) {
@@ -369,6 +369,7 @@ clearButton.addEventListener("click", () => {
   batch.clear();
   contactPicker.clear();
   lastFourInput.value = "";
+  fileInput.value = "";
   validation.textContent = "";
   document.getElementById("receiptDownloadStatus").textContent = "";
 });

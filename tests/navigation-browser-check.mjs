@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.15.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.16.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -121,7 +121,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 21, "Current release plus all recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 22, "Current release plus all recorded historical releases");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -157,6 +157,8 @@ try {
     await evaluate("document.getElementById('coverPageText').value = '  Synthetic batch comment  '; document.getElementById('coverPageText').dispatchEvent(new Event('input')); document.getElementById('includeCoverSheet').click()");
     assert(await evaluate("document.getElementById('coverCommentField').hidden && document.getElementById('coverPageText').disabled"), "OFF hides and disables stale comment");
     await evaluate("document.getElementById('includeCoverSheet').click()");
+    assert(await evaluate("!document.getElementById('lastFourHelp') && document.getElementById('lastFourSsn').required && !document.getElementById('lastFourSsn').hasAttribute('aria-describedby')"), "SSN helper removed while required validation remains");
+    assert(await evaluate("document.querySelector('.fax-cover-sheet').getBoundingClientRect().height <= 48 && document.querySelector('.fax-cover-sheet label').getBoundingClientRect().height >= 44 && parseFloat(getComputedStyle(document.querySelector('.fax-cover-sheet')).marginTop) === 0"), "Compact cover row retains a tappable label");
     // Exercise the built app with mock sends; never contact RingCentral.
     await evaluate(`(() => {
       let id = 0;
@@ -220,6 +222,9 @@ try {
     const screenshotPath = join(profile, `fax-history-${width}.png`);
     await writeFile(screenshotPath, Buffer.from(screenshot.data, "base64"));
     console.log(`Fax History screenshot: ${screenshotPath}`);
+    await evaluate("window.savedBeforeReset = localStorage.getItem('packard.faxHistory.v1'); window.historyPill = document.querySelector('#faxHistoryList details'); window.historyPill.open = true; document.getElementById('clearAll').click()");
+    assert(await evaluate("localStorage.getItem('packard.faxHistory.v1') === window.savedBeforeReset && document.querySelectorAll('#faxHistoryList li').length === 2 && window.historyPill.isConnected && window.historyPill.open"), "Clear All preserves exact persisted history and expanded pills");
+    assert(await evaluate("document.getElementById('contactSearch').value === '' && document.getElementById('faxNumber').value === '' && document.getElementById('lastFourSsn').value === '' && document.getElementById('coverPageText').value === '' && document.getElementById('includeCoverSheet').checked && !document.getElementById('includeCoverSheet').disabled && !document.querySelector('#documentList li') && document.getElementById('pdfFile').files.length === 0 && document.getElementById('faxResult').hidden && document.getElementById('batchReceipts').hidden"), "Clear All resets only current fax form, files, cover settings and results");
     await visit('/fax-sender/');
     assert.equal(await evaluate("document.querySelectorAll('#faxHistoryList li').length"), 2, "History restores on navigation");
     assert.equal(await evaluate("document.getElementById('lastFourSsn').value"), '', "Active input is not restored from persisted attempt Last 4");
@@ -230,6 +235,7 @@ try {
       records.push({...records[0], filename:'Legacy.pdf', lastFourSsn:undefined, messageId:'91'});
       records.push({...records[0], filename:'Failed.pdf', state:'Failed', status:'SendingFailed', messageId:'92'});
       records.push({...records[0], filename:'Unknown.pdf', state:'Status Unknown', status:'Queued', messageId:'93'});
+      for (let i = 0; i < 15; i++) records.push({...records[0], filename:'Older-'+i+'.pdf', messageId:String(100+i)});
       localStorage.setItem('packard.faxHistory.v1', JSON.stringify(records));
     })()`);
     await visit('/fax-sender/');
@@ -246,7 +252,7 @@ try {
         if (url.startsWith('/api/fax-attachment?')) return new Response('%PDF-history');
         throw new Error('Unexpected history request');
       };`);
-    assert.deepEqual(await evaluate("[...document.querySelectorAll('.fax-history-status')].map(el => el.textContent)"), ['Sent','Sent','Sent','Error','Status Unknown'], "Sent/Error/neutral history labels");
+    assert.deepEqual(await evaluate("[...document.querySelectorAll('.fax-history-status')].slice(0,5).map(el => el.textContent)"), ['Sent','Sent','Sent','Error','Status Unknown'], "Sent/Error/neutral history labels");
     assert(await evaluate("[...document.querySelectorAll('#faxHistoryList details')].every(el => !el.open) && document.querySelector('.fax-history-title').textContent.endsWith('0007') && document.querySelector('.fax-history-meta').textContent.includes('Regional Social Security') && !!document.querySelector('.fax-history-meta time').dateTime"), "Collapsed title, Last 4, recipient, date hierarchy");
     assert(await evaluate("document.querySelectorAll('#faxHistoryList li')[2].querySelector('.fax-history-title').textContent === 'Legacy.pdf' && document.querySelectorAll('#faxHistoryList li')[3].querySelector('button').hidden"), "Legacy Last 4 omitted and failed receipt unavailable");
     await evaluate("document.querySelector('#faxHistoryList summary').focus()");
@@ -269,13 +275,33 @@ try {
     await until(() => evaluate("document.querySelectorAll('#faxHistoryList li')[1].querySelector('[role=status]').textContent.includes('unavailable')"), "History lookup failure feedback");
     assert(await evaluate("document.querySelectorAll('.fax-history-status')[1].textContent === 'Sent' && window.historyRequests.every(req => req.method === 'GET')"), "Receipt errors never change Sent or resend fax");
     assert(await evaluate("document.documentElement.scrollWidth <= innerWidth && document.querySelector('#faxHistoryList button').getBoundingClientRect().height >= 44"), "Expanded content fits and receipt control is tappable");
+    const dimensions = await evaluate(`(() => {
+      const list = document.getElementById('faxHistoryList');
+      const heading = document.querySelector('#faxHistory > summary');
+      list.scrollTop = list.scrollHeight;
+      const scrolled = list.scrollTop > 0;
+      const last = list.lastElementChild.querySelector('details'); last.open = true;
+      last.querySelector('button').scrollIntoView({block:'nearest'});
+      const button = last.querySelector('button').getBoundingClientRect();
+      const box = list.getBoundingClientRect();
+      // Browser scrolling rounds offsets to whole pixels; layout rectangles remain fractional.
+      const accessible = button.top >= box.top - 1 && button.bottom <= box.bottom + 1;
+      const stableHeading = heading.getBoundingClientRect().top;
+      list.scrollTop = 0;
+      return {width:document.getElementById('faxHistory').getBoundingClientRect().width,height:list.clientHeight, count:list.children.length,scrolled,accessible,buttonTopInset:button.top-box.top,buttonBottomInset:box.bottom-button.bottom,internal:heading.getBoundingClientRect().top===stableHeading,overflow:getComputedStyle(list).overflowY,horizontal:list.scrollWidth>list.clientWidth};
+    })()`);
+    assert.equal(dimensions.count,20); assert(dimensions.scrolled && dimensions.accessible && dimensions.internal && !dimensions.horizontal, JSON.stringify(dimensions));
+    assert.equal(dimensions.overflow,'auto'); assert(dimensions.height >= 300 && dimensions.height <= 640);
+    console.log('History dimensions ('+width+'px): '+JSON.stringify(dimensions));
     const historyMetrics = await cdp('Page.getLayoutMetrics');
     const historyShot = await cdp('Page.captureScreenshot', {format:'png',captureBeyondViewport:true,clip:{x:0,y:0,width,height:historyMetrics.cssContentSize.height,scale:1}});
     const historyPath = join(profile, 'fax-history-expanded-' + width + '.png');
     await writeFile(historyPath, Buffer.from(historyShot.data, 'base64'));
     console.log('Expanded history screenshot: ' + historyPath);
-    await evaluate("document.getElementById('clearAll').click()");
-    assert(await evaluate("document.querySelectorAll('#faxHistoryList li').length === 0 && JSON.parse(localStorage.getItem('packard.faxHistory.v1')).length === 0"), "Clear All clears visible and persisted history even with no current documents");
+    await evaluate("window.savedHistory = localStorage.getItem('packard.faxHistory.v1'); document.getElementById('clearAll').click()");
+    assert(await evaluate("document.querySelectorAll('#faxHistoryList li').length === 20 && localStorage.getItem('packard.faxHistory.v1') === window.savedHistory"), "Clear All preserves history even with no current documents");
+    await evaluate("window.failHistoryReceipt = false; document.querySelector('#faxHistoryList button').click()");
+    await until(() => evaluate("window.receiptDownloads.length === 4"), "History receipt remains available after reset");
     console.log(`PASS (${width}px): Settings/history, footer links on all 8 pages, released-tool menus, hidden development tools with working direct URLs, no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");

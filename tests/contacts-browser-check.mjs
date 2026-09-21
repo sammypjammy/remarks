@@ -114,7 +114,8 @@ try {
   contactPicker.clear();
   check(numberInput.value === "+18015550000", "Contact, manual, and clear actions cannot bypass lock");
   clearButton.click();
-  check(!contactPicker.search.disabled && !numberInput.value, "Clear All must unlock and reset destination");
+  check(!contactPicker.search.disabled && !numberInput.value && !contactPicker.selectedName && !contactPicker.search.value, "Clear All must unlock and reset destination/contact");
+  check(document.querySelectorAll("#faxHistoryList li").length === 1, "Manual-destination history remains after reset");
   query("San Antonio"); document.querySelector("#contactResults button").click();
   check(numberInput.value === "+18339502396", "New destination after Clear All");
   clearDestination.click();
@@ -140,7 +141,7 @@ try {
   check(!button.disabled, "Contact failure must not disable manual faxing");
   batch.lastFourSsn = "2134"; await batch.run(numberInput.value);
   check(submissions[1] === "+18015551111", "Manual faxing must work after contact failure");
-  check(document.querySelectorAll("#faxHistoryList li").length === 1, "History must start fresh after Clear All");
+  check(document.querySelectorAll("#faxHistoryList li").length === 2, "History must survive Clear All and include the next fax");
   check(document.querySelector("#faxHistoryList li").textContent.includes("manual.pdf"), "Newest fax must appear first");
   // Exercise the form -> batch -> tracker -> history path with a named recipient.
   clearButton.click();
@@ -160,6 +161,10 @@ try {
   trackingClock = 10000;
   await batch.tracker.tick();
   check(document.querySelector("#faxHistoryList li").textContent.includes("Sent"), "Tracking must update history to Sent");
+  const namedHistory = JSON.stringify(batch.recentFaxes);
+  clearButton.click();
+  check(!contactPicker.selectedName && !contactPicker.search.value && !numberInput.value, "Reset clears named contact selection");
+  check(JSON.stringify(batch.recentFaxes) === namedHistory, "Named-recipient history remains unchanged");
   // Presentation-only fixtures: preserve the existing sending/tracking tests above.
   clearButton.click();
   await batch.addFiles(["one.pdf", "two.pdf", "three.pdf"].map(name => mockPdf(name)));
@@ -175,7 +180,7 @@ try {
   batch.running = true; batch.progress = { current: 2, total: 3 };
   render();
   check(result.textContent === "Sending 2 of 3...", "Active progress must be one simple message");
-  check([...document.querySelectorAll('.fax-history-status')].map(node => node.textContent).join('|') === 'Processing...|Submitted|Sent', "History preserves nonterminal statuses without false Sent/Error");
+  check([...document.querySelectorAll('.fax-history-status')].slice(0, 3).map(node => node.textContent).join('|') === 'Processing...|Submitted|Sent', "History preserves nonterminal statuses without false Sent/Error");
   const disclosure = document.querySelector('#faxHistoryList details');
   check(!disclosure.open, "New history pills default to collapsed");
   disclosure.querySelector('summary').click();

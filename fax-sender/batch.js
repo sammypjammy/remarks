@@ -1,6 +1,6 @@
 import { FaxTracker } from "./tracking.js";
 import { validLastFour } from "./message.js";
-import { browserHistoryStorage, loadFaxHistory, saveFaxHistory } from "./history.js";
+import { browserHistoryStorage, loadFaxHistory, saveFaxHistory, FAX_HISTORY_LIMIT } from "./history.js";
 
 export function normalizeFaxNumber(value) {
   return value.replace(/[\s().-]/g, "");
@@ -64,15 +64,15 @@ export class FaxBatch {
     this.adding = false;
     this.progress = null;
     this.submit = submit;
-    this.onChange = () => {
-      this.historySaved = saveFaxHistory(storage, this.recentFaxes);
+    this.onChange = ({ persist = true } = {}) => {
+      if (persist) this.historySaved = saveFaxHistory(storage, this.recentFaxes);
       onChange();
     };
     this.onValidationError = onValidationError;
     this.pause = pause;
     this.nextId = 1;
     this.recentArchive = loadFaxHistory(storage);
-    this.nextAttempt = 11;
+    this.nextAttempt = FAX_HISTORY_LIMIT + 1;
     this.historySaved = Boolean(storage);
     this.recipientName = "";
     this.lastFourSsn = "";
@@ -87,7 +87,7 @@ export class FaxBatch {
   get recentFaxes() {
     return [...this.recentArchive, ...this.documents.flatMap(doc =>
       doc.attempts ? [...doc.history, attemptSummary(doc)] : [])]
-      .sort((a, b) => b.sequence - a.sequence).slice(0, 10);
+      .sort((a, b) => b.sequence - a.sequence).slice(0, FAX_HISTORY_LIMIT);
   }
 
   async addFiles(files) {
@@ -120,8 +120,8 @@ export class FaxBatch {
 
   clear() {
     if (this.busy) return;
-    // Clear both live and restored attempts; onChange persists the empty history.
-    this.recentArchive = [];
+    // Archive metadata before dropping the batch; leave history records and storage intact.
+    this.recentArchive = this.recentFaxes;
     this.tracker.clear();
     this.documents = [];
     this.destination = "";
@@ -131,7 +131,7 @@ export class FaxBatch {
     this.coverPageText = "";
     this.coverSettings = null;
     this.progress = null;
-    this.onChange();
+    this.onChange({ persist: false });
   }
 
   async run(number, state = "Ready", onlyId = null, recipientName = "") {

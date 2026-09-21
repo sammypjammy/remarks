@@ -39,10 +39,9 @@
               </div>
               <div class="fax-last-four-field">
                 <label for="lastFourSsn">Last 4 of SSN</label>
-                <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required aria-required="true" autocomplete="off" aria-describedby="lastFourHelp" />
+                <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required aria-required="true" autocomplete="off" />
               </div>
             </div>
-            <p id="lastFourHelp">SSN last four is required before sending. It is saved in this browser's Fax History for identification and receipt filenames; it is not sent to RingCentral.</p>
             <input id="faxNumber" name="faxNumber" type="hidden" />
             <p id="contactMessage" role="status" aria-live="polite" hidden></p>
             <p id="numberHelp" hidden></p>
@@ -61,7 +60,7 @@
             </div>
             <div id="coverCommentField" class="fax-cover-comment">
               <label for="coverPageText">Cover Sheet Comment <span>(optional)</span></label>
-              <textarea id="coverPageText" rows="3" maxlength="1024" autocomplete="off" spellcheck="false" aria-describedby="coverCommentHelp"></textarea>
+              <textarea id="coverPageText" rows="2" maxlength="1024" autocomplete="off" spellcheck="false" aria-describedby="coverCommentHelp"></textarea>
               <p id="coverCommentHelp">Up to 1024 characters. Used on every fax in this batch; not saved in Fax History.</p>
             </div>
             <div class="fax-list-heading">
@@ -91,7 +90,7 @@
         <details id="faxSendingInfo" class="fax-sending-info">
           <summary>ⓘ Fax sending info</summary>
           <p class="fax-note">A fax is marked Sent only when RingCentral reports the final Sent status. Checks stop after 15 minutes; unresolved faxes remain Status Unknown. Sent does not confirm human receipt or review.</p>
-          <p class="fax-note">Keep this tab open while sending. Documents stay in this tab only. Clear All or reloading removes this document list and its duplicate protection. Clear All also removes Fax History from this browser.</p>
+          <p class="fax-note">Keep this tab open while sending. Documents stay in this tab only. Clear All or reloading removes this document list and its duplicate protection. Clear All resets the current batch and keeps Fax History.</p>
         </details>
       </section>
       <aside aria-label="Recent fax history">
@@ -100,12 +99,12 @@
           <p class="fax-history-note">Recent fax activity</p>
           <p id="historyStorageStatus" role="status" hidden>History cannot be saved in this browser; it is available in this tab only.</p>
           <p id="faxHistoryEmpty">No fax history yet. Recent attempts will appear here when you send a fax.</p>
-          <ol id="faxHistoryList" aria-label="Recent fax attempts, newest first"></ol>
+          <ol id="faxHistoryList" tabindex="0" aria-label="20 most recent fax attempts, newest first"></ol>
         </details>
       </aside>
       </div>
     </main>
-    <div data-app-footer data-app-version="Fax Sender v2.15.0"></div>
+    <div data-app-footer data-app-version="Fax Sender v2.16.0"></div>
     <script src="../settings/shared/settings-storage.js"></script>
     <script src="../settings/shared/app-shell.js"></script>
     <script type="module" src="./main.js"></script>

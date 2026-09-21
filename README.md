@@ -34,11 +34,11 @@ The upload remains in server memory and is sent as one unchanged attachment. The
 
 ### Cover Sheet Comment
 
-Fax Sender v2.15.0 adds an optional three-row textarea below the cover switch. Its value lives only in the current batch, locks with the destination after the first submission, and clears on Clear All or reload. It is never stored in browser storage or Fax History. Clear All retains its existing behavior of clearing both the batch and saved fax history.
+Fax Sender has an optional compact textarea below the cover switch. Its value lives only in the current batch, locks with the destination after the first submission, and clears on Clear All or reload. It is never stored in browser storage or Fax History. Clear All resets only the current batch, including destination/contact, Last 4, comment, documents, results, and cover choice (back to ON). It keeps visible and persisted history unchanged.
 
 The existing multipart request accepts optional string field `coverPageText`. The server rejects duplicate/file values, normalizes CRLF/CR to LF, trims surrounding whitespace, and rejects normalized values longer than 1024 JavaScript UTF-16 code units (a conservative interpretation of RingCentral's 1024-symbol limit). The textarea also has maxlength 1024. No text is echoed in responses, logged, or put in URLs. ON + nonblank adds `coverPageText` beside `coverIndex: 5`; ON + blank omits it; OFF always omits it beside `coverIndex: 0`, even with stale client text. Invalid provided values are rejected even when OFF.
 
-Cover settings are snapshotted once per batch and reused for each independent PDF, later added PDFs, and explicit retries. The receipt, contact, history, and status paths are unchanged. The user has manually confirmed Classic covers working; comment rendering still needs a controlled manual check. No fax is sent by automated tests.
+Cover settings are snapshotted once per batch and reused for each independent PDF, later added PDFs, and explicit retries. The receipt, contact, history, and status paths are unchanged. The user has manually confirmed both Classic covers and comment rendering working. No fax is sent by automated tests.
 
 This checkout previously used global Toolkit version labels. Fax Sender's independent version is now set on its footer host in `fax-sender/index.html`; the shared shell honors that label while other tools and package metadata retain their versions. Fax release notes remain in centralized `version-history/index.html` as tool-specific entries.
 
@@ -52,7 +52,7 @@ Verified against [RingCentral's official OpenAPI](https://github.com/ringcentral
 
 With covers ON, the existing selected contact name is supplied as `to[0].name` alongside `to[0].phoneNumber`, as supported by [FaxReceiver](https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/FaxReceiver.cs). Manual destinations work without a name. OFF retains the prior phone-number-only recipient payload. Recipient company/phone are not invented. No sender fields or from-number override are supplied. [RingCentral's sending guide](https://developers.ringcentral.com/guide/messaging/fax/sending-faxes) explains that the outgoing number is controlled by the extension's outbound fax settings. The exact sender and recipient fields printed by Classic must be observed in the controlled test.
 
-Receipt downloads continue through the existing verified message/RenderedDocument endpoints, including bulk and history downloads. The schema describes `faxPageCount` as page count but does not explicitly promise cover inclusion. The user has manually confirmed Classic covers working. Exact page-count semantics and the new comment rendering across individual/bulk/history receipts have not been independently live-verified in this implementation. Tests mock transmission and never send a fax.
+Receipt downloads continue through the existing verified message/RenderedDocument endpoints, including bulk and history downloads. The schema describes `faxPageCount` as page count but does not explicitly promise cover inclusion. The user has manually confirmed Classic covers and comments working. Exact page-count semantics and all receipt variants have not been independently live-verified in this implementation. Tests mock transmission and never send a fax.
 
 ### Controlled live cover-sheet test (manual; not performed)
 
@@ -164,10 +164,11 @@ to the same number. Clear All starts a new batch and unlocks the number. File se
 are additive; matching name, size, and modification time are treated as an existing file
 and skipped. This is accidental duplicate prevention, not a content comparison.
 
-State is kept in memory in the current tab only. Clear All, reload, or leaving the page
-discards files/results and resets duplicate protection. Keep the tab open during sending;
-the browser is asked to warn before leaving an active batch. No background execution,
-persistent history, or cross-tab duplicate protection is provided. Timeout/network failures
+Current batch state stays in this tab. Clear All, reload, or leaving the page
+discards its files/results and resets duplicate protection, while the newest 20 history
+records remain in localStorage. Keep the tab open during sending; the browser is asked
+to warn before leaving an active batch. No background execution or cross-tab duplicate
+protection is provided. Timeout/network failures
 may already have been accepted upstream; check RingCentral. V2.1 intentionally does not
 offer an in-tool retry for these uncertain outcomes.
 
@@ -244,7 +245,7 @@ the page's “Internal use only” label does not enforce access control.
 
 The 4 MB PDF cap leaves multipart overhead below Vercel's 4.5 MB function request limit.
 There is no automatic fax resend or persistent document workspace. Fax History saves
-only the 10 newest attempt records in localStorage, including validated four-digit
+only the 20 newest attempt records in localStorage, including validated four-digit
 SSN last four for identification and receipt filenames. Full SSN, receipt filenames,
 PDFs, credentials, and authenticated media URLs are excluded. Restored
 unfinished attempts show Status Unknown and are not automatically retried or polled.
@@ -277,5 +278,5 @@ status unchanged. Clearing the batch releases its receipt cache references.
 
 History receipt downloads reuse `/api/fax-message` and `/api/fax-attachment` with the
 stored message ID. Older records without Last 4 use the original filename without
-an SSN suffix. The active Last 4 input is not restored from history. Clear All clears
-both visible and stored attempts. Last 4 is never sent to RingCentral or API URLs.
+an SSN suffix. The active Last 4 input is not restored from history. Clear All preserves
+both visible and stored attempts. History retains the newest 20 attempts, evicting the oldest on entry 21. Only the entries scroll inside the panel: desktop height is bounded at 320-640px (65vh), and mobile at 300-560px (60vh); the history heading stays outside the scroller. Last 4 is never sent to RingCentral or API URLs.
