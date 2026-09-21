@@ -41,7 +41,7 @@ export class BulkEmailBatch {
     this.content = structuredClone(content);
     this.prepare = prepare;
     this.pause = pause;
-    this.sent = new Set();
+    this.created = new Map();
     this.failed = [];
     this.running = false;
     this.started = false;
@@ -54,14 +54,14 @@ export class BulkEmailBatch {
     this.running = true;
     try {
       // Load the exact PDFs once; retries retain these bytes and this content.
-      this.send ||= await this.prepare(this.content);
+      this.createDraft ||= await this.prepare(this.content);
       this.started = true;
       this.failed = [];
       for (const [index, recipient] of queue.entries()) {
         onProgress({ current: index + 1, total: queue.length });
         try {
-          await this.send(recipient);
-          this.sent.add(recipient);
+          const draft = await this.createDraft(recipient);
+          this.created.set(recipient, draft);
         } catch (error) {
           console.error("Outlook bulk email failed:", error);
           this.failed.push(recipient);

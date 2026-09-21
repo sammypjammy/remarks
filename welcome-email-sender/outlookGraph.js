@@ -7,7 +7,6 @@ import { getManagerAttachments, outlookConfig } from "./outlookConfig.js";
 import { isValidBulkEmail } from "./bulkEmail.js";
 
 const GRAPH_SCOPES = ["Mail.ReadWrite"];
-const BULK_GRAPH_SCOPES = [...GRAPH_SCOPES, "Mail.Send"];
 const MAX_SIMPLE_ATTACHMENT_BYTES = 3_000_000;
 const UPLOAD_CHUNK_BYTES = 3 * 1024 * 1024;
 let msalInstance;
@@ -252,55 +251,51 @@ async function addAttachment(draftId, attachment, accessToken) {
   }
 }
 
-export async function createOutlookDraft({ recipient, subject, body, managerName, language }, prepared) {
+export async function createOutlookDraft({ recipient, subject, body, managerName, language }, prepared, progress = {}) {
   const configuredAttachments = getManagerAttachments(managerName, language);
 
   const accessToken = prepared?.accessToken || await getGraphAccessToken();
   const attachments = prepared?.attachments || await Promise.all(configuredAttachments.map(loadAttachment));
-  const response = await graphRequest(
-    "https://graph.microsoft.com/v1.0/me/messages",
-    accessToken,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subject,
-        body: { contentType: "Text", content: body },
-        toRecipients: [{ emailAddress: { address: recipient } }],
-      }),
-    },
-  );
+  if (!progress.draft) {
+    const response = await graphRequest(
+      "https://graph.microsoft.com/v1.0/me/messages",
+      accessToken,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          body: { contentType: "Text", content: body },
+          toRecipients: [{ emailAddress: { address: recipient } }],
+        }),
+      },
+    );
 
-  const draft = await response.json();
-  for (const attachment of attachments) {
-    await addAttachment(draft.id, attachment, accessToken);
+    progress.draft = await response.json();
+  }
+  const draft = progress.draft;
+  progress.attached ||= 0;
+  while (progress.attached < attachments.length) {
+    await addAttachment(draft.id, attachments[progress.attached], accessToken);
+    progress.attached++;
   }
 
   if (!prepared && !draft.webLink) throw new Error("The draft was created, but Outlook did not return a link to open it.");
   return draft;
 }
 
-export async function sendOutlookEmail(content, prepared, delivery) {
+export async function createBulkOutlookDraft(content, prepared, progress) {
   if (!isValidBulkEmail(content.recipient)) throw new Error("Invalid email recipient.");
-  // Retain the draft identity on send failure. A retry must never create a
-  // second copy if Outlook accepted the first send but its response was lost.
-  if (!delivery.draft) delivery.draft = await createOutlookDraft(content, prepared);
-  await graphRequest(
-    `https://graph.microsoft.com/v1.0/me/messages/${encodeURIComponent(delivery.draft.id)}/send`,
-    prepared.accessToken,
-    { method: "POST" },
-  );
+  return createOutlookDraft(content, prepared, progress);
 }
 
-export async function prepareOutlookBulkSend(content) {
-  // Request send consent once, before starting the queue. Single mode still
-  // requests only its original draft permissions.
-  await getGraphAccessToken(BULK_GRAPH_SCOPES);
+export async function prepareOutlookBulkDrafts(content) {
+  await getGraphAccessToken();
   const attachments = await Promise.all(getManagerAttachments(content.managerName, content.language).map(loadAttachment));
-  const deliveries = new Map();
+  const drafts = new Map();
   return async recipient => {
-    const accessToken = await getGraphAccessToken(BULK_GRAPH_SCOPES);
-    if (!deliveries.has(recipient)) deliveries.set(recipient, {});
-    await sendOutlookEmail({ ...content, recipient }, { accessToken, attachments }, deliveries.get(recipient));
+    const accessToken = await getGraphAccessToken();
+    if (!drafts.has(recipient)) drafts.set(recipient, {});
+    return createBulkOutlookDraft({ ...content, recipient }, { accessToken, attachments }, drafts.get(recipient));
   };
 }

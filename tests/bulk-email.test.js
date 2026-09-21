@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BulkEmailBatch, isValidBulkEmail, parseBulkRecipients } from "../welcome-email-sender/bulkEmail.js";
-import { createOutlookDraft, sendOutlookEmail } from "../welcome-email-sender/outlookGraph.js";
+import { createOutlookDraft, createBulkOutlookDraft } from "../welcome-email-sender/outlookGraph.js";
 
 for (const [name, separator] of [["newlines", "\n"], ["commas", ","], ["semicolons", ";"], ["spaces", " "], ["tabs", "\t"]]) {
   test(`parses ${name}`, () => {
@@ -26,11 +26,11 @@ test("obviously invalid entries are never silently repaired or queued", () => {
 });
 
 const noPause = async () => {};
-test("zero valid recipients cannot prepare or send a batch", async () => {
+test("zero valid recipients cannot prepare or create drafts", async () => {
   const batch = new BulkEmailBatch({ recipients: ["bad"], content: {}, prepare: () => assert.fail("must not authenticate"), pause: noPause });
   await batch.run();
   await batch.run({ retry: true });
-  assert.equal(batch.sent.size, 0);
+  assert.equal(batch.created.size, 0);
 });
 
 test("queue is sequential, deduplicated, paced, and continues after a failure", async () => {
@@ -49,13 +49,13 @@ test("queue is sequential, deduplicated, paced, and continues after a failure", 
   });
   await batch.run({ onProgress: value => progress.push(value) });
   assert.deepEqual(calls, ["a@example.com", "b@example.com", "c@example.com"]);
-  assert.deepEqual([...batch.sent], ["a@example.com", "c@example.com"]);
+  assert.deepEqual([...batch.created.keys()], ["a@example.com", "c@example.com"]);
   assert.deepEqual(batch.failed, ["b@example.com"]);
   assert.deepEqual(progress, [{ current: 1, total: 3 }, { current: 2, total: 3 }, { current: 3, total: 3 }]);
   assert.deepEqual(delays, [500, 500]);
 });
 
-test("retry sends only failures with original content and preparation; successes are never resent", async () => {
+test("retry creates drafts only for failures with original content; completed drafts are never duplicated", async () => {
   const content = { subject: "Original", body: "Same signature", managerName: "Amanda Zuscar", language: "english" };
   const calls = [];
   let preparations = 0, fail = true;
@@ -77,11 +77,11 @@ test("retry sends only failures with original content and preparation; successes
   await batch.run();
   assert.deepEqual(calls, ["a@example.com", "b@example.com", "b@example.com"]);
   assert.equal(preparations, 1);
-  assert.equal(batch.sent.size, 2);
+  assert.equal(batch.created.size, 2);
   assert.deepEqual(batch.failed, []);
 });
 
-test("another run cannot start during preparation or sending", async () => {
+test("another run cannot start during preparation or draft creation", async () => {
   let release, calls = 0;
   const ready = new Promise(resolve => { release = resolve; });
   const batch = new BulkEmailBatch({ recipients: ["a@example.com"], content: {}, pause: noPause,
@@ -95,12 +95,12 @@ test("another run cannot start during preparation or sending", async () => {
   assert.equal(calls, 1);
 });
 
-test("preparation failure sends nothing and releases the queue lock", async () => {
+test("preparation failure creates nothing and releases the queue lock", async () => {
   const batch = new BulkEmailBatch({ recipients: ["a@example.com"], content: {}, prepare: async () => { throw new Error("Sign-in failed"); } });
   await assert.rejects(batch.run(), /Sign-in failed/);
   assert.equal(batch.running, false);
   assert.equal(batch.started, false);
-  assert.equal(batch.sent.size, 0);
+  assert.equal(batch.created.size, 0);
 });
 
 test("Graph creates separate private messages with identical content and PDFs", async t => {
@@ -112,7 +112,7 @@ test("Graph creates separate private messages with identical content and PDFs", 
   });
   const prepared = { accessToken: "test", attachments: [{ name: "packet.pdf", buffer: new TextEncoder().encode("%PDF-1.4").buffer }] };
   for (const recipient of ["a@example.com", "b@example.com"]) {
-    await sendOutlookEmail({ recipient, subject: "Welcome", body: "Signature", managerName: "Amanda Zuscar" }, prepared, {});
+    await createBulkOutlookDraft({ recipient, subject: "Welcome", body: "Signature", managerName: "Amanda Zuscar" }, prepared, {});
   }
   const messages = requests.filter(request => request.url.endsWith("/messages"));
   assert.equal(messages.length, 2);
@@ -123,13 +123,13 @@ test("Graph creates separate private messages with identical content and PDFs", 
   const attachments = requests.filter(request => request.url.endsWith("/attachments"));
   assert.equal(attachments.length, 2);
   assert.deepEqual(attachments[0].body, attachments[1].body);
-  assert.equal(requests.filter(request => request.url.endsWith("/send")).length, 2);
+  assert.equal(requests.filter(request => request.url.endsWith("/send")).length, 0);
 });
 
 test("Graph rejects lists and invalid recipients before any request", async t => {
   t.mock.method(globalThis, "fetch", () => assert.fail("must not make a Graph request"));
   for (const recipient of ["bad", "a@example.com;b@example.com", "a@example.com,b@example.com"]) {
-    await assert.rejects(sendOutlookEmail({ recipient }, { accessToken: "test", attachments: [] }, {}), /Invalid/);
+    await assert.rejects(createBulkOutlookDraft({ recipient }, { accessToken: "test", attachments: [] }, {}), /Invalid/);
   }
 });
 
@@ -143,11 +143,11 @@ test("retry reuses the failed draft instead of creating a duplicate message", as
     return new Response(null, { status: 202 });
   });
   const content = { recipient: "a@example.com", subject: "Welcome", body: "Signature" };
-  const prepared = { accessToken: "test", attachments: [] }, delivery = {};
-  await assert.rejects(sendOutlookEmail(content, prepared, delivery), /Try again/);
+  const prepared = { accessToken: "test", attachments: [{name:"packet.pdf",buffer:new ArrayBuffer(1)}] }, delivery = {};
+  await assert.rejects(createBulkOutlookDraft(content, prepared, delivery), /Try again/);
   fail = false;
-  await sendOutlookEmail(content, prepared, delivery);
-  assert.deepEqual(urls, ["https://graph.microsoft.com/v1.0/me/messages", "https://graph.microsoft.com/v1.0/me/messages/draft-1/send", "https://graph.microsoft.com/v1.0/me/messages/draft-1/send"]);
+  await createBulkOutlookDraft(content, prepared, delivery);
+  assert.deepEqual(urls, ["https://graph.microsoft.com/v1.0/me/messages", "https://graph.microsoft.com/v1.0/me/messages/draft-1/attachments", "https://graph.microsoft.com/v1.0/me/messages/draft-1/attachments"]);
 });
 
 test("existing draft creation still creates only a draft for its single recipient", async t => {

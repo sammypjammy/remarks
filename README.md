@@ -14,11 +14,9 @@ The tools use common files from `settings/shared/`. Dependencies and build confi
 
 ## Email Sender
 
-Single mode keeps the Outlook draft workflow. Bulk mode validates and deduplicates pasted recipients, confirms once, and sends separate Outlook messages sequentially with a 500 ms gap. Templates, signatures, case-manager selection, and PDFs use the existing Email Sender logic. Batch state stays in the current tab; keep it open until sending finishes.
+Single mode keeps the Outlook draft workflow. Bulk mode validates and deduplicates pasted recipients, then creates separate Outlook drafts sequentially with the existing templates, signatures, case-manager selection, and PDF attachments. Open each draft from the results or Outlook Drafts, review it, and click Send in Outlook yourself. The Toolkit does not send email.
 
-The Microsoft Entra application configured in `welcome-email-sender/outlookConfig.js` needs delegated **Mail.ReadWrite** for drafts/attachments and **Mail.Send** for Bulk mode. Bulk sign-in requests both scopes; Single mode still requests only Mail.ReadWrite. If tenant consent policies require approval, an administrator must grant Mail.Send before Bulk mode can run. The callback configuration is unchanged. See Microsoft's [send-draft API](https://learn.microsoft.com/en-us/graph/api/message-send?view=graph-rest-1.0).
-
-“Sent” means Graph accepted the message for delivery, not confirmed delivery. Failed recipients can be retried with the original body, subject, and PDF bytes. Retries reuse an existing completed draft when a send request fails, avoiding a second message if the first response was lost. If that draft was already sent/moved, the retry may still be reported failed; check Outlook before starting a new batch for that recipient.
+Both modes request only delegated **Mail.ReadWrite**. No Mail.Send permission is requested. Failed draft preparations can be retried using the original content and PDFs; known draft IDs and completed attachments are retained during retries. If a network response is lost, inspect Outlook Drafts for partial or duplicate drafts before retrying.
 
 Run `node --test tests/*.test.js intake-checker/*.test.js` for the complete suite. The Email Sender browser test uses mocked Outlook calls and a temporary headless Chrome/Edge profile; set `CHROME_BIN` to a browser executable if it is not installed in a standard Windows location. No test sends real email.
 
