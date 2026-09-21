@@ -9,6 +9,8 @@ const form = document.getElementById("faxForm");
 const numberInput = document.getElementById("faxNumber");
 const fileInput = document.getElementById("pdfFile");
 const chooseFilesButton = document.getElementById("choosePdfFiles");
+const coverCommentInput = document.getElementById("coverPageText");
+const coverCommentField = document.getElementById("coverCommentField");
 const coverSheetInput = document.getElementById("includeCoverSheet");
 const coverSheetState = document.getElementById("coverSheetState");
 const lastFourInput = document.getElementById("lastFourSsn");
@@ -26,7 +28,7 @@ const batch = new FaxBatch({
   onChange: render,
   onValidationError: message => {
     validation.textContent = message;
-    lastFourInput.focus();
+    (message.startsWith("Cover-sheet") ? coverCommentInput : lastFourInput).focus();
   },
   tracking: {
     onSent: async doc => {
@@ -117,6 +119,9 @@ function render() {
   const number = batch.destination || normalizeFaxNumber(numberInput.value);
   const valid = validFaxNumber(number);
   numberInput.disabled = batch.busy || Boolean(batch.destination);
+  coverCommentInput.value = batch.coverPageText;
+  coverCommentField.hidden = !batch.includeCoverSheet;
+  coverCommentInput.disabled = !batch.includeCoverSheet || batch.busy || Boolean(batch.destination);
   coverSheetInput.checked = batch.includeCoverSheet;
   coverSheetInput.disabled = batch.busy || Boolean(batch.destination);
   coverSheetState.textContent = batch.includeCoverSheet ? "ON - RingCentral Classic" : "OFF - No cover sheet";
@@ -128,7 +133,7 @@ function render() {
   retryButton.hidden = !failed;
   retryButton.disabled = batch.busy || !valid;
   retryButton.textContent = `Retry Failed (${failed})`;
-  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination && !batch.recentFaxes.length);
+  clearButton.disabled = batch.busy || contactPicker.saving || downloadingAll || (!docs.length && !batch.destination && !batch.recentFaxes.length && !batch.coverPageText && batch.includeCoverSheet);
   form.setAttribute("aria-busy", String(batch.busy));
   document.getElementById("numberHelp").textContent = batch.destination
     ? "Destination locked for this batch. Clear All to choose another destination."
@@ -334,6 +339,10 @@ historyDesktop.addEventListener("change", setHistoryLayout);
 setHistoryLayout();
 
 numberInput.addEventListener("input", render);
+coverCommentInput.addEventListener("input", () => {
+  if (!batch.busy && !batch.destination) batch.coverPageText = coverCommentInput.value;
+  render();
+});
 coverSheetInput.addEventListener("change", () => {
   if (!batch.busy && !batch.destination) batch.includeCoverSheet = coverSheetInput.checked;
   render();

@@ -137,7 +137,7 @@ test("Last 4 is required before the queue starts and leading zeroes are allowed"
   batch.lastFourSsn = "0007";
   await batch.run("+18015551234");
   assert.equal(calls.length, 2);
-  for (const call of calls) assert.deepEqual(call.extra, [{includeCoverSheet:true, recipientName:""}]);
+  for (const call of calls) assert.deepEqual(call.extra, [{includeCoverSheet:true, recipientName:"", coverPageText:""}]);
   assert.ok(calls.every(call => call.number === "+18015551234" && call.extra.length === 1));
 });
 
@@ -197,4 +197,41 @@ test("new batches default ON; three PDFs each carry the same cover choice withou
     batch.clear();
     assert.equal(batch.includeCoverSheet, true);
   }
+});
+
+
+test("comment snapshots survive queue edits, later files and retries without persisting", async t => {
+  const original = globalThis.fetch; t.after(()=>{globalThis.fetch=original;});
+  const stored = new Map();
+  const storage = { getItem:key=>stored.get(key), setItem:(key,value)=>stored.set(key,value) };
+  const calls=[];
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url,"/api/send-fax"); calls.push(options.body);
+    return Response.json({success:true,messageId:String(calls.length),status:calls.length===1 ? "SendingFailed" : "Queued"});
+  };
+  const batch = new FaxBatch({storage,pause:async()=>{batch.coverPageText="changed";batch.includeCoverSheet=false;},tracking:{schedule:()=>1,cancel:()=>{}}});
+  assert.equal(batch.coverPageText, "");
+  batch.coverPageText="  private batch comment  "; batch.lastFourSsn="0007";
+  await batch.addFiles([pdf("one.pdf"),pdf("two.pdf"),pdf("three.pdf")]);
+  await batch.run("+18015551234");
+  assert.equal(calls.length,3);
+  await batch.run("+18015551234","Failed");
+  await batch.addFiles([pdf("four.pdf")]); await batch.run("+18015551234");
+  assert.equal(calls.length,5);
+  assert.ok(calls.every(body=>body.get("coverPageText")==="private batch comment" && body.get("includeCoverSheet")==="true" && body.getAll("file").length===1));
+  assert.doesNotMatch(JSON.stringify([...stored.values()]), /private batch comment|coverPageText|coverSettings/);
+  assert.doesNotMatch(JSON.stringify(batch.recentFaxes), /private batch comment|coverPageText|coverSettings/);
+  assert.equal(new FaxBatch({storage}).coverPageText, "");
+  batch.clear(); assert.equal(batch.coverPageText,""); assert.equal(batch.includeCoverSheet,true); assert.equal(batch.coverSettings,null);
+  batch.includeCoverSheet=false; batch.coverPageText="stale private text"; batch.lastFourSsn="0007";
+  await batch.addFiles([pdf("off.pdf")]); await batch.run("+18015551234");
+  assert.equal(calls.at(-1).has("coverPageText"),false);
+});
+
+test("over-limit comment prevents any batch submission", async () => {
+  const errors=[];
+  const batch=new FaxBatch({storage:null,submit:()=>assert.fail("Must not send"),onValidationError:message=>errors.push(message)});
+  batch.lastFourSsn="0007"; batch.coverPageText="x".repeat(1025);
+  await batch.addFiles([pdf("one.pdf")]); await batch.run("+18015551234");
+  assert.equal(errors.length,1); assert.equal(batch.destination,""); assert.equal(batch.coverSettings,null);
 });

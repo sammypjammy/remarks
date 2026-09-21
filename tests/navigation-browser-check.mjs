@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('Packard Toolkit v2.14.0')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.15.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       await click('.app-footer a[href$="version-history/"]', "/version-history/");
       assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -121,8 +121,8 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 20, "Current release plus all recorded historical releases");
-    await checkIntake({ visit, click, evaluate, width, capture: async () => {
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 21, "Current release plus all recorded historical releases");
+    if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
       const path = join(profile, `intake-workspace-${width}.png`);
@@ -150,6 +150,12 @@ try {
     assert(await evaluate("document.getElementById('includeCoverSheet').checked && !document.getElementById('includeCoverSheet').disabled && document.getElementById('coverSheetState').textContent.includes('RingCentral Classic')"), "Cover defaults ON");
     await evaluate("document.getElementById('includeCoverSheet').click()");
     assert(await evaluate("!document.getElementById('includeCoverSheet').checked && document.getElementById('coverSheetState').textContent.includes('OFF')"), "Cover can be turned OFF");
+    await evaluate("document.getElementById('includeCoverSheet').click()");
+    assert(await evaluate("!document.getElementById('coverCommentField').hidden && !document.getElementById('coverPageText').disabled && document.getElementById('coverPageText').value === '' && !document.getElementById('coverPageText').required && document.getElementById('coverPageText').maxLength === 1024"), "Optional comment starts blank and visible");
+    await evaluate("document.getElementById('coverPageText').value = 'Reset me'; document.getElementById('coverPageText').dispatchEvent(new Event('input')); document.getElementById('clearAll').click()");
+    assert(await evaluate("document.getElementById('coverPageText').value === '' && document.getElementById('includeCoverSheet').checked"), "Clear resets comment-only batch");
+    await evaluate("document.getElementById('coverPageText').value = '  Synthetic batch comment  '; document.getElementById('coverPageText').dispatchEvent(new Event('input')); document.getElementById('includeCoverSheet').click()");
+    assert(await evaluate("document.getElementById('coverCommentField').hidden && document.getElementById('coverPageText').disabled"), "OFF hides and disables stale comment");
     await evaluate("document.getElementById('includeCoverSheet').click()");
     // Exercise the built app with mock sends; never contact RingCentral.
     await evaluate(`(() => {
@@ -189,8 +195,9 @@ try {
     await evaluate("document.getElementById('sendFax').click()");
     await until(() => evaluate("document.getElementById('faxHistoryList').textContent.includes('Sent')"), "sent fax in history");
     await until(() => evaluate("window.faxSubmissions.length === 2 && !document.getElementById('clearAll').disabled"), "both files sent sequentially");
-    assert.deepEqual(await evaluate("window.faxSubmissions.map(body => ({name:body.get('file').name, fields:[...body.keys()]}))"), [{name:'example.pdf',fields:['faxNumber','file','includeCoverSheet']},{name:'second.pdf',fields:['faxNumber','file','includeCoverSheet']}], "Original files remain associated with ordered submissions; Last 4 never sent");
+    assert.deepEqual(await evaluate("window.faxSubmissions.map(body => ({name:body.get('file').name, fields:[...body.keys()]}))"), [{name:'example.pdf',fields:['faxNumber','file','includeCoverSheet','coverPageText']},{name:'second.pdf',fields:['faxNumber','file','includeCoverSheet','coverPageText']}], "Original files remain associated with ordered submissions; Last 4 never sent");
     assert(await evaluate("window.faxSubmissions.every(body => body.get('includeCoverSheet') === 'true') && document.getElementById('includeCoverSheet').disabled"), "Every fax requests a cover and batch choice locks");
+    assert(await evaluate("window.faxSubmissions.every(body => body.get('coverPageText') === 'Synthetic batch comment') && document.getElementById('coverPageText').disabled && !JSON.stringify(localStorage).includes('Synthetic batch comment') && !JSON.stringify(sessionStorage).includes('Synthetic batch comment')"), "Comment snapshots lock and do not persist");
     assert(await evaluate("JSON.parse(localStorage.getItem('packard.faxHistory.v1')).every(entry => entry.lastFourSsn === '0007')"), "Last 4 persists only in its attempt history record");
     await until(() => evaluate("!![...document.querySelectorAll('#documentList button')].find(button => button.textContent === 'Download Fax Receipt')"), "receipt action");
     assert(await evaluate("document.querySelector('#documentList button.primary-btn')?.textContent === 'Download Fax Receipt'"), "Sent card exposes primary receipt action");
@@ -227,6 +234,7 @@ try {
     })()`);
     await visit('/fax-sender/');
     assert(await evaluate("document.getElementById('includeCoverSheet').checked"), "Reload resets cover ON");
+    assert(await evaluate("document.getElementById('coverPageText').value === ''"), "Reload clears comment");
     await evaluate(`document.getElementById('faxHistory').open = true;
       window.historyRequests = []; window.receiptDownloads = []; window.failHistoryReceipt = false;
       HTMLAnchorElement.prototype.click = function() { window.receiptDownloads.push(this.download); };

@@ -59,6 +59,11 @@
               <label for="includeCoverSheet"><input id="includeCoverSheet" type="checkbox" role="switch" checked aria-describedby="coverSheetState" /> Cover Sheet</label>
               <span id="coverSheetState">ON &middot; RingCentral Classic</span>
             </div>
+            <div id="coverCommentField" class="fax-cover-comment">
+              <label for="coverPageText">Cover Sheet Comment <span>(optional)</span></label>
+              <textarea id="coverPageText" rows="3" maxlength="1024" autocomplete="off" spellcheck="false" aria-describedby="coverCommentHelp"></textarea>
+              <p id="coverCommentHelp">Up to 1024 characters. Used on every fax in this batch; not saved in Fax History.</p>
+            </div>
             <div class="fax-list-heading">
               <h2 id="documentCount">PDF Documents</h2>
               <button id="clearAll" class="secondary-btn" type="button" disabled>Clear All</button>
@@ -100,7 +105,7 @@
       </aside>
       </div>
     </main>
-    <div data-app-footer></div>
+    <div data-app-footer data-app-version="Fax Sender v2.15.0"></div>
     <script src="../settings/shared/settings-storage.js"></script>
     <script src="../settings/shared/app-shell.js"></script>
     <script type="module" src="./main.js"></script>

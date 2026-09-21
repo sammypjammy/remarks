@@ -97,3 +97,8 @@
 .fax-panel .fax-cover-sheet label { display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
 .fax-panel .fax-cover-sheet input { width: 20px; height: 20px; margin: 0; padding: 0; accent-color: var(--accent, #2563eb); }
 .fax-cover-sheet span { font-size: .85rem; color: var(--text-muted, #64748b); }
+
+.fax-cover-comment { margin-bottom: 18px; }
+.fax-cover-comment[hidden] { display: none; }
+.fax-cover-comment label span, #coverCommentHelp { color: var(--muted); font-size: .85rem; font-weight: 400; }
+.fax-cover-comment textarea { display: block; box-sizing: border-box; width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); font: inherit; resize: vertical; }

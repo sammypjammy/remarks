@@ -19,12 +19,13 @@ function attemptSummary(doc) {
 }
 
 // Reuse the production API: every call contains one recipient and one file.
-export async function submitDocument(file, faxNumber, { includeCoverSheet = true, recipientName = "" } = {}) {
+export async function submitDocument(file, faxNumber, { includeCoverSheet = true, recipientName = "", coverPageText = "" } = {}) {
   const body = new FormData();
   body.append("faxNumber", faxNumber);
   body.append("file", file);
   body.append("includeCoverSheet", String(includeCoverSheet));
   if (includeCoverSheet && recipientName) body.append("recipientName", recipientName);
+  if (includeCoverSheet && coverPageText.trim()) body.append("coverPageText", coverPageText.trim());
   let response;
   try {
     response = await fetch("/api/send-fax", {
@@ -76,6 +77,8 @@ export class FaxBatch {
     this.recipientName = "";
     this.lastFourSsn = "";
     this.includeCoverSheet = true;
+    this.coverPageText = "";
+    this.coverSettings = null;
     this.tracker = new FaxTracker({ ...tracking, onChange: this.onChange });
   }
 
@@ -125,6 +128,8 @@ export class FaxBatch {
     this.recipientName = "";
     this.lastFourSsn = "";
     this.includeCoverSheet = true;
+    this.coverPageText = "";
+    this.coverSettings = null;
     this.progress = null;
     this.onChange();
   }
@@ -143,7 +148,14 @@ export class FaxBatch {
     }
     const lastFourSsn = this.lastFourSsn; // Snapshot once; edits during the queue cannot relabel prior attempts.
     if (!this.destination) this.recipientName = recipientName;
-    const coverOptions = Object.freeze({ includeCoverSheet: this.includeCoverSheet, recipientName: this.recipientName });
+    const comment = this.coverSettings?.coverPageText ?? (this.includeCoverSheet ? this.coverPageText.replace(/\r\n?/g, "\n").trim() : "");
+    if (comment.length > 1024) {
+      this.onValidationError("Cover-sheet comments must be 1024 characters or fewer.");
+      return;
+    }
+    // Retain the first settings for all documents, later additions, and explicit retries.
+    this.coverSettings ||= Object.freeze({ includeCoverSheet: this.includeCoverSheet, recipientName: this.recipientName, coverPageText: comment });
+    const coverOptions = this.coverSettings;
     this.destination = destination;
     this.running = true;
     this.progress = { current: 0, total: queue.length, name: "" };

@@ -4,6 +4,9 @@ const BASE_URL = "https://platform.ringcentral.com";
 // Official en-US dictionary: Classic = 5, None = 0.
 // https://github.com/ringcentral/ringcentral-api-docs/blob/main/specs/ringcentral_openapi3.json
 const CLASSIC_COVER_INDEX = 5;
+// RingCentral CreateFaxMessageRequest: coverPageText is limited to 1024 symbols.
+// https://github.com/ringcentral/RingCentral.Net/blob/master/RingCentral.Net/Definitions/CreateFaxMessageRequest.cs
+const MAX_COVER_TEXT_LENGTH = 1024;
 const MAX_PDF_BYTES = 4_000_000;
 const MAX_REQUEST_BYTES = MAX_PDF_BYTES + 32_000;
 
@@ -32,7 +35,7 @@ async function readUpload(req) {
   } catch {
     throw fail(400, "The upload could not be read. Select one PDF and try again.");
   }
-  if ([...form.keys()].some(key => !["faxNumber", "file", "includeCoverSheet", "recipientName"].includes(key)) ||
+  if ([...form.keys()].some(key => !["faxNumber", "file", "includeCoverSheet", "recipientName", "coverPageText"].includes(key)) ||
       form.getAll("faxNumber").length !== 1 || form.getAll("file").length !== 1) {
     throw fail(400, "Provide exactly one fax number and one PDF.");
   }
@@ -42,6 +45,14 @@ async function readUpload(req) {
   if (covers.length > 1 || (covers.length && !["true", "false"].includes(covers[0])) ||
       names.length > 1 || (names.length && (typeof names[0] !== "string" || names[0].length > 200 || /[\u0000-\u001f\u007f]/.test(names[0])))) {
     throw fail(400, "Provide a true/false cover-sheet choice and a valid recipient name.");
+  }
+  const comments = form.getAll("coverPageText");
+  if (comments.length > 1 || (comments.length && typeof comments[0] !== "string")) {
+    throw fail(400, "Provide one text value for the optional cover-sheet comment.");
+  }
+  const coverPageText = (comments[0] || "").replace(/\r\n?/g, "\n").trim();
+  if (coverPageText.length > MAX_COVER_TEXT_LENGTH) {
+    throw fail(400, "Cover-sheet comments must be 1024 characters or fewer.");
   }
   const includeCoverSheet = covers[0] === "true";
   const recipientName = names[0]?.trim() || "";
@@ -57,7 +68,7 @@ async function readUpload(req) {
   }
   if (!file.size || file.size > MAX_PDF_BYTES) throw fail(400, "Select a nonempty PDF of 4 MB or smaller.");
   if (await file.slice(0, 5).text() !== "%PDF-") throw fail(400, "The selected file does not have a PDF header.");
-  return { faxNumber, file, includeCoverSheet, recipientName };
+  return { faxNumber, file, includeCoverSheet, recipientName, coverPageText };
 }
 
 function upstreamError(status, authenticating) {
@@ -77,7 +88,7 @@ export default async function handler(req, res) {
     return respond(405, { success: false, error: "Use POST to send a fax." });
   }
   try {
-    const { faxNumber, file, includeCoverSheet, recipientName } = await readUpload(req);
+    const { faxNumber, file, includeCoverSheet, recipientName, coverPageText } = await readUpload(req);
     const { RC_CLIENT_ID, RC_CLIENT_SECRET, RC_USER_JWT } = process.env;
     if (!RC_CLIENT_ID || !RC_CLIENT_SECRET || !RC_USER_JWT) {
       throw fail(500, "RingCentral server configuration is missing. Set RC_CLIENT_ID, RC_CLIENT_SECRET, and RC_USER_JWT.");
@@ -99,7 +110,8 @@ export default async function handler(req, res) {
     const multipart = new FormData();
     multipart.append("json", new Blob([JSON.stringify({
       to: [{ phoneNumber: faxNumber, ...(includeCoverSheet && recipientName ? { name: recipientName } : {}) }],
-      faxResolution: "High", coverIndex: includeCoverSheet ? CLASSIC_COVER_INDEX : 0
+      faxResolution: "High", coverIndex: includeCoverSheet ? CLASSIC_COVER_INDEX : 0,
+      ...(includeCoverSheet && coverPageText ? { coverPageText } : {})
     })], { type: "application/json" }), "request.json");
     multipart.append("attachment", file, "document.pdf");
     // One submission only: retrying an ambiguous failure could send a duplicate fax.

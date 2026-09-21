@@ -121,7 +121,7 @@ test("fax endpoint validation, multipart submission, and safe failures", async t
       form.append("includeCoverSheet", value);
       assert.equal((await invoke(form)).code, 400);
     }
-    for (const field of ["coverIndex", "coverPageText", "from", "Authorization"]) {
+    for (const field of ["coverIndex", "from", "Authorization"]) {
       const form = upload(); form.append(field, "5");
       assert.equal((await invoke(form)).code, 400);
     }
@@ -153,5 +153,38 @@ test("fax endpoint validation, multipart submission, and safe failures", async t
       assert.equal(result.data.messageId, "123");
       assert.equal(calls, 2);
     }
+  });
+
+  await t.test("optional comments are normalized, bounded, private, and omitted when OFF", async () => {
+    for (const [enabled, value, expected] of [
+      [true, "  Associate with file.\r\nSecond line.  ", "Associate with file.\nSecond line."],
+      [true, "", undefined], [true, "  \t\n", undefined], [true, undefined, undefined],
+      [true, "a".repeat(1024), "a".repeat(1024)], [false, "Stale private comment", undefined]
+    ]) {
+      let calls = 0;
+      globalThis.fetch = async (url, options) => {
+        if (++calls === 1) return Response.json({access_token:"private-token"});
+        assert.equal(url, "https://platform.ringcentral.com/restapi/v1.0/account/~/extension/~/fax");
+        const json = JSON.parse(await options.body.get("json").text());
+        assert.deepEqual(json, {to:[{phoneNumber:"+18015551234"}],faxResolution:"High",coverIndex:enabled ? 5 : 0,...(expected ? {coverPageText:expected} : {})});
+        assert.deepEqual([...options.body.keys()], ["json","attachment"]);
+        return Response.json({id:"123",messageStatus:"Queued",coverPageText:value});
+      };
+      const form = upload(); form.append("includeCoverSheet", String(enabled));
+      if (value !== undefined) form.append("coverPageText",value);
+      const result = await invoke(form);
+      assert.equal(result.code,200);
+      assert.deepEqual(result.data,{success:true,messageId:"123",status:"Queued"});
+      assert.equal(calls,2);
+    }
+    let calls=0;
+    globalThis.fetch = () => { calls++; throw new Error("Must not authenticate"); };
+    for (const values of [["a".repeat(1025)], [new Blob(["private"])], ["one","two"]]) {
+      const form = upload(); values.forEach(value=>form.append("coverPageText",value));
+      const result = await invoke(form);
+      assert.equal(result.code,400);
+      assert.doesNotMatch(JSON.stringify(result.data), /private|aaaaa/);
+    }
+    assert.equal(calls,0);
   });
 });
