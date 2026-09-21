@@ -1,4 +1,5 @@
 const homeGreeting = document.getElementById("homeGreeting");
+const homeNamePrompt = document.getElementById("homeNamePrompt");
 const homeCards = new Map([...document.querySelectorAll("[data-home-tool]")].map(card => [card.dataset.homeTool, card]));
 
 function renderHomepageTools() {
@@ -15,10 +16,9 @@ function renderHomepageTools() {
 
 function renderHomeGreeting() {
   if (!homeGreeting) return;
-  const signature = window.PackardSettings?.getEmailSignature();
-  homeGreeting.textContent = signature?.name
-    ? `Welcome, ${signature.name}.`
-    : "Welcome to the Packard Toolkit.";
+  const name = window.PackardSettings?.getHomepagePreferences().name || "";
+  homeGreeting.textContent = name ? `Welcome, ${name}.` : "Welcome to the Packard Toolkit.";
+  if (homeNamePrompt) homeNamePrompt.hidden = Boolean(name);
 }
 
 window.addEventListener("packardsettingschange", renderHomeGreeting);

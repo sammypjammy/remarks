@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.0.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
         await evaluate(`document.querySelector('a[href="#canned-version-history"]').click()`);
@@ -133,7 +133,26 @@ try {
     await loaded("/settings/");
     assert.equal(await evaluate("document.querySelectorAll('#homepageToolList [data-tool-id]').length"), 5, "Homepage settings show every tool");
     assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage tools default visible");
+    assert(await evaluate("document.querySelector('#homepageName').value === '' && document.querySelector('#homepageTitle')"), "Homepage name defaults blank");
+    assert(await evaluate("[...document.querySelectorAll('#homepageToolList .homepage-move-button')].every(button => !button.textContent.includes('Up') && !button.textContent.includes('Down') && button.title)"), "Homepage reorder controls use compact arrows");
     assert(await evaluate("document.querySelector('.toolkit-navigation').textContent.includes('Fax Sender') && document.querySelector('.toolkit-navigation').textContent.includes('Intake Checker')"), "Homepage settings do not remove navigation tools");
+    await evaluate("document.querySelector('#homepageName').value = '  '; document.querySelector('#homepageName').dispatchEvent(new Event('input')); ");
+    await visit("/");
+    assert(await evaluate("document.getElementById('homeNamePrompt').hidden === false && document.getElementById('homeGreeting').textContent === 'Welcome to the Packard Toolkit.'"), "Blank homepage name shows prompt");
+    await evaluate("document.getElementById('homeNamePrompt').click()");
+    await loaded("/settings/");
+    assert(await evaluate("location.hash === '#homepageTitle'"), "Homepage prompt opens Homepage settings");
+    await evaluate("document.querySelector('#homepageName').value = 'Sam'; document.querySelector('#homepageName').dispatchEvent(new Event('input')); ");
+    await visit("/");
+    assert(await evaluate("document.getElementById('homeGreeting').textContent === 'Welcome, Sam.' && document.getElementById('homeNamePrompt').hidden"), "Homepage greeting uses saved name");
+    await evaluate("location.reload()");
+    await loaded("/");
+    assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Homepage name persists after refresh");
+    await visit("/settings/");
+    await evaluate("document.getElementById('emailSignature').value = 'Email Name\\nPosition\\nPhone'; document.getElementById('signatureForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))");
+    await visit("/");
+    assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Email signature does not affect homepage greeting");
+    await visit("/settings/");
     await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] [data-homepage-move=\\\"down\\\"]').click()");
     await visit("/");
     assert.equal(await evaluate("document.querySelector('.tool-card:not([hidden]) strong').textContent"), "Med Tabs", "Homepage reorder applies");

@@ -33,7 +33,8 @@
   const DEFAULT_HOMEPAGE_PREFERENCES = Object.freeze({
     version: HOMEPAGE_VERSION,
     order: Object.freeze(HOMEPAGE_TOOLS.map(tool => tool.id)),
-    hidden: Object.freeze([])
+    hidden: Object.freeze([]),
+    name: ""
   });
 
   function readJson(key, fallback) {
@@ -60,13 +61,14 @@
       return {
         version: HOMEPAGE_VERSION,
         order: [...DEFAULT_HOMEPAGE_PREFERENCES.order],
-        hidden: []
+        hidden: [],
+        name: ""
       };
     }
     const order = [...new Set(value.order.filter(id => typeof id === "string" && knownIds.has(id)))];
     for (const id of DEFAULT_HOMEPAGE_PREFERENCES.order) if (!order.includes(id)) order.push(id);
     const hidden = [...new Set(value.hidden.filter(id => typeof id === "string" && knownIds.has(id)))].filter(id => order.includes(id));
-    return { version: HOMEPAGE_VERSION, order, hidden };
+    return { version: HOMEPAGE_VERSION, order, hidden, name: typeof value.name === "string" ? value.name.trim() : "" };
   }
 
   function getHomepagePreferences() {

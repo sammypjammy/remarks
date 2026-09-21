@@ -22,6 +22,8 @@ const saveCustomRemarkButton = document.getElementById("saveCustomRemarkButton")
 const homepageToolList = document.getElementById("homepageToolList");
 const homepageStatus = document.getElementById("homepageStatus");
 const resetHomepageButton = document.getElementById("resetHomepage");
+const homepageNameInput = document.getElementById("homepageName");
+const homepageNameStatus = document.getElementById("homepageNameStatus");
 
 let editingCustomRemarkId = null;
 let customRemarkModalTrigger = openCustomRemarkModalButton;
@@ -105,14 +107,16 @@ function renderHomepageSettings() {
     moveUp.type = "button";
     moveUp.className = "homepage-move-button";
     moveUp.dataset.homepageMove = "up";
-    moveUp.textContent = "Up";
+    moveUp.textContent = "↑";
+    moveUp.title = "Move up";
     moveUp.setAttribute("aria-label", `Move ${tool.label} up`);
     moveUp.disabled = preferences.order.indexOf(id) === 0;
     const moveDown = document.createElement("button");
     moveDown.type = "button";
     moveDown.className = "homepage-move-button";
     moveDown.dataset.homepageMove = "down";
-    moveDown.textContent = "Down";
+    moveDown.textContent = "↓";
+    moveDown.title = "Move down";
     moveDown.setAttribute("aria-label", `Move ${tool.label} down`);
     moveDown.disabled = preferences.order.indexOf(id) === preferences.order.length - 1;
     const toggle = document.createElement("button");
@@ -275,6 +279,7 @@ function renderSettings(forceFormValues = false) {
   updateResourcesState();
   updateCustomRemarkSummary();
   renderHomepageSettings();
+  if (forceFormValues || document.activeElement !== homepageNameInput) homepageNameInput.value = settings.getHomepagePreferences().name;
   renderCustomRemarkList();
 }
 
@@ -359,6 +364,12 @@ homepageToolList.addEventListener("click", (event) => {
     const direction = event.target.closest("[data-homepage-move]")?.dataset.homepageMove;
     if (direction) moveHomepageTool(row.dataset.toolId, direction === "up" ? -1 : 1);
   }
+});
+homepageNameInput.addEventListener("input", () => {
+  const preferences = settings.getHomepagePreferences();
+  const saved = settings.saveHomepagePreferences({ ...preferences, name: homepageNameInput.value });
+  if (saved) setStatus(homepageNameStatus, "Name saved.");
+  else setStatus(homepageNameStatus, "Name could not be saved.", true);
 });
 homepageToolList.addEventListener("dragstart", (event) => {
   const row = event.target.closest("[data-tool-id]");

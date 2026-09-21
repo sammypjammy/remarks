@@ -74,6 +74,17 @@
             <h2 id="homepageTitle">Homepage</h2>
             <p>Choose which tools appear on Home and arrange their order.</p>
           </div>
+          <div class="setting-row homepage-name-row">
+            <div class="setting-copy">
+              <label for="homepageName">Name</label>
+              <p>Used only for the greeting on the Toolkit home page.</p>
+            </div>
+            <div class="homepage-name-field">
+              <input id="homepageName" type="text" maxlength="80" autocomplete="name" placeholder="Your name" />
+              <span id="homepageNameStatus" class="save-status" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+          <div class="settings-divider"></div>
           <div id="homepageToolList" class="homepage-tool-list" aria-label="Homepage tools"></div>
           <div class="homepage-settings-actions">
             <button id="resetHomepage" class="settings-disabled-button" type="button">Reset to Default</button>
