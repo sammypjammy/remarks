@@ -19,9 +19,13 @@ const customRemarkFormStatus = document.getElementById("customRemarkFormStatus")
 const customRemarkList = document.getElementById("customRemarkList");
 const customRemarkModalTitle = document.getElementById("customRemarkModalTitle");
 const saveCustomRemarkButton = document.getElementById("saveCustomRemarkButton");
+const homepageToolList = document.getElementById("homepageToolList");
+const homepageStatus = document.getElementById("homepageStatus");
+const resetHomepageButton = document.getElementById("resetHomepage");
 
 let editingCustomRemarkId = null;
 let customRemarkModalTrigger = openCustomRemarkModalButton;
+let draggedHomepageTool = null;
 
 const BUILT_IN_REMARK_SECTIONS = [
   { value: "Filing Remarks", label: "Filing Remarks" },
@@ -60,6 +64,89 @@ function updateCustomRemarkSummary() {
   summary.textContent = count
     ? `${count.toLocaleString()} custom ${count === 1 ? "remark" : "remarks"} saved. Add another to an existing or new section.`
     : "Add a remark to an existing section or create a new section.";
+}
+
+function homepageToolMap() {
+  return new Map(settings.homepageTools.map(tool => [tool.id, tool]));
+}
+
+function saveHomepageOrder(order, hidden, message = "Homepage saved.") {
+  if (!settings.saveHomepagePreferences({ version: 1, order, hidden })) {
+    setStatus(homepageStatus, "Homepage preferences could not be saved.", true);
+    return false;
+  }
+  setStatus(homepageStatus, message);
+  return true;
+}
+
+function renderHomepageSettings() {
+  const preferences = settings.getHomepagePreferences();
+  const tools = homepageToolMap();
+  homepageToolList.replaceChildren();
+  for (const id of preferences.order) {
+    const tool = tools.get(id);
+    if (!tool) continue;
+    const row = document.createElement("div");
+    row.className = "homepage-tool-row";
+    row.draggable = true;
+    row.dataset.toolId = id;
+
+    const handle = document.createElement("span");
+    handle.className = "homepage-drag-handle";
+    handle.textContent = "::";
+    handle.setAttribute("aria-hidden", "true");
+
+    const name = document.createElement("strong");
+    name.textContent = tool.label;
+
+    const controls = document.createElement("div");
+    controls.className = "homepage-tool-controls";
+    const moveUp = document.createElement("button");
+    moveUp.type = "button";
+    moveUp.className = "homepage-move-button";
+    moveUp.dataset.homepageMove = "up";
+    moveUp.textContent = "Up";
+    moveUp.setAttribute("aria-label", `Move ${tool.label} up`);
+    moveUp.disabled = preferences.order.indexOf(id) === 0;
+    const moveDown = document.createElement("button");
+    moveDown.type = "button";
+    moveDown.className = "homepage-move-button";
+    moveDown.dataset.homepageMove = "down";
+    moveDown.textContent = "Down";
+    moveDown.setAttribute("aria-label", `Move ${tool.label} down`);
+    moveDown.disabled = preferences.order.indexOf(id) === preferences.order.length - 1;
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "settings-toggle homepage-visibility-toggle";
+    toggle.dataset.homepageToggle = "true";
+    toggle.setAttribute("role", "switch");
+    toggle.setAttribute("aria-checked", String(!preferences.hidden.includes(id)));
+    toggle.setAttribute("aria-label", `${preferences.hidden.includes(id) ? "Show" : "Hide"} ${tool.label} on homepage`);
+    toggle.appendChild(document.createElement("span"));
+    controls.append(moveUp, moveDown, toggle);
+    row.append(handle, name, controls);
+    homepageToolList.appendChild(row);
+  }
+}
+
+function moveHomepageTool(id, direction) {
+  const preferences = settings.getHomepagePreferences();
+  const index = preferences.order.indexOf(id);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= preferences.order.length) return;
+  const order = [...preferences.order];
+  [order[index], order[target]] = [order[target], order[index]];
+  saveHomepageOrder(order, preferences.hidden, "Homepage order saved.");
+}
+
+function dropHomepageTool(targetId) {
+  if (!draggedHomepageTool || draggedHomepageTool === targetId) return;
+  const preferences = settings.getHomepagePreferences();
+  const order = preferences.order.filter(id => id !== draggedHomepageTool);
+  const targetIndex = order.indexOf(targetId);
+  order.splice(targetIndex, 0, draggedHomepageTool);
+  saveHomepageOrder(order, preferences.hidden, "Homepage order saved.");
+  draggedHomepageTool = null;
 }
 
 function renderCustomRemarkList() {
@@ -187,6 +274,7 @@ function renderSettings(forceFormValues = false) {
   hydrateFormValues(forceFormValues);
   updateResourcesState();
   updateCustomRemarkSummary();
+  renderHomepageSettings();
   renderCustomRemarkList();
 }
 
@@ -256,6 +344,45 @@ document.getElementById("openDraftsToggle").addEventListener("click", (event) =>
 
 document.getElementById("confirmMedTabsToggle").addEventListener("click", (event) => {
   settings.setSetting("confirmBeforeClearingMedTabs", event.currentTarget.getAttribute("aria-checked") !== "true");
+});
+
+homepageToolList.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-tool-id]");
+  if (!row) return;
+  const preferences = settings.getHomepagePreferences();
+  if (event.target.closest("[data-homepage-toggle]")) {
+    const hidden = preferences.hidden.includes(row.dataset.toolId)
+      ? preferences.hidden.filter(id => id !== row.dataset.toolId)
+      : [...preferences.hidden, row.dataset.toolId];
+    saveHomepageOrder(preferences.order, hidden, "Homepage visibility saved.");
+  } else {
+    const direction = event.target.closest("[data-homepage-move]")?.dataset.homepageMove;
+    if (direction) moveHomepageTool(row.dataset.toolId, direction === "up" ? -1 : 1);
+  }
+});
+homepageToolList.addEventListener("dragstart", (event) => {
+  const row = event.target.closest("[data-tool-id]");
+  if (!row) return;
+  draggedHomepageTool = row.dataset.toolId;
+  row.classList.add("dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", draggedHomepageTool);
+});
+homepageToolList.addEventListener("dragend", (event) => {
+  event.target.closest("[data-tool-id]")?.classList.remove("dragging");
+  draggedHomepageTool = null;
+});
+homepageToolList.addEventListener("dragover", (event) => {
+  if (event.target.closest("[data-tool-id]")) event.preventDefault();
+});
+homepageToolList.addEventListener("drop", (event) => {
+  event.preventDefault();
+  const row = event.target.closest("[data-tool-id]");
+  if (row) dropHomepageTool(row.dataset.toolId);
+});
+resetHomepageButton.addEventListener("click", () => {
+  if (settings.resetHomepagePreferences()) setStatus(homepageStatus, "Homepage reset to default.");
+  else setStatus(homepageStatus, "Homepage preferences could not be reset.", true);
 });
 
 document.getElementById("signatureForm").addEventListener("submit", (event) => {

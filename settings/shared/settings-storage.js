@@ -6,6 +6,7 @@
   const LEGACY_EMAIL_SIGNATURE_STORAGE_KEY = "packard-toolkit-email-signature";
   const EMAIL_TEMPLATES_STORAGE_KEY = "packard-toolkit-email-templates";
   const CUSTOM_CASE_MANAGERS_STORAGE_KEY = "packard-toolkit-custom-case-managers";
+  const HOMEPAGE_STORAGE_KEY = "packard-toolkit-homepage";
   const LEGACY_THEME_STORAGE_KEYS = [
     "canned-remarks-theme",
     "med-tabs-theme",
@@ -20,6 +21,19 @@
     confirmBeforeClearingMedTabs: true,
     emailSignature: "",
     emailResourcesUrl: ""
+  });
+  const HOMEPAGE_TOOLS = Object.freeze([
+    Object.freeze({ id: "remarks", label: "Canned Remarks" }),
+    Object.freeze({ id: "med-tabs", label: "Med Tabs" }),
+    Object.freeze({ id: "email", label: "Welcome Emails" }),
+    Object.freeze({ id: "fax", label: "Fax Sender" }),
+    Object.freeze({ id: "intake", label: "Intake Checker" })
+  ]);
+  const HOMEPAGE_VERSION = 1;
+  const DEFAULT_HOMEPAGE_PREFERENCES = Object.freeze({
+    version: HOMEPAGE_VERSION,
+    order: Object.freeze(HOMEPAGE_TOOLS.map(tool => tool.id)),
+    hidden: Object.freeze([])
   });
 
   function readJson(key, fallback) {
@@ -38,6 +52,36 @@
     } catch {
       return false;
     }
+  }
+
+  function normalizeHomepagePreferences(value) {
+    const knownIds = new Set(HOMEPAGE_TOOLS.map(tool => tool.id));
+    if (!value || typeof value !== "object" || Array.isArray(value) || value.version !== HOMEPAGE_VERSION || !Array.isArray(value.order) || !Array.isArray(value.hidden)) {
+      return {
+        version: HOMEPAGE_VERSION,
+        order: [...DEFAULT_HOMEPAGE_PREFERENCES.order],
+        hidden: []
+      };
+    }
+    const order = [...new Set(value.order.filter(id => typeof id === "string" && knownIds.has(id)))];
+    for (const id of DEFAULT_HOMEPAGE_PREFERENCES.order) if (!order.includes(id)) order.push(id);
+    const hidden = [...new Set(value.hidden.filter(id => typeof id === "string" && knownIds.has(id)))].filter(id => order.includes(id));
+    return { version: HOMEPAGE_VERSION, order, hidden };
+  }
+
+  function getHomepagePreferences() {
+    return normalizeHomepagePreferences(readJson(HOMEPAGE_STORAGE_KEY, null));
+  }
+
+  function saveHomepagePreferences(preferences) {
+    const normalized = normalizeHomepagePreferences(preferences);
+    const succeeded = writeJson(HOMEPAGE_STORAGE_KEY, normalized);
+    if (succeeded) announceChange("homepage", normalized);
+    return succeeded;
+  }
+
+  function resetHomepagePreferences() {
+    return saveHomepagePreferences(DEFAULT_HOMEPAGE_PREFERENCES);
   }
 
   function readLegacyTheme() {
@@ -285,6 +329,7 @@
 
   global.PackardSettings = Object.freeze({
     storageKey: SETTINGS_STORAGE_KEY,
+    homepageStorageKey: HOMEPAGE_STORAGE_KEY,
     defaults: DEFAULT_SETTINGS,
     themes: THEMES,
     densities: DENSITIES,
@@ -301,6 +346,10 @@
     getEmailTemplates,
     saveEmailTemplates,
     getCustomCaseManagers,
-    saveCustomCaseManagers
+    saveCustomCaseManagers,
+    homepageTools: HOMEPAGE_TOOLS,
+    getHomepagePreferences,
+    saveHomepagePreferences,
+    resetHomepagePreferences
   });
 })(window);

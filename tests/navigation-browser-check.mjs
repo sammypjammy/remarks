@@ -98,7 +98,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.0.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
         await evaluate(`document.querySelector('a[href="#canned-version-history"]').click()`);
@@ -129,8 +129,39 @@ try {
       }
     }
     await visit("/settings/");
+    await evaluate("localStorage.removeItem('packard-toolkit-homepage'); location.reload()");
+    await loaded("/settings/");
+    assert.equal(await evaluate("document.querySelectorAll('#homepageToolList [data-tool-id]').length"), 5, "Homepage settings show every tool");
+    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage tools default visible");
+    assert(await evaluate("document.querySelector('.toolkit-navigation').textContent.includes('Fax Sender') && document.querySelector('.toolkit-navigation').textContent.includes('Intake Checker')"), "Homepage settings do not remove navigation tools");
+    await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] [data-homepage-move=\\\"down\\\"]').click()");
+    await visit("/");
+    assert.equal(await evaluate("document.querySelector('.tool-card:not([hidden]) strong').textContent"), "Med Tabs", "Homepage reorder applies");
+    await visit("/settings/");
+    assert.equal(await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] .homepage-move-button[data-homepage-move=\\\"up\\\"]').disabled"), false, "Homepage order persists after navigation");
+    for (const id of ["remarks", "med-tabs", "email", "fax", "intake"]) {
+      await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
+      await visit("/");
+      assert.equal(await evaluate(`document.querySelector('[data-home-tool=${JSON.stringify(id)}]').hidden`), true, `Homepage hides ${id}`);
+      await visit("/settings/");
+      await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
+    }
+    await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"fax\\\"] .homepage-visibility-toggle').click()");
+    await visit("/");
+    await evaluate("location.reload()");
+    await loaded("/");
+    assert.equal(await evaluate("document.querySelector('[data-home-tool=\\\"fax\\\"]').hidden"), true, "Homepage visibility applies");
+    await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:999, order:['fax'], hidden:['remarks']})); location.reload()");
+    await loaded("/");
+    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Invalid homepage preferences fall back safely");
+    await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:1, order:['remarks'], hidden:['unknown']})); location.reload()");
+    await loaded("/");
+    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Missing and unknown homepage tools use defaults");
+    await visit("/settings/");
+    await evaluate("document.getElementById('resetHomepage').click()");
+    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage reset restores visibility");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 23, "Current release plus all recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 24, "Current release plus all recorded historical releases");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
