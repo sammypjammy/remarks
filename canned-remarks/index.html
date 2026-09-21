@@ -58,7 +58,17 @@
       </section>
     </main>
 
-    <div data-app-footer></div>
+    <footer class="app-footer">
+      <div class="app-footer-inner">
+        <span>&copy; 2026 Packard Law Firm</span>
+        <details id="canned-version-history">
+          <summary>Canned Remarks v2.9.0</summary>
+          <p><strong>v2.9.0</strong> - Added married/separated SSI remarks, VA benefit details for DAV remarks, and consistent part-time monthly earnings wording.</p>
+        </details>
+        <span>Internal use only</span><span>Built by Sam Jensen</span>
+        <span class="app-footer-links"><a href="#canned-version-history" onclick="document.getElementById('canned-version-history').open = true">Version history</a><a href="../settings/">Settings</a></span>
+      </div>
+    </footer>
 
     <div id="modalBackdrop" class="modal-backdrop hidden" aria-hidden="true">
       <div id="remarkModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

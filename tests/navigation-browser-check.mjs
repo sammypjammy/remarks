@@ -98,9 +98,12 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
-      if (page === '/welcome-email-sender/') {
+      if (page === '/canned-remarks/') {
+        await evaluate(`document.querySelector('a[href="#canned-version-history"]').click()`);
+        assert(await evaluate("document.getElementById('canned-version-history').open"), "Canned Remarks has its own history");
+      } else if (page === '/welcome-email-sender/') {
         await evaluate(`document.querySelector('.app-footer-links a[href="#email-version-history"]').click()`);
         assert(await evaluate("document.getElementById('email-version-history').open"), "Email version history is local to its footer");
       } else {

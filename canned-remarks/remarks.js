@@ -106,7 +106,17 @@ if (shortTermInput) {
   });
 }
 
+function partTimeRemark(amount) {
+  return `The claimant works part time earning approximately $${String(amount || "").trim().replace(/^\$\s*/, "")} per month.`;
+}
+
 if (document.getElementById("remarkList")) {
+const vaFields = [
+  { key: "vaBenefits", label: "Does the claimant receive VA benefits?", type: "select", required: true,
+    options: [{value: "yes", label: "Yes"}, {value: "no", label: "No"}] },
+  { key: "vaAmount", label: "Monthly VA benefit amount", type: "text", placeholder: "e.g. 1,000", required: true,
+    when: {key: "vaBenefits", value: "yes"} }
+];
 // Filing Application options
 const filingRemarks = [
   {
@@ -173,8 +183,8 @@ My doctors also prescribed medications I am currently taking.`,
     id: "filing-795-disabled-veteran",
     group: "795 Remarks",
     title: "795 Disabled Veteran (DAV)",
-    text: "The claimant is a 100% Disabled Veteran. Their medical conditions include: {{conditions}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
-    fields: [{ key: "conditions", label: "Medical conditions", type: "textarea", placeholder: "Enter the medical conditions", required: true }]
+    text: "The claimant is a 100% Disabled Veteran. {{vaBenefitsText}} We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
+    fields: vaFields
   },
   {
     id: "filing-795-teri",
@@ -311,8 +321,8 @@ const application795Remarks = [
   {
     id: "795-disabled-veteran",
     title: "795 Disabled Veteran (DAV)",
-    text: "The claimant is a 100% Disabled Veteran. Their medical conditions include: {{conditions}}. We are respectfully requesting Critical Claim status and Expedited Processing.",
-    fields: [{ key: "conditions", label: "Medical conditions", type: "textarea", placeholder: "Enter the medical conditions", required: true }]
+    text: "The claimant is a 100% Disabled Veteran. {{vaBenefitsText}} We are respectfully requesting Critical Claim status and Expedited Processing.",
+    fields: vaFields
   },
   {
     id: "795-teri",
@@ -354,6 +364,8 @@ const application795Remarks = [
 
 // Edit these entries to change the SSI questions and their generated text.
 const ssiRemarks = [
+  { id: "part-time-work", label: "Works part time", yesText: "part-time", noAddsText: false,
+    prompt: {answer: "yes", key: "amount", title: "Part-time monthly earnings", label: "Monthly earnings", placeholder: "e.g. 1,000"} },
   {
     id: "food-stamps",
     label: "Receives food stamps",
@@ -537,6 +549,13 @@ function getSsiBlurb() {
     .map((item) => {
       const answer = ssiSelections[item.id];
 
+      if (item.id === "marriage-status" && answer === "yes" && ssiDetails[item.id]?.separated) {
+        return "The claimant is married but separated and does not share assets with their spouse.";
+      }
+      if (item.id === "part-time-work" && answer === "yes") {
+        const amount = ssiDetails[item.id]?.amount;
+        return amount ? partTimeRemark(amount) : "";
+      }
       if (answer === "yes" && item.yesText) {
         if (item.prompt?.answer === "yes") {
           const value = ssiDetails[item.id]?.[item.prompt.key];
@@ -619,6 +638,10 @@ function renderSsiApplication() {
           openSsiDetailModal(item);
           return;
         }
+        if (item.id === "marriage-status") {
+          if (answer !== "yes") delete ssiDetails[item.id];
+          renderSsiApplication();
+        }
         updateSsiPreview();
       });
 
@@ -630,6 +653,20 @@ function renderSsiApplication() {
     });
 
     row.append(legend, choices);
+    if (item.id === "marriage-status" && ssiSelections[item.id] === "yes") {
+      const label = document.createElement("label");
+      label.className = "ssi-choice";
+      const separated = document.createElement("input");
+      separated.type = "checkbox";
+      separated.id = "ssi-separated";
+      separated.checked = Boolean(ssiDetails[item.id]?.separated);
+      separated.addEventListener("change", () => {
+        ssiDetails[item.id] = {separated: separated.checked};
+        updateSsiPreview();
+      });
+      label.append(separated, "Separated from spouse");
+      row.append(label);
+    }
     questionList.appendChild(row);
   });
 
@@ -801,6 +838,16 @@ function openRemarkModal(remark) {
   const form = document.createElement("form");
   form.className = "modal-form";
 
+  const refreshConditionalFields = () => {
+    for (const field of remark.fields.filter(field => field.when)) {
+      const input = form.querySelector(`#field-${field.key}`);
+      if (!input) continue;
+      const visible = modalValues[field.when.key] === field.when.value;
+      input.parentElement.hidden = !visible;
+      input.disabled = !visible;
+      input.required = visible && Boolean(field.required);
+    }
+  };
   remark.fields.forEach((field) => {
     const wrapper = document.createElement("div");
     wrapper.className = "field";
@@ -857,6 +904,7 @@ function openRemarkModal(remark) {
       const formattedValue = formatFieldValue(field, input.value);
       if (field.format === "numericMonth") input.value = formattedValue;
       modalValues[dataKey] = formattedValue;
+      refreshConditionalFields();
       updatePreview();
     });
 
@@ -910,6 +958,7 @@ function openRemarkModal(remark) {
     form.appendChild(wrapper);
   });
 
+  refreshConditionalFields();
   const preview = document.createElement("div");
   preview.className = "preview-box";
   preview.id = "remarkPreview";
@@ -965,6 +1014,12 @@ function isDateField(field) {
 }
 
 function generateRemarkText(remark, values) {
+  if (remark.id === "filing-money-after-onset" && values.source === "Part-time Income") return partTimeRemark(values.amount);
+  if (remark.fields === vaFields) {
+    values = {...values, vaBenefitsText: values.vaBenefits === "yes"
+      ? `The claimant receives $${String(values.vaAmount || "").trim().replace(/^\$\s*/, "")} per month in VA benefits.`
+      : values.vaBenefits === "no" ? "The claimant does not receive VA benefits." : ""};
+  }
   let template = remark.text;
   for (const phrase of remark.omitWhenBlank || []) {
     if (!(values[phrase.key] || "").trim()) {
@@ -1020,7 +1075,7 @@ function copyFromModal() {
   const form = modalContent.querySelector("form");
   if (form && !form.reportValidity()) return;
 
-  const errors = activeRemark.fields.filter((field) => field.required && !isDateField(field) && !(modalValues[field.key] || "").trim());
+  const errors = activeRemark.fields.filter((field) => field.required && (!field.when || modalValues[field.when.key] === field.when.value) && !isDateField(field) && !(modalValues[field.key] || "").trim());
 
   if (errors.length > 0) {
     const firstMissingField = document.getElementById(`field-${errors[0].key}`);
