@@ -15,27 +15,30 @@ const browserPath = process.env.CHROME_BIN || [
 
 // Real browser and React state, with only the Outlook boundary replaced.
 // No authentication or real email is performed by this test.
-test("Email Sender mode isolation, confirmation, progress, locking and retry", { skip: !browserPath, timeout: 60000 }, async t => {
+test("Email Sender manual draft tabs, Single isolation, popup feedback and footer version", { skip: !browserPath, timeout: 60000 }, async t => {
   const server = await createServer({
     configFile: false,
     server: { host: "127.0.0.1", port: 0 },
     plugins: [{ name: "mock-outlook-for-test", enforce: "pre", load(id) {
       if (!id.replaceAll("\\", "/").endsWith("/welcome-email-sender/outlookGraph.js")) return;
       return `
-        window.mailTest = { drafts: [], sends: [], preparations: 0, fail: true };
+        window.mailTest = { drafts: [], tabs: [], preparations: 0, blocked: false };
+        window.open = () => {
+          if (window.mailTest.blocked) return null;
+          const tab = { location: { href: 'about:blank' }, closed:false, close(){this.closed=true;} };
+          window.mailTest.tabs.push(tab); return tab;
+        };
         export const getOutlookErrorMessage = () => "Test draft kept in this page";
+        export async function getGraphAccessToken() {
+          window.mailTest.preparations++;
+          if(window.mailTest.tabs.length !== 2) throw Error('Tabs must open before sign-in');
+          return 'mock';
+        }
         export async function createOutlookDraft(content) {
           window.mailTest.drafts.push(content);
-          throw new Error("Prevent navigation in test");
-        }
-        export async function prepareOutlookBulkDrafts(content) {
-          window.mailTest.preparations++;
-          return async recipient => {
-            window.mailTest.sends.push({ ...content, recipient });
-            await new Promise(resolve => setTimeout(resolve, 200));
-            if (window.mailTest.fail && recipient === "fail@example.com") throw new Error("Simulated failure");
-            return { id: recipient, webLink: "https://outlook.office.com/mail/drafts/" + encodeURIComponent(recipient) };
-          };
+          if (content.recipient === 'single@example.com') throw new Error("Prevent single navigation in test");
+          await new Promise(resolve=>setTimeout(resolve,200));
+          return { id: content.recipient, webLink: 'https://outlook.office.com/mail/drafts/' + encodeURIComponent(content.recipient) };
         }
       `;
     } }],
@@ -103,42 +106,35 @@ test("Email Sender mode isolation, confirmation, progress, locking and retry", {
   await input("#client-email", "single@example.com");
   await input("#case-manager", "Amanda Zuscar");
   await click("Bulk");
-  assert.equal(await evaluate("document.querySelector('button[type=submit]').disabled"), true);
-  await input("#bulk-recipients", "a@example.com; A@EXAMPLE.COM\nfail@example.com\tbad");
-  assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"), "Create 2 Outlook Drafts");
-  assert.match(await evaluate("document.querySelector('#bulk-recipient-summary').textContent"), /2 unique valid.*1 duplicates removed.*1 invalid/);
+  assert.equal(await evaluate("document.querySelector('button[type=submit]').disabled"),true);
+  await input("#bulk-recipients","a@example.com; A@EXAMPLE.COM\nb@example.com\tbad");
+  assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"),"Open 2 Drafts");
+  assert.match(await evaluate("document.querySelector('#bulk-recipient-summary').textContent"),/2 unique valid.*1 duplicates removed.*1 invalid/);
   await click("Single");
-  assert.equal(await evaluate("document.querySelector('#client-email').value"), "single@example.com");
-  await click("Open Outlook Draft");
-  await waitFor("window.mailTest.drafts.length === 1");
-  assert.equal(await evaluate("window.mailTest.drafts[0].recipient"), "single@example.com");
-  assert.equal(await evaluate("window.mailTest.sends.length"), 0);
-  await input("#case-manager", "Amanda Zuscar");
-  await click("Bulk");
-  await click("Create 2 Outlook Drafts");
-  await waitFor("document.querySelector('dialog').open");
-  assert.equal(await evaluate("window.mailTest.sends.length"), 0);
-  await click("Cancel");
-  assert.equal(await evaluate("document.querySelector('dialog').open"), false);
-  await click("Create 2 Outlook Drafts");
-  await evaluate("document.querySelector('dialog .primary-button').click()");
-  await waitFor("window.mailTest.sends.length === 1");
-  assert.equal(await evaluate("document.querySelector('#bulk-recipients').matches(':disabled') && document.querySelector('#case-manager').matches(':disabled') && document.querySelector('.language-option').disabled"), true);
-  assert.match(await evaluate("document.querySelector('.bulk-results').textContent"), /Creating draft 1 of 2/);
-  await waitFor("document.querySelector('.bulk-results').textContent.includes('1 drafts created · 1 failed')");
-  await input("#case-manager", "Becky Smith");
-  await input("#bulk-recipients", "new@example.com");
-  await evaluate("window.mailTest.fail = false");
-  await click("Retry Failed");
-  await evaluate("document.querySelector('dialog .primary-button').click()");
-  await waitFor("document.querySelector('.bulk-results').textContent.includes('2 drafts created')");
-  assert.equal(await evaluate("document.querySelectorAll('.bulk-results a').length"), 2);
-  assert.match(await evaluate("document.querySelector('.bulk-results').textContent"), /Nothing has been sent/);
-  const sends = await evaluate("window.mailTest.sends");
-  assert.deepEqual(sends.map(message => message.recipient), ["a@example.com", "fail@example.com", "fail@example.com"]);
-  assert.ok(sends.every(message => message.managerName === "Amanda Zuscar" && message.body === sends[0].body && message.subject === sends[0].subject));
-  assert.equal(await evaluate("window.mailTest.preparations"), 1);
-  await command("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-  assert.equal(await evaluate("document.documentElement.scrollWidth <= window.innerWidth"), true);
+  assert.equal(await evaluate("document.querySelector('#client-email').value"),"single@example.com");
+  await click("Open Outlook Draft");await waitFor("window.mailTest.drafts.length === 1");
+  assert.equal(await evaluate("window.mailTest.tabs.length"),0);
+  await input("#case-manager","Amanda Zuscar");await click("Bulk");
+  await evaluate("window.mailTest.blocked=true");await click("Open 2 Drafts");
+  await waitFor("document.querySelector('[role=alert]')?.textContent.includes('Allow pop-ups and redirects')");
+  assert.equal(await evaluate("window.mailTest.drafts.length"),1);
+  assert.equal(await evaluate("window.mailTest.preparations"),0);
+  await evaluate("window.mailTest.blocked=false");await click("Open 2 Drafts");
+  await waitFor("window.mailTest.drafts.length === 3");
+  assert.equal(await evaluate("document.querySelector('#bulk-recipients').matches(':disabled')"),true);
+  await waitFor("window.mailTest.tabs.every(tab=>tab.location.href !== 'about:blank')");
+  const drafts=await evaluate("window.mailTest.drafts.slice(1)");
+  assert.deepEqual(drafts.map(d=>d.recipient),['a@example.com','b@example.com']);
+  assert.ok(drafts.every(d=>d.subject===drafts[0].subject&&d.body===drafts[0].body&&d.managerName==='Amanda Zuscar'));
+  assert.equal(await evaluate("window.mailTest.tabs.length"),2);
+  assert.equal(await evaluate("document.querySelectorAll('dialog,.bulk-results,.bulk-confirmation').length"),0);
+  assert.equal(await evaluate("document.body.textContent.includes('Retry Failed')"),false);
+  await input('#bulk-recipients','one@example.com');
+  assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"),'Open 1 Draft');
+  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.6.0/);
+  await evaluate("document.querySelector('.app-footer-links a[href=\"#email-version-history\"]').click()");
+  assert.equal(await evaluate("document.querySelector('#email-version-history').open"),true);
+  await command("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  assert.equal(await evaluate("document.documentElement.scrollWidth <= window.innerWidth"),true);
   await command("Browser.close");
 });

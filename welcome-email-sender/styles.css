@@ -197,11 +197,6 @@ input.has-error, select.has-error { border-color: var(--danger); }
 .bulk-details { font-size: 0.85rem; margin: 10px 0; overflow-wrap: anywhere; }
 .bulk-details summary { cursor: pointer; }
 .bulk-details ul { max-height: 180px; overflow: auto; padding-left: 22px; }
-.bulk-results:empty { display: none; }
-.bulk-results { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 10px; overflow-wrap: anywhere; }
-dialog.bulk-confirmation { margin: auto; width: min(520px, calc(100% - 32px)); box-sizing: border-box; color: var(--text); border: 1px solid var(--border); padding: 24px; }
-dialog.bulk-confirmation::backdrop { background: rgba(0, 0, 0, 0.45); }
-dialog.bulk-confirmation p { line-height: 1.5; }
 .field-error { margin: 6px 1px 0; color: var(--danger); font-size: 0.78rem; }
 
 .preview-toggle { justify-self: start; min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 8px 11px; border: 1px solid var(--border); border-radius: 11px; background: var(--panel-alt); color: var(--text); font-size: 0.78rem; font-weight: 700; }
@@ -409,3 +404,7 @@ dialog.bulk-confirmation p { line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+.email-version-history { max-width: 520px; }
+.email-version-history summary { cursor: pointer; font-weight: 700; }
+.email-version-history p { margin: 8px 0 0; line-height: 1.5; }

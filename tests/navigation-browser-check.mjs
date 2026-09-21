@@ -98,13 +98,18 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.16.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
-      await click('.app-footer a[href$="version-history/"]', "/version-history/");
-      assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
-      // Verify both the displayed version and the separate history link.
-      await visit(page);
-      await click('.app-footer-links a[href$="version-history/"]', "/version-history/");
+      if (page === '/welcome-email-sender/') {
+        await evaluate(`document.querySelector('.app-footer-links a[href="#email-version-history"]').click()`);
+        assert(await evaluate("document.getElementById('email-version-history').open"), "Email version history is local to its footer");
+      } else {
+        await click('.app-footer a[href$="version-history/"]', "/version-history/");
+        assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
+        // Verify both the displayed version and the separate history link.
+        await visit(page);
+        await click('.app-footer-links a[href$="version-history/"]', "/version-history/");
+      }
       await visit(page);
       await evaluate(`document.querySelector('.app-menu-toggle').click()`);
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");

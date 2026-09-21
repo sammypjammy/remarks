@@ -14,9 +14,11 @@ The tools use common files from `settings/shared/`. Dependencies and build confi
 
 ## Email Sender
 
-Single mode keeps the Outlook draft workflow. Bulk mode validates and deduplicates pasted recipients, then creates separate Outlook drafts sequentially with the existing templates, signatures, case-manager selection, and PDF attachments. Open each draft from the results or Outlook Drafts, review it, and click Send in Outlook yourself. The Toolkit does not send email.
+Single mode keeps the existing Outlook draft workflow. Bulk Outlook Drafts validates and deduplicates pasted recipients and opens one new Outlook tab per valid unique recipient. All blank tabs are reserved synchronously from the button click, before sign-in, then the same Single-mode Graph draft builder and attachment logic prepares each draft and navigates its tab. Both modes require manual review and Send in Outlook.
 
-Both modes request only delegated **Mail.ReadWrite**. No Mail.Send permission is requested. Failed draft preparations can be retried using the original content and PDFs; known draft IDs and completed attachments are retained during retries. If a network response is lost, inspect Outlook Drafts for partial or duplicate drafts before retrying.
+Both modes request only delegated **Mail.ReadWrite**. Bulk has no send endpoint, queue delay, confirmation, delivery tracking, or retry queue. If any popup is blocked, opened blank tabs are closed and no drafts are created; allow pop-ups and redirects for the Toolkit site and try again. If draft creation fails after sign-in, inspect opened tabs and Outlook Drafts for incomplete drafts before trying again.
+
+Email Sender's independent baseline and release history are displayed in its own footer. Package metadata and centralized Toolkit history are unchanged.
 
 Run `node --test tests/*.test.js intake-checker/*.test.js` for the complete suite. The Email Sender browser test uses mocked Outlook calls and a temporary headless Chrome/Edge profile; set `CHROME_BIN` to a browser executable if it is not installed in a standard Windows location. No test sends real email.
 

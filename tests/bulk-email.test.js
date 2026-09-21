@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { BulkEmailBatch, isValidBulkEmail, parseBulkRecipients } from "../welcome-email-sender/bulkEmail.js";
-import { createOutlookDraft, createBulkOutlookDraft } from "../welcome-email-sender/outlookGraph.js";
+import { openBulkDrafts, isValidBulkEmail, parseBulkRecipients } from "../welcome-email-sender/bulkEmail.js";
+import { createOutlookDraft } from "../welcome-email-sender/outlookGraph.js";
 
 for (const [name, separator] of [["newlines", "\n"], ["commas", ","], ["semicolons", ";"], ["spaces", " "], ["tabs", "\t"]]) {
   test(`parses ${name}`, () => {
@@ -25,139 +25,66 @@ test("obviously invalid entries are never silently repaired or queued", () => {
   assert.equal(parseBulkRecipients("  \n\t,; ").found, 0);
 });
 
-const noPause = async () => {};
-test("zero valid recipients cannot prepare or create drafts", async () => {
-  const batch = new BulkEmailBatch({ recipients: ["bad"], content: {}, prepare: () => assert.fail("must not authenticate"), pause: noPause });
-  await batch.run();
-  await batch.run({ retry: true });
-  assert.equal(batch.created.size, 0);
+
+const tab = () => ({closed:false,location:{href:"about:blank"},close(){this.closed=true;}});
+
+test("all tabs open synchronously before authorization; unique recipients share Single draft logic", async () => {
+  const tabs=[],calls=[]; let release;
+  const authorized=new Promise(resolve=>{release=resolve;});
+  const content={subject:"Welcome",body:"Template and signature",managerName:"Amanda Zuscar",language:"english"};
+  const work=openBulkDrafts({text:"A@example.com, a@EXAMPLE.com; b@example.com\nbad\tc@example.com",content,
+    openWindow:()=>{const t=tab();tabs.push(t);return t;},authorize:()=>{assert.equal(tabs.length,3);return authorized;},
+    createDraft:async c=>{calls.push(c);return {webLink:"https://outlook.office.com/"+c.recipient};},composeUrl:d=>d.webLink});
+  assert.equal(tabs.length,3);assert.equal(calls.length,0);
+  content.body="changed after click"; release();
+  assert.equal(await work,3);
+  assert.deepEqual(calls.map(c=>c.recipient),["a@example.com","b@example.com","c@example.com"]);
+  assert.ok(calls.every(c=>c.subject==="Welcome"&&c.body==="Template and signature"&&c.managerName==="Amanda Zuscar"));
+  assert.deepEqual(tabs.map(t=>t.location.href),calls.map(c=>"https://outlook.office.com/"+c.recipient));
+  assert.ok(tabs.every(t=>t.opener===null));
 });
 
-test("queue is sequential, deduplicated, paced, and continues after a failure", async () => {
-  const calls = [], progress = [], delays = [];
-  let active = 0;
-  const batch = new BulkEmailBatch({
-    recipients: ["a@example.com", "A@example.com", "bad", "b@example.com", "c@example.com"], content: {},
-    pause: async ms => delays.push(ms),
-    prepare: async () => async recipient => {
-      assert.equal(++active, 1);
-      calls.push(recipient);
-      await Promise.resolve();
-      active--;
-      if (recipient === "b@example.com") throw new Error("Simulated failure");
-    },
-  });
-  await batch.run({ onProgress: value => progress.push(value) });
-  assert.deepEqual(calls, ["a@example.com", "b@example.com", "c@example.com"]);
-  assert.deepEqual([...batch.created.keys()], ["a@example.com", "c@example.com"]);
-  assert.deepEqual(batch.failed, ["b@example.com"]);
-  assert.deepEqual(progress, [{ current: 1, total: 3 }, { current: 2, total: 3 }, { current: 3, total: 3 }]);
-  assert.deepEqual(delays, [500, 500]);
+test("zero valid recipients open no tabs and make no Graph requests", async () => {
+  assert.equal(await openBulkDrafts({text:"bad @",content:{},openWindow:()=>assert.fail(),authorize:()=>assert.fail(),createDraft:()=>assert.fail()}),0);
 });
 
-test("retry creates drafts only for failures with original content; completed drafts are never duplicated", async () => {
-  const content = { subject: "Original", body: "Same signature", managerName: "Amanda Zuscar", language: "english" };
-  const calls = [];
-  let preparations = 0, fail = true;
-  const batch = new BulkEmailBatch({ recipients: ["a@example.com", "b@example.com"], content, pause: noPause,
-    prepare: async snapshot => {
-      preparations++;
-      assert.equal(snapshot.subject, "Original");
-      return async recipient => {
-        calls.push(recipient);
-        if (fail && recipient === "b@example.com") throw new Error("Simulated failure");
-      };
-    },
-  });
-  content.subject = "Edited";
-  await batch.run();
-  fail = false;
-  await batch.run({ retry: true });
-  await batch.run({ retry: true });
-  await batch.run();
-  assert.deepEqual(calls, ["a@example.com", "b@example.com", "b@example.com"]);
-  assert.equal(preparations, 1);
-  assert.equal(batch.created.size, 2);
-  assert.deepEqual(batch.failed, []);
-});
-
-test("another run cannot start during preparation or draft creation", async () => {
-  let release, calls = 0;
-  const ready = new Promise(resolve => { release = resolve; });
-  const batch = new BulkEmailBatch({ recipients: ["a@example.com"], content: {}, pause: noPause,
-    prepare: async () => { await ready; return async () => { calls++; }; },
-  });
-  const first = batch.run();
-  await batch.run();
-  await batch.run({ retry: true });
-  release();
-  await first;
-  assert.equal(calls, 1);
-});
-
-test("preparation failure creates nothing and releases the queue lock", async () => {
-  const batch = new BulkEmailBatch({ recipients: ["a@example.com"], content: {}, prepare: async () => { throw new Error("Sign-in failed"); } });
-  await assert.rejects(batch.run(), /Sign-in failed/);
-  assert.equal(batch.running, false);
-  assert.equal(batch.started, false);
-  assert.equal(batch.created.size, 0);
-});
-
-test("Graph creates separate private messages with identical content and PDFs", async t => {
-  const requests = [];
-  t.mock.method(globalThis, "fetch", async (url, options) => {
-    requests.push({ url, options, body: options.body ? JSON.parse(options.body) : null });
-    return new Response(url.endsWith("/messages") ? JSON.stringify({ id: `draft-${requests.length}`, webLink: "https://outlook.office.com/" }) : null,
-      { status: url.endsWith("/messages") ? 201 : 202 });
-  });
-  const prepared = { accessToken: "test", attachments: [{ name: "packet.pdf", buffer: new TextEncoder().encode("%PDF-1.4").buffer }] };
-  for (const recipient of ["a@example.com", "b@example.com"]) {
-    await createBulkOutlookDraft({ recipient, subject: "Welcome", body: "Signature", managerName: "Amanda Zuscar" }, prepared, {});
-  }
-  const messages = requests.filter(request => request.url.endsWith("/messages"));
-  assert.equal(messages.length, 2);
-  for (const [index, message] of messages.entries()) {
-    assert.deepEqual(message.body, { subject: "Welcome", body: { contentType: "Text", content: "Signature" },
-      toRecipients: [{ emailAddress: { address: ["a@example.com", "b@example.com"][index] } }] });
-  }
-  const attachments = requests.filter(request => request.url.endsWith("/attachments"));
-  assert.equal(attachments.length, 2);
-  assert.deepEqual(attachments[0].body, attachments[1].body);
-  assert.equal(requests.filter(request => request.url.endsWith("/send")).length, 0);
-});
-
-test("Graph rejects lists and invalid recipients before any request", async t => {
-  t.mock.method(globalThis, "fetch", () => assert.fail("must not make a Graph request"));
-  for (const recipient of ["bad", "a@example.com;b@example.com", "a@example.com,b@example.com"]) {
-    await assert.rejects(createBulkOutlookDraft({ recipient }, { accessToken: "test", attachments: [] }, {}), /Invalid/);
+test("blocked or throwing popup calls close reserved tabs before any draft is created", async () => {
+  for(const throws of [false,true]) {
+    const first=tab();let opened=0;
+    await assert.rejects(openBulkDrafts({text:"a@example.com b@example.com",content:{},
+      openWindow:()=>{if(++opened===1)return first;if(throws)throw Error();return null;},
+      authorize:()=>assert.fail("must not authenticate"),createDraft:()=>assert.fail("must not create drafts")}),/Allow pop-ups and redirects.*No drafts were created/);
+    assert.equal(first.closed,true);
   }
 });
 
-test("retry reuses the failed draft instead of creating a duplicate message", async t => {
-  const urls = [];
-  let fail = true;
-  t.mock.method(globalThis, "fetch", async url => {
-    urls.push(url);
-    if (url.endsWith("/messages")) return Response.json({ id: "draft-1" }, { status: 201 });
-    if (fail) return Response.json({ error: { message: "Try again" } }, { status: 429 });
-    return new Response(null, { status: 202 });
-  });
-  const content = { recipient: "a@example.com", subject: "Welcome", body: "Signature" };
-  const prepared = { accessToken: "test", attachments: [{name:"packet.pdf",buffer:new ArrayBuffer(1)}] }, delivery = {};
-  await assert.rejects(createBulkOutlookDraft(content, prepared, delivery), /Try again/);
-  fail = false;
-  await createBulkOutlookDraft(content, prepared, delivery);
-  assert.deepEqual(urls, ["https://graph.microsoft.com/v1.0/me/messages", "https://graph.microsoft.com/v1.0/me/messages/draft-1/attachments", "https://graph.microsoft.com/v1.0/me/messages/draft-1/attachments"]);
+test("sign-in and draft failures are reported without retries or stranded blank tabs", async () => {
+  const first=tab();
+  await assert.rejects(openBulkDrafts({text:"a@example.com",content:{},openWindow:()=>first,authorize:async()=>{throw Error();}}),/sign-in/);
+  assert.equal(first.closed,true);
+  const tabs=[];let calls=0;
+  await assert.rejects(openBulkDrafts({text:"a@example.com b@example.com",content:{},openWindow:()=>{const t=tab();tabs.push(t);return t;},authorize:async()=>{},
+    createDraft:async c=>{calls++;if(c.recipient.startsWith('b'))throw Error();return {webLink:'https://outlook.office.com/draft'};},composeUrl:d=>d.webLink}),/Check the opened tabs and Outlook Drafts/);
+  assert.equal(calls,2);assert.equal(tabs[0].closed,false);assert.equal(tabs[1].closed,true);
 });
 
-test("existing draft creation still creates only a draft for its single recipient", async t => {
-  const requests = [];
-  t.mock.method(globalThis, "fetch", async (url, options) => {
-    requests.push({ url, body: JSON.parse(options.body) });
-    return Response.json({ id: "single", webLink: "https://outlook.office.com/" }, { status: 201 });
+test("Single draft builder creates one-recipient messages with identical attachments and never sends", async t => {
+  const requests=[];
+  t.mock.method(globalThis,"fetch",async (url,options)=>{
+    requests.push({url,body:JSON.parse(options.body)});
+    assert.doesNotMatch(url,/\/send(?:Mail)?$/);
+    return Response.json({id:String(requests.length),webLink:"https://outlook.office.com/draft"},{status:201});
   });
-  await createOutlookDraft({ recipient: "single@example.com", subject: "Subject", body: "Body" }, { accessToken: "test", attachments: [] });
-  assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, "https://graph.microsoft.com/v1.0/me/messages");
-  assert.deepEqual(requests[0].body.toRecipients, [{ emailAddress: { address: "single@example.com" } }]);
+  const prepared={accessToken:"test",attachments:[{name:"packet.pdf",buffer:new TextEncoder().encode("%PDF-test").buffer}]};
+  const calls=[];
+  await openBulkDrafts({text:"a@example.com A@example.com b@example.com invalid",content:{subject:"Welcome",body:"Same body",managerName:"Amanda Zuscar"},
+    openWindow:()=>tab(),authorize:async()=>{},createDraft:c=>{calls.push(c);return createOutlookDraft(c,prepared);},composeUrl:d=>d.webLink});
+  const messages=requests.filter(r=>r.url.endsWith('/messages'));
+  assert.equal(messages.length,2);
+  messages.forEach((r,i)=>assert.deepEqual(r.body,{subject:"Welcome",body:{contentType:"Text",content:"Same body"},toRecipients:[{emailAddress:{address:calls[i].recipient}}]}));
+  const attachments=requests.filter(r=>r.url.endsWith('/attachments'));
+  assert.equal(attachments.length,2);assert.deepEqual(attachments[0].body,attachments[1].body);
+  requests.length=0;
+  await createOutlookDraft({recipient:"single@example.com",subject:"Subject",body:"Body"},{accessToken:"test",attachments:[]});
+  assert.equal(requests.length,1);assert.deepEqual(requests[0].body.toRecipients,[{emailAddress:{address:"single@example.com"}}]);
 });

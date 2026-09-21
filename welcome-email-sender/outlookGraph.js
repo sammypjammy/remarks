@@ -4,7 +4,6 @@ import {
   PublicClientApplication,
 } from "@azure/msal-browser";
 import { getManagerAttachments, outlookConfig } from "./outlookConfig.js";
-import { isValidBulkEmail } from "./bulkEmail.js";
 
 const GRAPH_SCOPES = ["Mail.ReadWrite"];
 const MAX_SIMPLE_ATTACHMENT_BYTES = 3_000_000;
@@ -251,51 +250,30 @@ async function addAttachment(draftId, attachment, accessToken) {
   }
 }
 
-export async function createOutlookDraft({ recipient, subject, body, managerName, language }, prepared, progress = {}) {
+export async function createOutlookDraft({ recipient, subject, body, managerName, language }, prepared) {
   const configuredAttachments = getManagerAttachments(managerName, language);
 
   const accessToken = prepared?.accessToken || await getGraphAccessToken();
   const attachments = prepared?.attachments || await Promise.all(configuredAttachments.map(loadAttachment));
-  if (!progress.draft) {
-    const response = await graphRequest(
-      "https://graph.microsoft.com/v1.0/me/messages",
-      accessToken,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject,
-          body: { contentType: "Text", content: body },
-          toRecipients: [{ emailAddress: { address: recipient } }],
-        }),
-      },
-    );
+  const response = await graphRequest(
+    "https://graph.microsoft.com/v1.0/me/messages",
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject,
+        body: { contentType: "Text", content: body },
+        toRecipients: [{ emailAddress: { address: recipient } }],
+      }),
+    },
+  );
 
-    progress.draft = await response.json();
-  }
-  const draft = progress.draft;
-  progress.attached ||= 0;
-  while (progress.attached < attachments.length) {
-    await addAttachment(draft.id, attachments[progress.attached], accessToken);
-    progress.attached++;
+  const draft = await response.json();
+  for (const attachment of attachments) {
+    await addAttachment(draft.id, attachment, accessToken);
   }
 
   if (!prepared && !draft.webLink) throw new Error("The draft was created, but Outlook did not return a link to open it.");
   return draft;
-}
-
-export async function createBulkOutlookDraft(content, prepared, progress) {
-  if (!isValidBulkEmail(content.recipient)) throw new Error("Invalid email recipient.");
-  return createOutlookDraft(content, prepared, progress);
-}
-
-export async function prepareOutlookBulkDrafts(content) {
-  await getGraphAccessToken();
-  const attachments = await Promise.all(getManagerAttachments(content.managerName, content.language).map(loadAttachment));
-  const drafts = new Map();
-  return async recipient => {
-    const accessToken = await getGraphAccessToken();
-    if (!drafts.has(recipient)) drafts.set(recipient, {});
-    return createBulkOutlookDraft({ ...content, recipient }, { accessToken, attachments }, drafts.get(recipient));
-  };
 }

@@ -35,41 +35,41 @@ export function parseBulkRecipients(text) {
   return { recipients, invalid, found, duplicates };
 }
 
-export class BulkEmailBatch {
-  constructor({ recipients, content, prepare, pause = ms => new Promise(resolve => setTimeout(resolve, ms)) }) {
-    this.recipients = parseBulkRecipients(recipients.join("\n")).recipients;
-    this.content = structuredClone(content);
-    this.prepare = prepare;
-    this.pause = pause;
-    this.created = new Map();
-    this.failed = [];
-    this.running = false;
-    this.started = false;
+// Reserve every tab before the first await, while the button click still has activation.
+export async function openBulkDrafts({ text, content, createDraft, composeUrl, authorize,
+  openWindow = () => window.open("about:blank", "_blank") }) {
+  const { recipients } = parseBulkRecipients(text);
+  if (!recipients.length) return 0;
+  const snapshot = structuredClone(content);
+  const tabs = recipients.map(() => {
+    try { return openWindow(); } catch { return null; }
+  });
+  if (tabs.some(tab => !tab)) {
+    tabs.forEach(tab => { try { tab?.close(); } catch {} });
+    throw new Error("Allow pop-ups and redirects for the Packard Toolkit site and try again. No drafts were created.");
   }
-
-  async run({ retry = false, onProgress = () => {} } = {}) {
-    if (this.running) return;
-    const queue = retry ? [...this.failed] : this.started ? [] : [...this.recipients];
-    if (!queue.length) return;
-    this.running = true;
+  for (const tab of tabs) {
+    try { tab.opener = null; } catch { /* Same handling as Single mode. */ }
+  }
+  try { await authorize(); }
+  catch {
+    tabs.forEach(tab => { try { tab.close(); } catch {} });
+    throw new Error("Microsoft sign-in could not finish. Allow pop-ups and redirects for the Packard Toolkit site, then try again.");
+  }
+  const results = await Promise.allSettled(recipients.map(async (recipient, index) => {
+    const tab = tabs[index];
     try {
-      // Load the exact PDFs once; retries retain these bytes and this content.
-      this.createDraft ||= await this.prepare(this.content);
-      this.started = true;
-      this.failed = [];
-      for (const [index, recipient] of queue.entries()) {
-        onProgress({ current: index + 1, total: queue.length });
-        try {
-          const draft = await this.createDraft(recipient);
-          this.created.set(recipient, draft);
-        } catch (error) {
-          console.error("Outlook bulk email failed:", error);
-          this.failed.push(recipient);
-        }
-        if (index < queue.length - 1) await this.pause(500);
-      }
-    } finally {
-      this.running = false;
+      if (tab.closed) throw new Error("Draft tab was closed.");
+      const draft = await createDraft({ ...snapshot, recipient });
+      if (tab.closed) throw new Error("Draft tab was closed.");
+      tab.location.href = composeUrl(draft);
+    } catch (error) {
+      try { tab.close(); } catch {}
+      throw error;
     }
+  }));
+  if (results.some(result => result.status === "rejected")) {
+    throw new Error("Some Outlook drafts could not be opened. Check the opened tabs and Outlook Drafts for any saved or incomplete drafts before trying again. Nothing was sent.");
   }
+  return recipients.length;
 }

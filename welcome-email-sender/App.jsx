@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
-import { createOutlookDraft, getOutlookErrorMessage, prepareOutlookBulkDrafts } from "./outlookGraph.js";
-import { BulkEmailBatch, parseBulkRecipients } from "./bulkEmail.js";
+import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
+import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
@@ -140,16 +140,11 @@ export default function App() {
   const [mode, setMode] = useState("single");
   const [bulkText, setBulkText] = useState("");
   const [isBulkCreating, setIsBulkCreating] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState(null);
-  const [bulkResult, setBulkResult] = useState(null);
   const [bulkError, setBulkError] = useState("");
-  const [confirmation, setConfirmation] = useState(null);
-  const bulkBatchRef = useRef(null);
   const bulkBusyRef = useRef(false);
-  const confirmationRef = useRef(null);
   const bulkRecipients = useMemo(() => parseBulkRecipients(bulkText), [bulkText]);
   const isBulk = mode === "bulk";
-  const batchLocked = isBulkCreating || Boolean(confirmation);
+  const batchLocked = isBulkCreating;
   const [selectedManager, setSelectedManager] = useState(getSavedManager);
   const [errors, setErrors] = useState({});
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -191,10 +186,6 @@ export default function App() {
   );
   const hasRequiredFields = Boolean((isBulk ? bulkRecipients.recipients.length : clientEmail.trim()) && selectedManager);
 
-  useEffect(() => {
-    if (confirmation) confirmationRef.current?.showModal();
-    else confirmationRef.current?.close();
-  }, [confirmation]);
 
   useEffect(() => {
     if (!isBulkCreating) return;
@@ -325,50 +316,32 @@ export default function App() {
     if (focus) requestAnimationFrame(() => emailInputRef.current?.focus());
   }
 
-  function requestBulkDrafts(retry = false) {
-    if (bulkBusyRef.current || draftRequestInProgressRef.current || confirmation) return;
-    if (retry) {
-      if (bulkBatchRef.current?.failed.length) setConfirmation({ retry: true, count: bulkBatchRef.current.failed.length });
-      return;
-    }
-    if (!bulkRecipients.recipients.length || !selectedManager || !isOutlookGraphConfigured) return;
+  async function handleBulkDrafts() {
+    if (bulkBusyRef.current || draftRequestInProgressRef.current || !bulkRecipients.recipients.length || !selectedManager || !isOutlookGraphConfigured) return;
     if (!emailSignature) { setIsSignaturePromptOpen(true); return; }
-    const batch = new BulkEmailBatch({
-      recipients: bulkRecipients.recipients,
-      content: { subject: emailSubject, body: emailBody, managerName: selectedManager, language },
-      prepare: prepareOutlookBulkDrafts,
-    });
-    setConfirmation({ retry: false, count: batch.recipients.length, batch });
-  }
-
-  async function startBulkDrafts() {
-    if (bulkBusyRef.current || !confirmation) return;
-    const batch = confirmation.retry ? bulkBatchRef.current : confirmation.batch;
-    const retry = confirmation.retry;
     bulkBusyRef.current = true;
-    bulkBatchRef.current = batch;
-    setConfirmation(null);
     setIsBulkCreating(true);
-    setBulkProgress(null);
     setBulkError("");
-    setBulkResult(null);
+    setCopyStatus("");
     try {
-      await batch.run({ retry, onProgress: setBulkProgress });
-      setBulkResult({ created: [...batch.created], failed: [...batch.failed] });
+      const count = await openBulkDrafts({
+        text: bulkText,
+        content: { subject: emailSubject, body: emailBody, managerName: selectedManager, language },
+        createDraft: createOutlookDraft, composeUrl: getOutlookComposeUrl, authorize: getGraphAccessToken,
+      });
+      setCopyStatus(`Opened ${count} Outlook draft${count === 1 ? "" : "s"}. Review and send each draft in Outlook.`);
     } catch (error) {
-      console.error("Outlook bulk setup failed:", error);
-      setBulkError("Draft creation could not start. Check Microsoft sign-in and PDF availability, then try again.");
+      setBulkError(error.message);
     } finally {
       bulkBusyRef.current = false;
       setIsBulkCreating(false);
-      setBulkProgress(null);
     }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     if (bulkBusyRef.current) return;
-    if (isBulk) { requestBulkDrafts(); return; }
+    if (isBulk) { handleBulkDrafts(); return; }
     if (!validate()) return;
 
     if (!emailSignature) {
@@ -477,9 +450,7 @@ export default function App() {
 
   function handleClear() {
     setBulkText("");
-    setBulkResult(null);
     setBulkError("");
-    bulkBatchRef.current = null;
     resetSenderForm({ focus: true, clearStatus: true });
   }
 
@@ -680,7 +651,7 @@ export default function App() {
 
           <div className="actions">
             <button className="primary-button" type="submit" disabled={!hasRequiredFields || isCreatingDraft || (isBulk && !isOutlookGraphConfigured)}>
-              <span>{isBulk ? (isBulkCreating ? (bulkProgress ? `Creating draft ${bulkProgress.current} of ${bulkProgress.total}…` : "Preparing batch…") : `Create ${bulkRecipients.recipients.length} Outlook Drafts`) : isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft"}</span>
+              <span>{isBulk ? `Open ${bulkRecipients.recipients.length} Draft${bulkRecipients.recipients.length === 1 ? "" : "s"}` : isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft"}</span>
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M7.5 4.5h8v8M15 5 8.25 11.75M15 10.5v4a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" />
               </svg>
@@ -692,7 +663,7 @@ export default function App() {
 
           <p className="privacy-note">
             {isBulk ? (isOutlookGraphConfigured
-              ? `Each recipient gets a separate Outlook draft with ${managerAttachments.length} PDF attachment${managerAttachments.length === 1 ? "" : "s"}. Review and send each draft yourself in Outlook.`
+              ? `Each recipient opens in a separate Outlook tab with ${managerAttachments.length} PDF attachment${managerAttachments.length === 1 ? "" : "s"}. Review and send each draft yourself in Outlook.`
               : "Bulk draft creation requires Microsoft Outlook integration to be configured.") : isOutlookGraphConfigured
               ? !selectedManager
                 ? `Choose a case manager to use the ${language === "spanish" ? "Spanish" : "English"} welcome packet.`
@@ -702,22 +673,7 @@ export default function App() {
               : "Outlook attachment setup is pending. Until configured, the email body is copied for you to paste."}
           </p>
           </fieldset>
-          {isBulk && <section className="bulk-results" aria-label="Bulk draft results" aria-live="polite" aria-atomic="true">
-            {isBulkCreating && <p role="status">{bulkProgress ? `Creating draft ${bulkProgress.current} of ${bulkProgress.total}…` : "Preparing batch and Microsoft sign-in…"} Keep this page open.</p>}
-            {bulkError && <p role="alert" className="field-error">{bulkError}</p>}
-            {bulkResult && <>
-              <p><strong>{bulkResult.created.length} drafts created{bulkResult.failed.length > 0 && ` · ${bulkResult.failed.length} failed`}</strong></p>
-              <ul>{bulkResult.created.map(([recipient, draft]) => <li key={recipient}>{draft?.webLink ? <a href={draft.webLink} target="_blank" rel="noopener noreferrer">Open draft for {recipient}</a> : `${recipient} - available in Outlook Drafts`}</li>)}</ul>
-              <p className="bulk-summary">Review each draft in Outlook and click Send when ready. Nothing has been sent.</p>
-              {bulkResult.failed.length > 0 && <>
-                <details className="bulk-details" open><summary>Failed recipients</summary>
-                  <ul>{bulkResult.failed.map(recipient => <li key={recipient}>{recipient}</li>)}</ul>
-                </details>
-                <button className="clear-button" type="button" disabled={batchLocked} onClick={() => requestBulkDrafts(true)}>Retry Failed</button>
-                <p className="bulk-summary">Retries use the original batch content and PDFs.</p>
-              </>}
-            </>}
-          </section>}
+          {isBulk && bulkError && <p className="field-error" role="alert">{bulkError}</p>}
           </form>
           <aside className="email-history-card" aria-labelledby="email-history-title">
             <div className="email-history-header">
@@ -755,13 +711,16 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.14.0</a>
+          <details id="email-version-history" className="email-version-history">
+            <summary>Email Sender v2.6.0</summary>
+            <p><strong>v2.6.0</strong> - Bulk Outlook Drafts opens one individual Outlook tab per valid unique recipient, preserving manual review and sending.</p>
+          </details>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Built by Sam Jensen</span>
           <span className="app-footer-links">
-            <a className="app-footer-link" href="/version-history/">Version history</a>
+            <a className="app-footer-link" href="#email-version-history" onClick={() => { document.getElementById("email-version-history").open = true; }}>Version history</a>
             <a className="app-footer-link" href="/settings/">Settings</a>
           </span>
         </div>
@@ -774,16 +733,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      <dialog ref={confirmationRef} className="settings-modal bulk-confirmation" onCancel={() => setConfirmation(null)}
-        aria-labelledby="bulk-confirm-title" aria-describedby="bulk-confirm-description">
-        <h2 id="bulk-confirm-title">Create {confirmation?.count} separate drafts?</h2>
-        <p id="bulk-confirm-description">Each draft will contain one recipient. You review and send it in Outlook. No other recipient addresses will be included.{confirmation?.retry ? " Only failed recipients will be retried, using the original batch content and PDFs." : ""}</p>
-        <div className="actions">
-          <button type="button" className="clear-button" autoFocus onClick={() => setConfirmation(null)}>Cancel</button>
-          <button type="button" className="primary-button" onClick={startBulkDrafts}>Create {confirmation?.count} Drafts</button>
-        </div>
-      </dialog>
 
       {isSignaturePromptOpen && (
         <div className="settings-modal-backdrop" onMouseDown={(event) => {
