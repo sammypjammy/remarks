@@ -25,6 +25,8 @@ function getToolkitNavigation(isSettingsPage) {
       { id: "med-tabs", label: "Med Tabs", href: "/med-tabs-generator/" },
       { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
       { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
+      { id: "fax", label: "Fax Sender", href: "/fax-sender/" },
+      { id: "intake", label: "Intake Checker", href: "/intake-checker/" },
     ],
   },
   {

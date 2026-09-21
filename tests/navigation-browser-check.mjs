@@ -118,8 +118,9 @@ try {
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
-      assert.equal(links.length, ["/version-history/", "/fax-sender/", "/intake-checker/"].includes(page) ? 5 : 4, `Released tools linked from ${page}`);
-      assert(await evaluate(`![...document.querySelectorAll('a[href]')].some(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)) && !/Fax Sender|Intake Checker/.test(document.querySelector('.toolkit-navigation').textContent)`), `No unreleased tool entry points on ${page}`);
+      const expectedLinks = page === "/version-history/" ? 7 : 6;
+      assert.equal(links.length, expectedLinks, `Toolkit links on ${page}`);
+      assert(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)).length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(item => /Fax Sender|Intake Checker/.test(item.textContent)).length) === 2`), `Fax Sender and Intake Checker appear once on ${page}`);
       for (const link of links) {
         await visit(page);
         await evaluate(`document.querySelector('.app-menu-toggle').click()`);

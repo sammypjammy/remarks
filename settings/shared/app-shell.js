@@ -5,6 +5,8 @@ const routes = {
   remarks: `${routePrefix}canned-remarks/`,
   medTabs: `${routePrefix}med-tabs-generator/`,
   email: `${routePrefix}welcome-email-sender/`,
+  fax: `${routePrefix}fax-sender/`,
+  intake: `${routePrefix}intake-checker/`,
   settings: `${routePrefix}settings/`,
   versionHistory: `${routePrefix}version-history/`
 };
@@ -78,7 +80,9 @@ const toolkitNavigationConfig = [
       { id: "home", label: "Home", url: routes.home },
       { id: "med-tabs", label: "Med Tabs", url: routes.medTabs },
       { id: "remarks", label: "Canned Remarks", url: routes.remarks },
-      { id: "email", label: "Welcome Emails", url: routes.email }
+      { id: "email", label: "Welcome Emails", url: routes.email },
+      { id: "fax", label: "Fax Sender", url: routes.fax },
+      { id: "intake", label: "Intake Checker", url: routes.intake }
     ]
   },
   {

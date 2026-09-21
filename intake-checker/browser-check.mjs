@@ -7,7 +7,7 @@ import { intakeRules } from "./rules.js";
 // Reuse the Toolkit's production-build Chromium navigation harness.
 export async function checkIntake({ visit, click, evaluate, width, capture }) {
   await visit("/");
-  assert(await evaluate("![...document.querySelectorAll('a[href]')].some(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname))"), "Home must not expose unreleased tools");
+  assert(await evaluate("[...document.querySelectorAll('.tool-card[href]')].map(a => new URL(a.href).pathname).includes('/fax-sender/') && [...document.querySelectorAll('.tool-card[href]')].map(a => new URL(a.href).pathname).includes('/intake-checker/')"), "Home exposes Fax Sender and Intake Checker");
   await visit("/intake-checker/");
   assert(await evaluate(`(() => {
     const left = document.querySelector('.intake-input').getBoundingClientRect();
