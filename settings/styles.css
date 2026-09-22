@@ -15,14 +15,15 @@
 .version-history-entries .settings-card { border-radius: 14px; box-shadow: none; }
 .version-history-empty { padding: 14px 10px; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
 .settings-card-header { position: relative; padding: 26px 28px 18px; }
-.settings-card-header h2 { margin-top: 5px; color: var(--text); font-size: 1.25rem; letter-spacing: -0.015em; }
+.version-history-card .settings-card-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.settings-card-header h2 { margin-top: 5px; color: var(--text); font-size: 1.45rem; letter-spacing: -0.015em; }
 .settings-card-header > p:last-child { margin-top: 6px; color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
 .settings-eyebrow { color: var(--accent); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; }
 .settings-section-link { position: absolute; top: 22px; right: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 9px; color: var(--accent); font-size: 0.76rem; font-weight: 750; text-decoration: none; }
 .settings-section-link:hover { background: var(--accent-soft); color: var(--accent-strong); }
 .settings-section-link span { font-size: 0.95rem; line-height: 1; transition: transform 160ms ease; }
 .settings-section-link:hover span { transform: translateX(2px); }
-.settings-history-button { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; text-decoration: none; }
+.settings-history-button { display: inline-flex; align-items: center; gap: 7px; margin-top: 0; text-decoration: none; }
 .settings-history-button span { font-size: 1rem; line-height: 1; transition: transform 160ms ease; }
 .settings-history-button:hover span { transform: translateX(2px); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 20px 28px 26px; }
@@ -72,6 +73,8 @@
 .signature-form .save-status { flex: 0 1 auto; }
 .settings-form input { min-height: 46px; }
 .settings-form textarea:focus, .settings-form input:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
+.email-settings-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: center; column-gap: 28px; }
+.email-settings-form .settings-form-actions { grid-column: 1 / -1; }
 .resource-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
 .configuration-state { padding: 6px 9px; border-radius: 999px; background: var(--surface-inset); color: var(--muted); font-size: 0.7rem; font-weight: 750; white-space: nowrap; }
 .configuration-state.configured { background: var(--accent-soft); color: var(--accent); }
@@ -122,8 +125,10 @@
 @media (max-width: 720px) {
   .settings-stack { grid-template-columns: 1fr; }
   .settings-card-wide { grid-column: auto; }
+  .version-history-card .settings-card-header { align-items: flex-start; flex-direction: column; gap: 14px; }
   .setting-row { align-items: flex-start; flex-direction: column; gap: 16px; }
-  .signature-form, .custom-remark-layout { grid-template-columns: 1fr; gap: 14px; }
+  .signature-form, .custom-remark-layout, .email-settings-form { grid-template-columns: 1fr; gap: 14px; }
+  .email-settings-form .settings-form-actions { grid-column: auto; }
   .settings-form-side { gap: 12px; }
   .setting-choice-group { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
   .settings-select { width: 100%; }
