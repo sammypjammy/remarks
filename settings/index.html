@@ -84,7 +84,7 @@
           </div>
         </section>
 
-        <section class="settings-card settings-card-wide" aria-labelledby="emailSettingsTitle">
+        <section class="settings-card" aria-labelledby="emailSettingsTitle">
           <div class="settings-card-header">
             <p class="settings-eyebrow">Tool</p>
             <a class="settings-section-link" href="../welcome-email-sender/">Open Email Sender <span aria-hidden="true">&rarr;</span></a>
@@ -102,7 +102,7 @@
 
           <div class="settings-divider"></div>
 
-          <form id="signatureForm" class="settings-form signature-form email-settings-form" data-settings-anchor="email-signature">
+          <form id="signatureForm" class="settings-form signature-form" data-settings-anchor="email-signature">
             <span id="email-signature" class="settings-anchor" aria-hidden="true"></span>
             <div class="settings-form-side">
             <div class="setting-copy">
@@ -117,22 +117,17 @@
             <textarea id="emailSignature" rows="3" placeholder="Your name&#10;Your position&#10;Your phone number" spellcheck="true"></textarea>
           </form>
 
-          <div class="settings-divider"></div>
+        </section>
 
-          <form id="resourcesForm" class="settings-form email-settings-form">
-            <div class="setting-copy">
-              <label for="emailResourcesUrl">Email Resources</label>
-              <p>Optional future folder link for shared email templates and welcome packets.</p>
+        <section class="settings-card settings-card-compact version-history-card" aria-labelledby="versionHistoryTitle">
+          <div class="settings-card-header">
+            <div>
+              <p class="settings-eyebrow">Toolkit</p>
+              <h2 id="versionHistoryTitle">Version History</h2>
+              <p>View release notes and updates across the Packard Toolkit.</p>
             </div>
-            <div class="resource-input-row">
-              <input id="emailResourcesUrl" type="url" inputmode="url" placeholder="Not configured" autocomplete="url" />
-              <span id="resourcesState" class="configuration-state">Not configured</span>
-            </div>
-            <div class="settings-form-actions">
-              <span id="resourcesStatus" class="save-status" role="status" aria-live="polite"></span>
-              <button class="settings-save-button" type="submit">Save link</button>
-            </div>
-          </form>
+            <a class="settings-save-button settings-history-button" href="../version-history/">View Version History <span aria-hidden="true">&rarr;</span></a>
+          </div>
         </section>
 
         <section class="settings-card" aria-labelledby="medTabsSettingsTitle">
@@ -167,16 +162,6 @@
           <div id="customRemarkList" class="custom-remark-list" aria-label="Saved custom remarks" aria-live="polite" hidden></div>
         </section>
 
-        <section class="settings-card settings-card-compact settings-card-wide version-history-card" aria-labelledby="versionHistoryTitle">
-          <div class="settings-card-header">
-            <div>
-              <p class="settings-eyebrow">Toolkit</p>
-              <h2 id="versionHistoryTitle">Version History</h2>
-              <p>View release notes and updates across the Packard Toolkit.</p>
-            </div>
-            <a class="settings-save-button settings-history-button" href="../version-history/">View Version History <span aria-hidden="true">&rarr;</span></a>
-          </div>
-        </section>
       </div>
     </main>
 

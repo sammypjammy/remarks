@@ -64,7 +64,7 @@
 .settings-form { display: grid; gap: 14px; padding: 22px 28px 26px; }
 .settings-form textarea, .settings-form input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; outline: none; background: var(--surface-inset); color: var(--text); font: inherit; line-height: 1.5; }
 .settings-form textarea { min-height: 140px; resize: vertical; }
-.signature-form { position: relative; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr); align-items: stretch; gap: 24px; padding-top: 14px; padding-bottom: 16px; }
+.signature-form { position: relative; grid-template-columns: 1fr; gap: 14px; padding-top: 14px; padding-bottom: 16px; }
 .settings-anchor { position: absolute; top: 0; left: 0; }
 .settings-form-side { display: flex; align-items: flex-start; justify-content: space-between; flex-direction: column; gap: 14px; min-width: 0; }
 .signature-form textarea { min-height: 96px; height: 100%; }
@@ -73,11 +73,6 @@
 .signature-form .save-status { flex: 0 1 auto; }
 .settings-form input { min-height: 46px; }
 .settings-form textarea:focus, .settings-form input:focus { border-color: var(--accent); background: var(--panel); box-shadow: 0 0 0 3px var(--focus-ring); }
-.email-settings-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); align-items: center; column-gap: 28px; }
-.email-settings-form .settings-form-actions { grid-column: 1 / -1; }
-.resource-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.configuration-state { padding: 6px 9px; border-radius: 999px; background: var(--surface-inset); color: var(--muted); font-size: 0.7rem; font-weight: 750; white-space: nowrap; }
-.configuration-state.configured { background: var(--accent-soft); color: var(--accent); }
 .settings-form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .save-status { flex: 1; color: var(--muted); font-size: 0.78rem; }
 .save-status.error { color: #bd3444; }
@@ -124,11 +119,10 @@
 
 @media (max-width: 720px) {
   .settings-stack { grid-template-columns: 1fr; }
-  .settings-card-wide { grid-column: auto; }
+  .settings-card-wide { grid-column: 1 / -1; }
   .version-history-card .settings-card-header { align-items: flex-start; flex-direction: column; gap: 14px; }
   .setting-row { align-items: flex-start; flex-direction: column; gap: 16px; }
-  .signature-form, .custom-remark-layout, .email-settings-form { grid-template-columns: 1fr; gap: 14px; }
-  .email-settings-form .settings-form-actions { grid-column: auto; }
+  .signature-form, .custom-remark-layout { grid-template-columns: 1fr; gap: 14px; }
   .settings-form-side { gap: 12px; }
   .setting-choice-group { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(3, 1fr); }
   .settings-select { width: 100%; }
@@ -144,8 +138,6 @@
   .settings-section-link { right: 20px; }
   .settings-divider { margin-inline: 20px; }
   .custom-remark-list { margin-inline: 20px; }
-  .resource-input-row { grid-template-columns: 1fr; }
-  .configuration-state { justify-self: start; }
   .settings-form-actions { align-items: stretch; flex-direction: column; }
   .settings-save-button { width: 100%; }
   .custom-remark-modal-actions { flex-direction: column-reverse; }
