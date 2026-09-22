@@ -180,7 +180,15 @@ try {
     await evaluate("document.getElementById('resetHomepage').click()");
     assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage reset restores visibility");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('main article').length"), 24, "Current release plus all recorded historical releases");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 0, "History sections start collapsed");
+    await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section expands");
+    await evaluate("document.querySelector('[data-history-tool=\\\"fax-sender\\\"] > summary').click()");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
+    await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 25, "All historical entries preserved");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });

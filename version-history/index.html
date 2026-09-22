@@ -17,107 +17,145 @@
         <h1 id="pageTitle">Version History</h1>
         <p class="subtitle">Recorded updates to the Packard Toolkit. Earlier entries retain their original tool versions and recorded dates.</p>
       </section>
-      <div class="settings-stack">
-        <article id="home-page-v1-1-0" class="settings-card"><div class="settings-card-header">
-          <h2>Home Page v1.1.0 &mdash; September 21, 2026</h2>
-          <p>Added an independent homepage greeting name and compact arrow reorder controls.</p>
-        </div></article>
-        <article id="intake-checker-v1-4-0" class="settings-card"><div class="settings-card-header">
-          <h2>Intake Checker v1.4.0 &mdash; September 21, 2026</h2>
-          <p>Refined intake validation for medical providers, work history, marriage, children, education, and grouped missing sections.</p>
-        </div></article>
-        <article id="fax-sender-v2-16-0" class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v2.16.0 &mdash; September 21, 2026</h2>
-          <p>Expanded persistent Fax History to 20 entries, separated batch reset from history, and compacted the fax setup controls.</p>
-        </div></article>
-        <article id="fax-sender-v2-15-0" class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v2.15.0 &mdash; September 21, 2026</h2>
-          <p>Added optional comments to RingCentral Classic fax cover sheets.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.14.0 &mdash; September 18, 2026</h2>
-          <p>Added default-on RingCentral Classic cover sheets with a per-batch option to send without a cover sheet.</p>
-          <p>Added separate per-recipient Outlook drafts with recipient parsing and deduplication, progress tracking, failure handling, and retries using the original batch content and attachments. Both modes retain manual review and sending in Outlook.</p>
-          <p>September 21, 2026: Changed Bulk mode to create drafts for manual sending, removed automatic sending and its Mail.Send permission request. Restored the v2.14.0 package and footer versions after the bulk-email update inadvertently reverted them to v2.13.0. Fax cover-sheet and history functionality remain included.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.13.0 &mdash; September 18, 2026</h2>
-          <p>Redesigned Fax History with expandable status entries, persistent last-four identification, and receipt re-downloads.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.12.1 &mdash; September 17, 2026</h2>
-          <p>Improved PDF selection feedback, aligned Fax Destination and SSN last four responsively, and made Clear All remove visible and saved Fax History.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.12.0 &mdash; September 17, 2026</h2>
-          <p>Added batch Fax Receipt downloads with a ZIP fallback, quick saving of manual fax destinations to RingCentral Contacts, and persistent history for the 10 newest fax attempts without storing SSN last four or PDFs. Removed the cover-page wording.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.11.2 &mdash; September 17, 2026</h2>
-          <p>Made Fax Receipt downloads more accessible, required SSN last four before sending, and refined Fax History spacing.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.11.1 &mdash; September 17, 2026</h2>
-          <p>Updated Fax Receipt naming using the original fax document name and client SSN last four.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.11.0 &mdash; September 17, 2026</h2>
-          <p>Added server-verified RingCentral transmission details and secure download support for the available fax document on successfully sent faxes; RingCentral does not expose a separate receipt document.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.10.1 &mdash; September 17, 2026</h2>
-          <p>Refined Intake Checker Review layout, compacted intake input, and added dismissible Reviewed actions to validation issues.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.10.0 &mdash; September 17, 2026</h2>
-          <p>Added Intake Review with copyable client details, review flags, failed-work-attempt detection, and dismissible review items; refined Intake Checker layout/report separation.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.9.2 &mdash; September 17, 2026</h2>
-          <p>Added a two-column Intake Checker workspace and source-aware Find in Intake actions; removed the debug UI. Temporarily removed Intake Checker and Fax Sender from navigation while preserving direct URLs. Validation rules are unchanged.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.9.1 &mdash; September 16, 2026</h2>
-          <p>Added plain-text DeLorean clipboard parsing alongside Markdown support and prevented validation after a zero-section parsing failure.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.9.0 &mdash; September 16, 2026</h2>
-          <p>Added deterministic V1 intake validation with required-field and conditional checks, an explainable report, and the existing parsed-structure debug view.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.8.0 &mdash; September 16, 2026</h2>
-          <p>Added Intake Checker to parse pasted DeLorean intake text locally, with a summary and structured debug view. Intake validation rules are not yet included.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Packard Toolkit v2.7.0 &mdash; September 15, 2026</h2>
-          <p>Added recent Fax History to the Fax Sender and improved the circular-arrow icon and related UI.</p>
-        </div></article>
-        <article class="settings-card">
-          <div class="settings-card-header">
-            <h2>Packard Toolkit v2.6.0 &mdash; September 15, 2026</h2>
-            <p>Added centralized Version History with access from Settings and page footers. Moved Fax Sender history off the main fax interface. Fixed Email Sender &rarr; Fax Sender navigation and verified navigation links across the Toolkit.</p>
+      <div class="version-history-sections">
+        <details class="version-history-section" data-history-tool="home-page">
+          <summary><span>Home Page</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <article id="home-page-v1-1-0" class="settings-card"><div class="settings-card-header">
+              <h2>Home Page v1.1.0 &mdash; September 21, 2026</h2>
+              <p>Added an independent homepage greeting name and compact arrow reorder controls.</p>
+            </div></article>
           </div>
-        </article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v2.5.2 — September 15, 2026</h2>
-          <p>Streamlined document and fax-status UI, removing redundant pre-send counters and destination text while making document cards the primary status display.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v.2.5 — September 15, 2026</h2>
-          <p>Combined contact search and manual fax entry into one compact destination control with an overlay dropdown, readable numbers, selected-state clearing, and icon refresh. Batch destination locking and fax processing are unchanged.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v.2.4 — September 15, 2026</h2>
-          <p>Added a searchable RingCentral personal-contact fax destination picker with separate fax choices, manual entry fallback, and existing batch destination locking.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v.2.3 — September 15, 2026</h2>
-          <p>Updated fax labels to Processing, Submitted, and Sent; clarified status-checking copy and removed the duplicate completion summary. Sending, polling, and retry safety are unchanged.</p>
-        </div></article>
-        <article class="settings-card"><div class="settings-card-header">
-          <h2>Fax Sender v.2.2 — September 15, 2026</h2>
-          <p>Fixed the browser timer binding error that prevented automatic fax status tracking. Improved safe status lookup errors and added browser regression coverage. Fax submission behavior is unchanged.</p>
-        </div></article>
+        </details>
+
+        <details class="version-history-section" data-history-tool="med-tabs">
+          <summary><span>Med Tabs</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <p class="version-history-empty">No separate Med Tabs release entries are recorded yet.</p>
+          </div>
+        </details>
+
+        <details class="version-history-section" data-history-tool="canned-remarks">
+          <summary><span>Canned Remarks</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <p class="version-history-empty">No separate Canned Remarks release entries are recorded yet.</p>
+          </div>
+        </details>
+
+        <details class="version-history-section" data-history-tool="welcome-emails">
+          <summary><span>Welcome Emails</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.14.0 &mdash; September 18, 2026</h2>
+              <p>Added separate per-recipient Outlook drafts with recipient parsing and deduplication, progress tracking, failure handling, and retries using the original batch content and attachments. Both modes retain manual review and sending in Outlook.</p>
+              <p>September 21, 2026: Changed Bulk mode to create drafts for manual sending, removed automatic sending and its Mail.Send permission request. Restored the v2.14.0 package and footer versions after the bulk-email update inadvertently reverted them to v2.13.0. Fax cover-sheet and history functionality remain included.</p>
+            </div></article>
+          </div>
+        </details>
+
+        <details class="version-history-section" data-history-tool="fax-sender">
+          <summary><span>Fax Sender</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <article id="fax-sender-v2-16-0" class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v2.16.0 &mdash; September 21, 2026</h2>
+              <p>Expanded persistent Fax History to 20 entries, separated batch reset from history, and compacted the fax setup controls.</p>
+            </div></article>
+            <article id="fax-sender-v2-15-0" class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v2.15.0 &mdash; September 21, 2026</h2>
+              <p>Added optional comments to RingCentral Classic fax cover sheets.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.14.0 &mdash; September 18, 2026</h2>
+              <p>Added default-on RingCentral Classic cover sheets with a per-batch option to send without a cover sheet.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.13.0 &mdash; September 18, 2026</h2>
+              <p>Redesigned Fax History with expandable status entries, persistent last-four identification, and receipt re-downloads.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.12.1 &mdash; September 17, 2026</h2>
+              <p>Improved PDF selection feedback, aligned Fax Destination and SSN last four responsively, and made Clear All remove visible and saved Fax History.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.12.0 &mdash; September 17, 2026</h2>
+              <p>Added batch Fax Receipt downloads with a ZIP fallback, quick saving of manual fax destinations to RingCentral Contacts, and persistent history for the 10 newest fax attempts without storing SSN last four or PDFs. Removed the cover-page wording.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.11.2 &mdash; September 17, 2026</h2>
+              <p>Made Fax Receipt downloads more accessible, required SSN last four before sending, and refined Fax History spacing.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.11.1 &mdash; September 17, 2026</h2>
+              <p>Updated Fax Receipt naming using the original fax document name and client SSN last four.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.11.0 &mdash; September 17, 2026</h2>
+              <p>Added server-verified RingCentral transmission details and secure download support for the available fax document on successfully sent faxes; RingCentral does not expose a separate receipt document.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.7.0 &mdash; September 15, 2026</h2>
+              <p>Added recent Fax History to the Fax Sender and improved the circular-arrow icon and related UI.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.6.0 &mdash; September 15, 2026</h2>
+              <p>Added centralized Version History with access from Settings and page footers. Moved Fax Sender history off the main fax interface. Fixed Email Sender &rarr; Fax Sender navigation and verified navigation links across the Toolkit.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v2.5.2 &mdash; September 15, 2026</h2>
+              <p>Streamlined document and fax-status UI, removing redundant pre-send counters and destination text while making document cards the primary status display.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v.2.5 &mdash; September 15, 2026</h2>
+              <p>Combined contact search and manual fax entry into one compact destination control with an overlay dropdown, readable numbers, selected-state clearing, and icon refresh. Batch destination locking and fax processing are unchanged.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v.2.4 &mdash; September 15, 2026</h2>
+              <p>Added a searchable RingCentral personal-contact fax destination picker with separate fax choices, manual entry fallback, and existing batch destination locking.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v.2.3 &mdash; September 15, 2026</h2>
+              <p>Updated fax labels to Processing, Submitted, and Sent; clarified status-checking copy and removed the duplicate completion summary. Sending, polling, and retry safety are unchanged.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v.2.2 &mdash; September 15, 2026</h2>
+              <p>Fixed the browser timer binding error that prevented automatic fax status tracking. Improved safe status lookup errors and added browser regression coverage. Fax submission behavior is unchanged.</p>
+            </div></article>
+          </div>
+        </details>
+
+        <details class="version-history-section" data-history-tool="intake-checker">
+          <summary><span>Intake Checker</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <article id="intake-checker-v1-4-0" class="settings-card"><div class="settings-card-header">
+              <h2>Intake Checker v1.4.0 &mdash; September 21, 2026</h2>
+              <p>Refined intake validation for medical providers, work history, marriage, children, education, and grouped missing sections.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.10.1 &mdash; September 17, 2026</h2>
+              <p>Refined Intake Checker Review layout, compacted intake input, and added dismissible Reviewed actions to validation issues.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.10.0 &mdash; September 17, 2026</h2>
+              <p>Added Intake Review with copyable client details, review flags, failed-work-attempt detection, and dismissible review items; refined Intake Checker layout/report separation.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.9.2 &mdash; September 17, 2026</h2>
+              <p>Added a two-column Intake Checker workspace and source-aware Find in Intake actions; removed the debug UI. Temporarily removed Intake Checker and Fax Sender from navigation while preserving direct URLs. Validation rules are unchanged.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.9.1 &mdash; September 16, 2026</h2>
+              <p>Added plain-text DeLorean clipboard parsing alongside Markdown support and prevented validation after a zero-section parsing failure.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.9.0 &mdash; September 16, 2026</h2>
+              <p>Added deterministic V1 intake validation with required-field and conditional checks, an explainable report, and the existing parsed-structure debug view.</p>
+            </div></article>
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.8.0 &mdash; September 16, 2026</h2>
+              <p>Added Intake Checker to parse pasted DeLorean intake text locally, with a summary and structured debug view. Intake validation rules are not yet included.</p>
+            </div></article>
+          </div>
+        </details>
       </div>
     </main>
     <div data-app-footer></div>
