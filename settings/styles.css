@@ -1,5 +1,6 @@
 .settings-page { max-width: 1040px; }
-.settings-stack { display: grid; gap: 18px; }
+.settings-stack { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.settings-card-wide { grid-column: 1 / -1; }
 .settings-card { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 21px; background: var(--panel); box-shadow: var(--shadow); }
 .version-history-sections { display: grid; gap: 12px; }
 .version-history-section { overflow: hidden; border: 1px solid var(--border-subtle); border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); }
@@ -21,6 +22,9 @@
 .settings-section-link:hover { background: var(--accent-soft); color: var(--accent-strong); }
 .settings-section-link span { font-size: 0.95rem; line-height: 1; transition: transform 160ms ease; }
 .settings-section-link:hover span { transform: translateX(2px); }
+.settings-history-button { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; text-decoration: none; }
+.settings-history-button span { font-size: 1rem; line-height: 1; transition: transform 160ms ease; }
+.settings-history-button:hover span { transform: translateX(2px); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 20px 28px 26px; }
 .setting-copy { min-width: 0; }
 .setting-copy h3, .setting-copy label { display: block; color: var(--text); font-size: 0.95rem; font-weight: 750; }
@@ -111,11 +115,13 @@
 .custom-remark-action { min-height: 34px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--panel); color: var(--text); font-size: 0.75rem; font-weight: 700; }
 .custom-remark-action:hover { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
 .custom-remark-action.delete:hover { border-color: color-mix(in srgb, var(--danger, #bd3444) 45%, var(--border)); background: color-mix(in srgb, var(--danger, #bd3444) 10%, var(--panel)); color: var(--danger, #bd3444); }
-:root[data-density="compact"] .settings-stack { gap: 12px; }
+:root[data-density="compact"] .settings-stack { gap: 10px; }
 :root[data-density="compact"] .settings-card-header { padding: 20px 24px 14px; }
 :root[data-density="compact"] .setting-row, :root[data-density="compact"] .settings-form { padding: 16px 24px 19px; }
 
 @media (max-width: 720px) {
+  .settings-stack { grid-template-columns: 1fr; }
+  .settings-card-wide { grid-column: auto; }
   .setting-row { align-items: flex-start; flex-direction: column; gap: 16px; }
   .signature-form, .custom-remark-layout { grid-template-columns: 1fr; gap: 14px; }
   .settings-form-side { gap: 12px; }
