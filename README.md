@@ -230,7 +230,7 @@ provides `/api/send-fax`. Open `/fax-sender/` on the deployed URL and repeat the
 test with a controlled recipient. Browser network responses contain only safe results
 or fixed error messages; authentication occurs on the server.
 
-This repository has no toolkit-wide server authorization layer. Restrict the deployed
+The shared Toolkit session foundation does not yet protect the legacy fax APIs. Restrict the deployed
 toolkit and `/api/*` to staff using your deployment's access protection before use;
 the page's “Internal use only” label does not enforce access control.
 
@@ -282,3 +282,10 @@ History receipt downloads reuse `/api/fax-message` and `/api/fax-attachment` wit
 stored message ID. Older records without Last 4 use the original filename without
 an SSN suffix. The active Last 4 input is not restored from history. Clear All preserves
 both visible and stored attempts. History retains the newest 20 attempts, evicting the oldest on entry 21. Only the entries scroll inside the panel: desktop height is bounded at 320-640px (65vh), and mobile at 300-560px (60vh); the history heading stays outside the scroller. Last 4 is never sent to RingCentral or API URLs.
+
+## Shared Toolkit sign-in
+
+The independent server-backed Toolkit login, setup, migration commands, session
+security, and operational guidance are documented in [docs/toolkit-auth.md](docs/toolkit-auth.md).
+Existing tools remain usable without Toolkit login. Email Sender retains its separate
+Microsoft Graph login; Fax Sender retains its existing JWT and history behavior.

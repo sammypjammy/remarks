@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ToolkitAuth from '../settings/shared/ToolkitAuth.jsx';
 import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
@@ -478,6 +479,7 @@ export default function App() {
 
           </div>
           <a className="app-brand" href="/">Packard Toolkit</a>
+          <ToolkitAuth />
         </header>
 
         {isAppMenuOpen && (

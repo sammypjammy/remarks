@@ -1,0 +1,14 @@
+.toolkit-auth { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 10px; min-width: 0; margin-left: auto; font-size: 0.78rem; }
+.toolkit-auth a, .toolkit-auth button { color: var(--accent, #2457a7); font: inherit; font-weight: 650; border: 1px solid var(--border, #ccd3dc); border-radius: 7px; padding: 6px 9px; background: transparent; text-decoration: none; cursor: pointer; }
+.toolkit-auth [hidden] { display: none !important; }
+.toolkit-auth-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toolkit-auth-status { max-width: 230px; font-size: 0.72rem; color: var(--muted, #536171); }
+.toolkit-auth-status:empty, .toolkit-auth-name:empty { display: none; }
+.toolkit-auth a:focus-visible, .toolkit-auth button:focus-visible { outline: 2px solid var(--accent, #2457a7); outline-offset: 2px; }
+@media (max-width: 520px) {
+  .app-header:has(.toolkit-auth) { height: auto; min-height: 66px; padding-block: 10px; }
+  .app-header:has(> .toolkit-auth) { flex-wrap: wrap; gap: 8px; height: auto; min-height: 66px; padding-block: 10px; }
+  .app-header-inner { flex-wrap: wrap; gap: 8px; }
+  .toolkit-auth { flex-basis: 100%; justify-content: flex-start; margin-left: 0; }
+  .toolkit-auth-status { max-width: 100%; }
+}

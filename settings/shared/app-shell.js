@@ -1,3 +1,7 @@
+const authStyles = document.createElement('link');
+authStyles.rel = 'stylesheet';
+authStyles.href = new URL('./toolkit-auth.css', document.currentScript.src).href;
+document.head.append(authStyles);
 const activePage = document.body.dataset.page || "home";
 const routePrefix = activePage === "home" ? "./" : "../";
 const routes = {
@@ -26,7 +30,7 @@ function renderAppShell() {
             </button>
             <a class="app-brand" href="${routes.home}">Packard Toolkit</a>
           </div>
-
+          <div data-toolkit-auth aria-label="Toolkit account"></div>
         </div>
       </header>
     `;
@@ -72,6 +76,7 @@ function renderAppShell() {
 }
 
 renderAppShell();
+import('./toolkit-auth.js').then(({ mountToolkitAuth }) => mountToolkitAuth(document.querySelector('[data-toolkit-auth]')));
 
 const toolkitNavigationConfig = [
   {

@@ -15,7 +15,13 @@ const browserPath = process.env.CHROME_BIN || [
 
 // Exercise the actual Canned Remarks UI at desktop and mobile widths.
 test("Canned Remarks v2.9.0 desktop and mobile workflows", { skip: !browserPath, timeout: 60000 }, async t => {
-  const server = await createServer({configFile:false, server:{host:"127.0.0.1",port:0}});
+  const server = await createServer({configFile:false, server:{host:"127.0.0.1",port:0},
+    plugins: [{ name: 'mock-toolkit-session', configureServer(server) {
+      server.middlewares.use('/api/auth/session', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ authenticated: false }));
+      });
+    } }] });
   await server.listen();
   t.after(() => server.close());
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;

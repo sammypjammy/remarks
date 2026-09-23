@@ -6,11 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:migrate": "node scripts/migrate-auth.mjs --apply",
+    "test:auth": "node --test tests/toolkit-auth.test.js",
+    "test:auth:db": "node --env-file=.env.local --test tests/toolkit-auth-db.test.js"
   },
   "dependencies": {
     "@azure/msal-browser": "5.19.0",
     "fflate": "^0.8.3",
+    "jose": "^6.2.12",
+    "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

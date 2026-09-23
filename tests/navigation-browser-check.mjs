@@ -15,6 +15,10 @@ const failures = [];
 const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".pdf": "application/pdf" };
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+  if (pathname === '/api/auth/session') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ authenticated: false }));
+  }
   // This server has no credentials or API handlers; any accidental API use fails.
   if (pathname.startsWith("/api/")) failures.push(`Unexpected API request: ${pathname}`);
   const path = resolve(root, `.${pathname.endsWith("/") ? pathname + "index.html" : pathname}`);

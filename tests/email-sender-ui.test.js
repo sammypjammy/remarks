@@ -19,7 +19,12 @@ test("Email Sender manual draft tabs, Single isolation, popup feedback and foote
   const server = await createServer({
     configFile: false,
     server: { host: "127.0.0.1", port: 0 },
-    plugins: [{ name: "mock-outlook-for-test", enforce: "pre", load(id) {
+    plugins: [{ name: 'mock-toolkit-session', configureServer(server) {
+      server.middlewares.use('/api/auth/session', (_req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ authenticated: false }));
+      });
+    } }, { name: "mock-outlook-for-test", enforce: "pre", load(id) {
       if (!id.replaceAll("\\", "/").endsWith("/welcome-email-sender/outlookGraph.js")) return;
       return `
         window.mailTest = { drafts: [], tabs: [], preparations: 0, blocked: false };

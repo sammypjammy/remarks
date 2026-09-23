@@ -5,6 +5,23 @@ import react from "@vitejs/plugin-react";
 import sendFax from "./api/send-fax.js";
 import faxStatus from "./api/fax-status.js";
 import ringcentralContacts from "./api/ringcentral-contacts.js";
+import { createAuthHandler } from './server/auth/service.js';
+
+function localToolkitAuth(server) {
+  const env = loadEnv(server.config.mode, import.meta.dirname, '');
+  for (const key of ['DATABASE_URL', 'ENTRA_TENANT_ID', 'ENTRA_CLIENT_ID', 'ENTRA_CLIENT_SECRET', 'TOOLKIT_ORIGIN']) {
+    if (!process.env[key] && env[key]) process.env[key] = env[key];
+  }
+  const handlers = Object.fromEntries(['login', 'callback', 'session', 'logout'].map(action => [`/api/auth/${action}`, createAuthHandler(action)]));
+  server.middlewares.use((req, res, next) => {
+    const handler = handlers[req.url?.split('?')[0]];
+    if (!handler) return next();
+    // Keep callback codes/state out of Vite request-error diagnostics.
+    res.status = code => { res.statusCode = code; return res; };
+    res.json = data => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(data)); };
+    return handler(req, res);
+  });
+}
 
 function localFaxApi(server) {
   // Server process only. Existing process variables take precedence, then root .env.local.
@@ -37,8 +54,10 @@ function authCallbackRoute(server) {
 }
 
 export default defineConfig({
+  server: { port: 5173, strictPort: true },
   plugins: [
     react(),
+    { name: 'local-toolkit-auth', configureServer: localToolkitAuth },
     { name: "local-fax-api", configureServer: localFaxApi },
     {
       name: "auth-callback-route",

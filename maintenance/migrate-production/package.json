@@ -1,0 +1,6 @@
+{
+  "name": "packard-auth-migration-maintenance",
+  "private": true,
+  "type": "module",
+  "dependencies": { "pg": "8.23.0" }
+}
