@@ -14,16 +14,16 @@ function action(label,fn) {const b=element('button',label);b.type='button';b.add
 function render() {
   if(!batch)return;
   const busy=batch.running||batch.adding,locked=batch.locked;
-  for(const id of ['destination','lastFour','cover','comment','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
-  $('comment').disabled ||= !$('cover').checked;$('pdfFiles').disabled=busy;
+  for(const id of ['destination','clearDestination','lastFour','cover','comment','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
+  $('commentField').hidden=!$('cover').checked;$('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('comment').disabled ||= !$('cover').checked;$('pdfFiles').disabled=busy;
   $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
   $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
   $('documents').replaceChildren(...batch.documents.map((doc,index)=>{
-    const li=element('li'),title=element('strong',doc.file.name);li.append(title,element('p',doc.state));
+    const li=element('li'),title=element('strong',doc.file.name);li.tabIndex=-1;li.append(title,element('p',doc.state));
     if(doc.state==='Ready'&&!busy) {
-      li.append(action('Remove',()=>{batch.documents.splice(index,1);render();}));
-      if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();}));
-      if(index<batch.documents.length-1)li.append(action('Move down',()=>{[batch.documents[index+1],batch.documents[index]]=[doc,batch.documents[index+1]];render();}));
+      li.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
+      if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
+      if(index<batch.documents.length-1)li.append(action('Move down',()=>{[batch.documents[index+1],batch.documents[index]]=[doc,batch.documents[index+1]];render();$('documents').children[index+1].focus();}));
     }
     if(doc.entry){poller?.track(doc.entry);if(doc.entry.status==='Sent')li.append(action('Download Fax Receipt',()=>download([doc.entry],false)));}
     if(doc.state==='Unknown')li.append(element('p','Outcome unknown. Review RingCentral before taking further action. Automatic retry is disabled.'));
@@ -76,6 +76,8 @@ function contactResults() {
   const found=contacts.filter(c=>[c.name,c.company,...c.numbers].join(' ').toLowerCase().includes(search));
   $('contactResults').replaceChildren(...found.slice(0,30).flatMap(c=>c.numbers.map(n=>action(c.name+' — '+formatNumber(n),()=>{if(batch.locked||batch.running)return;$('destination').value=n;selectedName=c.name;$('contactResults').replaceChildren();}))));
 }
+$('clearDestination').addEventListener('click',()=>{if(batch.locked||batch.running)return;$('destination').value='';selectedName='';$('contactResults').replaceChildren();$('destination').focus();});
+$('destination').addEventListener('keydown',event=>{if(event.key==='Escape')$('contactResults').replaceChildren();});
 $('destination').addEventListener('input',()=>{selectedName='';contactResults();});
 $('loadContacts').addEventListener('click',async()=>{
   if(contactBusy||batch.locked)return;contactBusy=true;const epoch=scope.epoch;$('contactNotice').textContent='Loading your contacts…';

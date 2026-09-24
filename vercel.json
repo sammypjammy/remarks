@@ -24,5 +24,10 @@
         }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "development/fax-v3-phase1": false
+    }
+  }
 }

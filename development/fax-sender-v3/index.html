@@ -4,63 +4,62 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="same-origin">
-  <title>Fax Sender Development | Packard Toolkit</title>
-  <style>
-    :root{font:16px/1.5 system-ui,sans-serif;color:#172b3a;background:#f3f6f8}body{max-width:680px;margin:40px auto;padding:0 20px}section{background:white;border:1px solid #ccd7de;border-radius:10px;padding:20px;margin:20px 0}h1{font-size:1.6rem}h2{font-size:1.2rem;margin-top:0}button,.button{font:inherit;display:inline-block;padding:9px 14px;border:1px solid #235b79;border-radius:6px;background:#235b79;color:white;text-decoration:none;cursor:pointer;margin:4px 6px 4px 0}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}dt{font-weight:600}dd{margin:0 0 10px;overflow-wrap:anywhere}.note{color:#425768}#notice{padding:12px;background:#fff1d5;border-radius:6px}button:focus-visible,a:focus-visible{outline:3px solid #bd7900;outline-offset:3px}
-  </style>
+  <title>Fax Sender | Packard Toolkit</title>
+
   <script type="module" src="/fax-sender-v3/test.js"></script>
   <link rel="stylesheet" href="/fax-sender-v3/style.css">
   <script type="module" src="/fax-sender-v3/app.js"></script>
 </head>
 <body>
-  <p class="note">Development only · Personal RingCentral fax testing</p>
-  <h1>Fax Sender — Development</h1>
-  <p>Send from your own RingCentral extension. Fax Sender v2.16.0 is unchanged.</p>
+<a class="skip-link" href="#faxForm">Skip to fax composer</a><header class="brand">Packard <span>Toolkit</span></header><main>
+
+  <h1>Fax Sender</h1>
+  <p>Send PDFs from your own RingCentral extension. Each document is sent as a separate fax.</p>
   <p id="notice" role="alert" hidden></p>
-  <section aria-labelledby="toolkitHeading">
-    <h2 id="toolkitHeading">Toolkit authentication</h2>
+  <div class="account-layout"><section aria-labelledby="toolkitHeading">
+    <h2 id="toolkitHeading">Your Toolkit account</h2>
     <p id="toolkitState" role="status">Checking Toolkit sign-in…</p>
     <a id="signIn" class="button" href="/api/auth/login" hidden>Sign in with Microsoft</a>
     <button id="signOut" type="button" hidden>Sign Out</button>
-    <p id="returnNote" class="note" hidden>Microsoft sign-in returns to the Toolkit home page. Then reopen http://localhost:5173/fax-sender-v3/.</p>
+    <p id="returnNote" class="note" hidden>Microsoft sign-in returns to the Toolkit home page. Then return to this Fax Sender link.</p>
   </section>
   <section aria-labelledby="rcHeading">
     <h2 id="rcHeading">RingCentral connection</h2>
     <p id="connectionState" role="status">Waiting for Toolkit authentication…</p>
-    <dl id="identity" hidden><dt>Name</dt><dd id="rcName"></dd><dt>RingCentral account ID</dt><dd id="accountId"></dd><dt>Personal extension ID</dt><dd id="extensionId"></dd></dl>
+    <dl id="identity" hidden><dt>Name</dt><dd id="rcName"></dd><dt>Account</dt><dd id="accountId"></dd><dt>Extension</dt><dd id="extensionId"></dd></dl>
     <form id="connectForm" method="post" action="/api/ringcentral/connect" hidden>
       <button id="connect" type="submit">Connect RingCentral</button>
     </form>
     <button id="disconnect" type="button" hidden>Disconnect RingCentral</button>
     <button id="refresh" type="button">Refresh status</button>
-    <p class="note">Use your own Packard RingCentral login. The account ID and personal extension ID identify different resources and can sometimes have the same numeric value.</p>
+    <p class="note">Use your personal Packard RingCentral login. Disconnecting affects only your connection.</p>
   </section>
-  <p id="faxNotice" role="alert"></p>
+  </div><p id="faxNotice" role="alert"></p>
   <div id="faxWorkspace" hidden class="fax-layout">
-    <section><h2>Send PDFs</h2>
+    <section><h2>Send a fax</h2>
       <form id="faxForm"><fieldset id="faxFields">
         <label for="destination">Contact or fax number</label>
-        <input id="destination" autocomplete="off" placeholder="Search contacts or enter a fax number">
-        <button id="loadContacts" type="button">Load / refresh contacts</button>
-        <div id="contactResults" role="list" aria-label="Matching fax contacts"></div>
+        <input id="destination" aria-describedby="numberHelp contactNotice" autocomplete="off" placeholder="Search contacts or enter a fax number">
+        <button id="loadContacts" type="button">Refresh contacts</button>
+        <button id="clearDestination" type="button">Clear destination</button><div id="contactResults" role="group" aria-label="Matching fax contacts"></div>
         <p id="contactNotice" role="status"></p>
         <p id="numberHelp">US numbers may use 10 digits. International numbers need + and country code.</p>
         <details id="saveContact"><summary>Save a new contact</summary><label for="contactName">Contact name</label><input id="contactName" maxlength="60"><button id="createContact" type="button">Save current fax number</button></details>
         <label for="lastFour">Last 4 of SSN (required)</label><input id="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required>
         <label><input id="cover" type="checkbox" checked> Include Classic cover sheet</label>
-        <label for="comment">Optional cover-sheet comment</label><textarea id="comment" maxlength="1024" rows="3"></textarea>
+        <div id="commentField"><label for="comment">Optional cover-sheet comment</label><textarea id="comment" maxlength="1024" rows="2" aria-describedby="commentHelp" autocomplete="off" spellcheck="false"></textarea><p id="commentHelp" class="note">Up to 1,024 characters. Used on every fax in this batch; not saved in history.</p></div>
         <p>Last 4 is used for history and receipt filenames, never sent to RingCentral.</p>
-        <label for="pdfFiles">PDF files (one independent fax per PDF, up to 4 MB each)</label><input id="pdfFiles" type="file" accept="application/pdf,.pdf" multiple>
-        <ol id="documents"></ol>
-        <button id="send" type="submit">Send faxes</button><button id="retry" type="button" disabled>Retry definitively failed faxes</button><button id="clear" type="button">Clear All</button>
+        <h3 id="documentCount">PDF documents</h3><label for="pdfFiles">Choose PDF files</label><input id="pdfFiles" type="file" accept="application/pdf,.pdf" multiple>
+        <p class="note">Up to 4 MB each. Selecting more files adds them to the list. Use Move up or Move down to change the sending order.</p><ol id="documents" aria-labelledby="documentCount"></ol>
+        <div class="actions"><button id="send" type="submit">Send faxes</button><button id="retry" type="button" disabled>Retry failed faxes</button><button id="clear" type="button">Clear All</button></div>
       </fieldset></form>
       <p id="progress" role="status"></p>
-      <p>Unknown results require human review in RingCentral. Never resend an unconfirmed fax. Sent means successful transmission, not recipient review.</p>
+      <p class="safety-note">Retry is available only for a confirmed transmission failure. Unknown results require human review in RingCentral. Never resend an unconfirmed fax. Sent means successful transmission, not recipient review.</p>
     </section>
     <section><h2>Recent fax activity</h2><p>Newest 20 attempts for your Toolkit account. Clear All preserves this history.</p>
       <button id="downloadAll" type="button">Download All Fax Receipts</button><button id="downloadZip" type="button">Download Receipts ZIP</button>
-      <p id="receiptNotice" role="status"></p><p id="historyEmpty">No fax activity yet.</p><ol id="faxHistory"></ol>
+      <p id="receiptNotice" role="status"></p><p id="historyEmpty">No fax activity yet.</p><ol id="faxHistory" tabindex="0" aria-label="Your 20 most recent fax attempts"></ol>
     </section>
   </div>
-</body>
+</main><footer>Packard Toolkit &middot; Fax Sender v2.16.0 <a href="/version-history/">Version History</a></footer></body>
 </html>
