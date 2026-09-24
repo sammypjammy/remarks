@@ -2,6 +2,9 @@
 import {connectionCheck} from '../verify-production/validate.mjs';
 export const ENDPOINT='ep-young-dream-arkoh9e5';
 export const DEVELOPMENT_ENDPOINT='ep-jolly-lake-ar7x7r37';
+export const PROJECT='fragrant-block-21191473';
+export const BRANCH='br-silent-lab-arnl9ia9';
+export const DATABASE='neondb';
 export const HASHES={
  '001_toolkit_auth':'d25c789f9fe3840a3f061f40dddc02578df2f1e0b91f4ed07f9508bac8f0b605',
  '002_ringcentral_v3':'18c3b3e91394d0d14f859ddc8e15873d6eec1fd7bd5ef5bccf9fb00fd06c598b',
@@ -13,12 +16,12 @@ export function targetConfig(env,target,{apply=false}={}) {
  if(env.TOOLKIT_ORIGIN!=='https://packardtoolkit.vercel.app' || env.VERCEL_ENV!=='production' || connectionCheck(env.DATABASE_URL,{production:true})!=='PASS')fail();
  if(!target || target.environment!=='production' || target.endpoint!==ENDPOINT || !/^[a-z0-9-]+$/.test(target.project||'') || !/^br-[a-z0-9-]+$/.test(target.branch||'') || !/^br-[a-z0-9-]+$/.test(target.developmentBranch||'') || target.branch===target.developmentBranch || !/^[a-zA-Z0-9_-]{1,63}$/.test(target.database||''))fail();
  const url=new URL(env.DATABASE_URL);if(decodeURIComponent(url.pathname.slice(1))!==target.database || (apply && url.hostname.split('.')[0].endsWith('-pooler')))fail();
- if(!env.NEON_API_KEY)fail();
+ if(target.project!==PROJECT || target.branch!==BRANCH || target.database!==DATABASE)fail();
  return {environment:'production',project:target.project,branch:target.branch,endpoint:ENDPOINT,database:target.database,host:url.hostname.replace('-pooler.','.')};
 }
-export async function verifyNeon(env,target,request=fetch,options={}) {
+export async function verifyNeon(env,target,readMetadata,options={}) {
  const identity=targetConfig(env,target,options);
- const get=async path=>{const r=await request('https://console.neon.tech/api/v2/projects/'+identity.project+path,{headers:{Authorization:'Bearer '+env.NEON_API_KEY},redirect:'error',signal:AbortSignal.timeout(10000)});if(!r.ok)fail();return r.json();};
+ const get=path=>readMetadata('/projects/'+identity.project+path);
  const {endpoint}=await get('/endpoints/'+ENDPOINT);
  if(endpoint?.id!==ENDPOINT || endpoint.project_id!==identity.project || endpoint.branch_id!==identity.branch || endpoint.branch_id===target.developmentBranch || endpoint.host!==identity.host || endpoint.type!=='read_write')fail();
  const {endpoint:development}=await get('/endpoints/'+DEVELOPMENT_ENDPOINT);

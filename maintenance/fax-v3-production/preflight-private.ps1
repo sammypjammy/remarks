@@ -2,15 +2,11 @@
 # Read-only wrapper. No secret in process arguments, shell history, files or output.
 $ErrorActionPreference = 'Stop'
 $databaseSecret = $null
-$neonSecret = $null
 $databasePointer = [IntPtr]::Zero
-$neonPointer = [IntPtr]::Zero
 try {
     $targetPath = (Resolve-Path -LiteralPath $TargetFile).Path
     $databaseSecret = Read-Host 'Production DATABASE_URL (concealed input)' -AsSecureString
-    $neonSecret = Read-Host 'Neon read-only API credential (concealed input)' -AsSecureString
     $databasePointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($databaseSecret)
-    $neonPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($neonSecret)
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.FileName = (Get-Command node.exe -ErrorAction Stop).Source
     $start.UseShellExecute = $false
@@ -24,7 +20,7 @@ try {
     if ($Inspect) { $mode = '--inspect' }
     $start.Arguments = '"' + $entry + '" ' + $mode + ' --production --target "' + $targetPath + '"'
     $start.EnvironmentVariables['DATABASE_URL'] = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($databasePointer)
-    $start.EnvironmentVariables['NEON_API_KEY'] = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($neonPointer)
+    $start.EnvironmentVariables.Remove('NEON_API_KEY')
     $start.EnvironmentVariables['TOOLKIT_ORIGIN'] = 'https://packardtoolkit.vercel.app'
     $start.EnvironmentVariables['VERCEL_ENV'] = 'production'
     # Prevent inherited Node debugging/preload options from inspecting secrets.
@@ -45,7 +41,5 @@ try {
 } catch { [Console]::Error.WriteLine('PREFLIGHT_WRAPPER_FAILED'); exit 1 }
 finally {
     if ($databasePointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($databasePointer) }
-    if ($neonPointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($neonPointer) }
     if ($null -ne $databaseSecret) { $databaseSecret.Dispose() }
-    if ($null -ne $neonSecret) { $neonSecret.Dispose() }
 }

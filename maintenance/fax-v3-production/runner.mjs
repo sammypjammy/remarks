@@ -1,11 +1,13 @@
 ﻿import {authorize,verifyNeon,HASHES,digest,fail} from './policy.mjs';
 import {inspect,readOnly} from './schema.mjs';
 // No retries, no production auto-run hook, no schema/identity data in error output.
-export async function run({args,env,target,expected,readSql,openClient,request,now=Date.now,log=console.log,check=inspect}) {
+export async function run({args,env,target,expected,readSql,openClient,readMetadata,now=Date.now,log=console.log,check=inspect}) {
  let c,lock=false,commitPending=false,committed=0,phase='PREFLIGHT';
  try{
   const auth=authorize(args,now());const apply=auth.mode==='--apply';
-  const identity=await verifyNeon(env,target,request,{apply});
+  phase='IDENTITY';
+  const identity=await verifyNeon(env,target,readMetadata,{apply});
+  phase='PREFLIGHT';
   const sql={};for(const name of ['002_ringcentral_v3','003_fax_v3_operations']){sql[name]=await readSql(name);if(digest(sql[name])!==HASHES[name])fail();}
   c=await openClient();
   const verify=stage=>check(c,identity,expected,stage);
@@ -31,6 +33,7 @@ export async function run({args,env,target,expected,readSql,openClient,request,n
   }
   log('PRODUCTION_MIGRATIONS_VERIFIED');return 0;
  }catch{
+  if(phase==='IDENTITY'){log('PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION');return 1;}
   if(commitPending){log('COMMIT_ACKNOWLEDGEMENT_UNKNOWN_STOP_NO_RETRY');return 2;}
   await c?.query('ROLLBACK').catch(()=>{});
   if(phase.startsWith('VERIFY_')){log('COMMITTED_BUT_VERIFICATION_FAILED_STOP_NO_RETRY');return 3;}

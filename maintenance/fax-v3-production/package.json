@@ -1,0 +1,12 @@
+{
+  "name": "fax-v3-production-maintenance",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "neon": "6.1.0"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.10",
+    "diff": "5.2.2"
+  }
+}

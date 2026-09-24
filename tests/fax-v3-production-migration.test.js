@@ -1,22 +1,35 @@
-﻿import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {run} from '../maintenance/fax-v3-production/runner.mjs';import {authorize,targetConfig,verifyNeon,ENDPOINT,DEVELOPMENT_ENDPOINT} from '../maintenance/fax-v3-production/policy.mjs';
-const target={environment:'production',endpoint:ENDPOINT,project:'synthetic-project',branch:'br-production-fixture',developmentBranch:'br-development-fixture',database:'synthetic'};
-const env={TOOLKIT_ORIGIN:'https://packardtoolkit.vercel.app',VERCEL_ENV:'production',NEON_API_KEY:'private-api-canary',DATABASE_URL:'postgresql://synthetic:private-password-canary@'+ENDPOINT+'.us-east-1.aws.neon.tech/synthetic?sslmode=require'};
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {run} from '../maintenance/fax-v3-production/runner.mjs';import {authorize,targetConfig,verifyNeon,ENDPOINT,DEVELOPMENT_ENDPOINT,PROJECT,BRANCH,DATABASE} from '../maintenance/fax-v3-production/policy.mjs';
+const target={environment:'production',endpoint:ENDPOINT,project:PROJECT,branch:BRANCH,developmentBranch:'br-development-fixture',database:DATABASE};
+const env={TOOLKIT_ORIGIN:'https://packardtoolkit.vercel.app',VERCEL_ENV:'production',DATABASE_URL:'postgresql://synthetic:private-password-canary@'+ENDPOINT+'.us-east-1.aws.neon.tech/neondb?sslmode=require'};
 const args=apply=>apply?['--apply','--production','--target','synthetic.json','--authorize','APPLY_002_003_TO_PRODUCTION','--expires-at',new Date(600000).toISOString()]:['--read-only','--production','--target','synthetic.json'];
-const request=async(url,options)=>{assert.equal(options.redirect,'error');return {ok:true,json:async()=>url.endsWith('/endpoints/'+DEVELOPMENT_ENDPOINT)?{endpoint:{id:DEVELOPMENT_ENDPOINT,project_id:target.project,branch_id:target.developmentBranch}}:url.includes('/endpoints/')?{endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write'}}:{branch:{id:target.branch,project_id:target.project}}};};
+const readMetadata=async url=>url.endsWith('/endpoints/'+DEVELOPMENT_ENDPOINT)?{endpoint:{id:DEVELOPMENT_ENDPOINT,project_id:target.project,branch_id:target.developmentBranch}}:url.includes('/endpoints/')?{endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write'}}:{branch:{id:target.branch,project_id:target.project}};
 async function exercise(options={}){
  const queries=[],logs=[],checks=[];let opened=0,commits=0;const c={query:async(sql,params)=>{queries.push({sql,params});if(options.query)await options.query(sql,queries);if(sql==='COMMIT'){commits++;if(options.lostCommit===commits)throw Error('private-driver-canary');}return {rows:sql.includes('pg_try_advisory_lock')?[{locked:!options.busy}]:[]};},end:async()=>queries.push({sql:'END_CONNECTION'})};
- const code=await run({args:args(options.apply!==false),env,target,expected:{},readSql:name=>readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'),openClient:async()=>{opened++;return c;},request,now:()=>options.expireAfterCheck&&checks.length>=3?700000:0,log:s=>logs.push(s),check:async(_c,_id,_expected,stage)=>{checks.push(stage);if(options.badStage===stage || (options.postCommitFailure&&commits===1))throw Error('private-schema-canary');},...options.dependencies});
+ const code=await run({args:args(options.apply!==false),env,target,expected:{},readSql:name=>readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'),openClient:async()=>{opened++;return c;},readMetadata,now:()=>options.expireAfterCheck&&checks.length>=3?700000:0,log:s=>logs.push(s),check:async(_c,_id,_expected,stage)=>{checks.push(stage);if(options.badStage===stage || (options.postCommitFailure&&commits===1))throw Error('private-schema-canary');},...options.dependencies});
  assert(!logs.join().includes('private-'));return {code,queries,logs,checks,opened,commits};
 }
 test('target guard positively pins Production and rejects Development, Preview and unknown targets before connection',async()=>{
  assert.equal(targetConfig(env,target).endpoint,ENDPOINT);
- for(const change of [{VERCEL_ENV:'development'},{VERCEL_ENV:'preview'},{VERCEL_ENV:undefined},{TOOLKIT_ORIGIN:'http://localhost:5173'},{DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,'ep-development-fixture')},{DATABASE_URL:env.DATABASE_URL.replace('/synthetic?','/other?')},{NEON_API_KEY:''}]){
+ for(const change of [{VERCEL_ENV:'development'},{VERCEL_ENV:'preview'},{VERCEL_ENV:undefined},{TOOLKIT_ORIGIN:'http://localhost:5173'},{DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,DEVELOPMENT_ENDPOINT)},{DATABASE_URL:env.DATABASE_URL.replace('/neondb?','/other?')}]){
   let opened=0;const r=await exercise({dependencies:{env:{...env,...change},openClient:async()=>{opened++;throw Error();}}});assert.equal(r.code,1);assert.equal(opened,0);
  }
  assert.throws(()=>targetConfig({...env,DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,ENDPOINT+'-pooler')},target,{apply:true}));
  assert.throws(()=>targetConfig(env,{...target,branch:target.developmentBranch}));
- for(const change of [{branch_id:target.developmentBranch},{host:'wrong.neon.tech'},{id:'ep-other'},{project_id:'other'},{type:'read_only'}])await assert.rejects(verifyNeon(env,target,async()=>({ok:true,json:async()=>({endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write',...change}})})));
+ for(const change of [{branch_id:target.developmentBranch},{host:'wrong.neon.tech'},{id:'ep-other'},{project_id:'other'},{type:'read_only'}])await assert.rejects(verifyNeon(env,target,async()=>({endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write',...change}})));
 });
+test('all three live records remain mandatory, including independent Development separation and branch ownership',async()=>{
+ const paths=[];await verifyNeon(env,target,async path=>{paths.push(path);return readMetadata(path);});
+ assert.deepEqual(paths,[`/projects/${PROJECT}/endpoints/${ENDPOINT}`,`/projects/${PROJECT}/endpoints/${DEVELOPMENT_ENDPOINT}`,`/projects/${PROJECT}/branches/${BRANCH}`]);
+ for(const index of [1,2])for(const change of [{id:'unknown'},{project_id:'unknown'},index===1?{branch_id:BRANCH}:{id:target.developmentBranch}]){
+  let count=0;await assert.rejects(verifyNeon(env,target,async path=>{const record=await readMetadata(path);if(count++===index)Object.assign(record.endpoint??record.branch,change);return record;}));
+ }
+ for(const change of [{project:'unknown-project'},{branch:'br-unknown'},{database:'other'},{developmentBranch:BRANCH}])assert.throws(()=>targetConfig(env,{...target,...change}));
+ for(const apply of [true,false]){
+  const r=await exercise({apply,dependencies:{readMetadata:async()=>{throw Error('private-upstream-canary');}}});
+  assert.equal(r.opened,0);assert.equal(r.code,1);assert.deepEqual(r.logs,['PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION']);
+ }
+});
+
 test('explicit authorization is short-lived and rejects omissions, duplicate/extra args and expired windows',()=>{
  assert.equal(authorize(args(true),0).mode,'--apply');for(const bad of [[],args(true).slice(0,4),[...args(true),'--force'],args(true).map(x=>x==='--production'?'--development':x),args(true).map(x=>x==='APPLY_002_003_TO_PRODUCTION'?'yes':x)])assert.throws(()=>authorize(bad,0));assert.throws(()=>authorize(args(true),700000));assert.throws(()=>authorize(args(true),-1000000));
 });

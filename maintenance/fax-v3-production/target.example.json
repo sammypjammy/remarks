@@ -1,8 +1,8 @@
 ﻿{
   "environment": "production",
   "endpoint": "ep-young-dream-arkoh9e5",
-  "project": "REPLACE_FROM_NEON_CONSOLE",
-  "branch": "REPLACE_WITH_PRODUCTION_BRANCH_ID",
+  "project": "fragrant-block-21191473",
+  "branch": "br-silent-lab-arnl9ia9",
   "developmentBranch": "REPLACE_WITH_DEVELOPMENT_BRANCH_ID",
-  "database": "REPLACE_WITH_EXPECTED_DATABASE_NAME"
+  "database": "neondb"
 }
