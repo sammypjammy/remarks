@@ -1,0 +1,2864 @@
+{
+  "2": {
+    "relations": [
+      {
+        "relname": "connections",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_environment_user_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_id_user_id_environment_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities_environment_account_id_extension_id_user_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "rc_fax_history",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "rc_oauth_expiration",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      }
+    ],
+    "columns": [
+      {
+        "relname": "connections",
+        "attname": "id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "state",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "'disconnected'::text"
+      },
+      {
+        "relname": "connections",
+        "attname": "generation",
+        "type": "bigint",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "0"
+      },
+      {
+        "relname": "connections",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "display_name",
+        "type": "character varying(160)",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "token_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "access_expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "scopes",
+        "type": "text[]",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_claim",
+        "type": "uuid",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_deadline",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "updated_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "connection_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "idempotency_key",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "request_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "state",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "message_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "metadata_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "updated_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "tracking_deadline",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "state_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "binding_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "session_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "connection_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "generation",
+        "type": "bigint",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "verifier_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "redirect_uri",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "(now() + '00:10:00'::interval)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "consumed_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "relname": "connections",
+        "conname": "connections_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((account_id IS NULL) = (extension_id IS NULL))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_check1",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((state <> ALL (ARRAY['connected'::text, 'refreshing'::text])) OR token_envelope IS NOT NULL AND account_id IS NOT NULL AND access_expires_at IS NOT NULL AND refresh_expires_at IS NOT NULL)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_check2",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((state = 'refreshing'::text) = (refresh_claim IS NOT NULL AND refresh_deadline IS NOT NULL))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_account_id_extension_id_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (environment, account_id, extension_id, user_id) REFERENCES toolkit_rc_v3.identities(environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (environment = ANY (ARRAY['development'::text, 'production'::text]))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_user_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, user_id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_generation_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL generation"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL id"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_id_user_id_environment_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (id, user_id, environment)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_state_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state = ANY (ARRAY['disconnected'::text, 'connecting'::text, 'connected'::text, 'refreshing'::text, 'needs_reconnect'::text, 'disconnecting'::text]))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_state_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_updated_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL updated_at"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_account_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL account_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_connection_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL connection_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_connection_id_user_id_environment_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (connection_id, user_id, environment) REFERENCES toolkit_rc_v3.connections(id, user_id, environment)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, account_id, extension_id, message_id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_account_id_extension_id_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (environment, account_id, extension_id, user_id) REFERENCES toolkit_rc_v3.identities(environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, user_id, idempotency_key)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_extension_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL extension_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_idempotency_key_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL idempotency_key"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_message_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (message_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_request_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (request_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_request_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL request_hash"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_state_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state = ANY (ARRAY['prepared'::text, 'submitting'::text, 'accepted'::text, 'unknown'::text, 'sent'::text, 'failed'::text]))"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_state_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_updated_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL updated_at"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_account_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (account_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_account_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL account_id"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_account_id_extension_id_user_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (environment = ANY (ARRAY['development'::text, 'production'::text]))"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_extension_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (extension_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_extension_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL extension_id"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (environment, account_id, extension_id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (binding_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL binding_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_connection_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL connection_id"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_connection_id_user_id_environment_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (connection_id, user_id, environment) REFERENCES toolkit_rc_v3.connections(id, user_id, environment)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_expires_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL expires_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_generation_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL generation"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (state_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_redirect_uri_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL redirect_uri"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_session_hash_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (session_hash) REFERENCES toolkit_auth.sessions(token_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_session_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL session_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      }
+    ],
+    "indexes": [
+      {
+        "relname": "connections_environment_user_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_environment_user_id_key ON toolkit_rc_v3.connections USING btree (environment, user_id)"
+      },
+      {
+        "relname": "connections_id_user_id_environment_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_id_user_id_environment_key ON toolkit_rc_v3.connections USING btree (id, user_id, environment)"
+      },
+      {
+        "relname": "connections_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_pkey ON toolkit_rc_v3.connections USING btree (id)"
+      },
+      {
+        "relname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_environment_account_id_extension_id_message_id_key ON toolkit_rc_v3.fax_attempts USING btree (environment, account_id, extension_id, message_id)"
+      },
+      {
+        "relname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_environment_user_id_idempotency_key_key ON toolkit_rc_v3.fax_attempts USING btree (environment, user_id, idempotency_key)"
+      },
+      {
+        "relname": "fax_attempts_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_pkey ON toolkit_rc_v3.fax_attempts USING btree (id)"
+      },
+      {
+        "relname": "identities_environment_account_id_extension_id_user_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX identities_environment_account_id_extension_id_user_id_key ON toolkit_rc_v3.identities USING btree (environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "identities_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX identities_pkey ON toolkit_rc_v3.identities USING btree (environment, account_id, extension_id)"
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX oauth_transactions_pkey ON toolkit_rc_v3.oauth_transactions USING btree (state_hash)"
+      },
+      {
+        "relname": "rc_fax_history",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX rc_fax_history ON toolkit_rc_v3.fax_attempts USING btree (user_id, environment, created_at DESC)"
+      },
+      {
+        "relname": "rc_oauth_expiration",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX rc_oauth_expiration ON toolkit_rc_v3.oauth_transactions USING btree (expires_at)"
+      }
+    ],
+    "routines": [],
+    "triggers": [],
+    "policies": [],
+    "types": [
+      {
+        "typname": "_connections",
+        "typtype": "b"
+      },
+      {
+        "typname": "_fax_attempts",
+        "typtype": "b"
+      },
+      {
+        "typname": "_identities",
+        "typtype": "b"
+      },
+      {
+        "typname": "_oauth_transactions",
+        "typtype": "b"
+      },
+      {
+        "typname": "connections",
+        "typtype": "c"
+      },
+      {
+        "typname": "fax_attempts",
+        "typtype": "c"
+      },
+      {
+        "typname": "identities",
+        "typtype": "c"
+      },
+      {
+        "typname": "oauth_transactions",
+        "typtype": "c"
+      }
+    ]
+  },
+  "3": {
+    "relations": [
+      {
+        "relname": "connections",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_environment_user_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_id_user_id_environment_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "connections_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempt_owned_id",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_attempts_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "fax_single_retry",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities_environment_account_id_extension_id_user_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "identities_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "rc_fax_history",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "rc_oauth_expiration",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      }
+    ],
+    "columns": [
+      {
+        "relname": "connections",
+        "attname": "id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "state",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "'disconnected'::text"
+      },
+      {
+        "relname": "connections",
+        "attname": "generation",
+        "type": "bigint",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "0"
+      },
+      {
+        "relname": "connections",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "display_name",
+        "type": "character varying(160)",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "token_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "access_expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "scopes",
+        "type": "text[]",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_claim",
+        "type": "uuid",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "refresh_deadline",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "connections",
+        "attname": "updated_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "connection_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "idempotency_key",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "request_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "state",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "message_id",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "metadata_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "updated_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "tracking_deadline",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "connection_generation",
+        "type": "bigint",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "retry_of",
+        "type": "uuid",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "fax_attempts",
+        "attname": "provider_status",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "account_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "extension_id",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "identities",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "state_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "binding_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "session_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "connection_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "environment",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "generation",
+        "type": "bigint",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "verifier_envelope",
+        "type": "jsonb",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "redirect_uri",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "(now() + '00:10:00'::interval)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "consumed_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      }
+    ],
+    "constraints": [
+      {
+        "relname": "connections",
+        "conname": "connections_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((account_id IS NULL) = (extension_id IS NULL))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_check1",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((state <> ALL (ARRAY['connected'::text, 'refreshing'::text])) OR token_envelope IS NOT NULL AND account_id IS NOT NULL AND access_expires_at IS NOT NULL AND refresh_expires_at IS NOT NULL)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_check2",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((state = 'refreshing'::text) = (refresh_claim IS NOT NULL AND refresh_deadline IS NOT NULL))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_account_id_extension_id_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (environment, account_id, extension_id, user_id) REFERENCES toolkit_rc_v3.identities(environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (environment = ANY (ARRAY['development'::text, 'production'::text]))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_environment_user_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, user_id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_generation_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL generation"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL id"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_id_user_id_environment_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (id, user_id, environment)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_state_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state = ANY (ARRAY['disconnected'::text, 'connecting'::text, 'connected'::text, 'refreshing'::text, 'needs_reconnect'::text, 'disconnecting'::text]))"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_state_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_updated_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL updated_at"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "connections",
+        "conname": "connections_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempt_owned_id",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (id, user_id, environment)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_account_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL account_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_connection_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL connection_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_connection_id_user_id_environment_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (connection_id, user_id, environment) REFERENCES toolkit_rc_v3.connections(id, user_id, environment)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, account_id, extension_id, message_id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_account_id_extension_id_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (environment, account_id, extension_id, user_id) REFERENCES toolkit_rc_v3.identities(environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, user_id, idempotency_key)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_extension_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL extension_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_idempotency_key_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL idempotency_key"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_message_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (message_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_provider_status_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (provider_status = ANY (ARRAY['Queued'::text, 'Processing'::text, 'Sent'::text, 'SendingFailed'::text, 'Unknown'::text]))"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_request_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (request_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_request_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL request_hash"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_state_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state = ANY (ARRAY['prepared'::text, 'submitting'::text, 'accepted'::text, 'unknown'::text, 'sent'::text, 'failed'::text]))"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_state_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_updated_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL updated_at"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_attempts_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_retry_owner",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (retry_of, user_id, environment) REFERENCES toolkit_rc_v3.fax_attempts(id, user_id, environment)"
+      },
+      {
+        "relname": "fax_attempts",
+        "conname": "fax_single_retry",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (retry_of)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_account_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (account_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_account_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL account_id"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_account_id_extension_id_user_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (environment = ANY (ARRAY['development'::text, 'production'::text]))"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_extension_id_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (extension_id ~ '^[1-9][0-9]{0,29}$'::text)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_extension_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL extension_id"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (environment, account_id, extension_id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "identities",
+        "conname": "identities_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (binding_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL binding_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_connection_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL connection_id"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_connection_id_user_id_environment_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (connection_id, user_id, environment) REFERENCES toolkit_rc_v3.connections(id, user_id, environment)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_environment_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL environment"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_expires_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL expires_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_generation_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL generation"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (state_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_redirect_uri_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL redirect_uri"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_session_hash_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (session_hash) REFERENCES toolkit_auth.sessions(token_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_session_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL session_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state_hash ~ '^[a-f0-9]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      }
+    ],
+    "indexes": [
+      {
+        "relname": "connections_environment_user_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_environment_user_id_key ON toolkit_rc_v3.connections USING btree (environment, user_id)"
+      },
+      {
+        "relname": "connections_id_user_id_environment_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_id_user_id_environment_key ON toolkit_rc_v3.connections USING btree (id, user_id, environment)"
+      },
+      {
+        "relname": "connections_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX connections_pkey ON toolkit_rc_v3.connections USING btree (id)"
+      },
+      {
+        "relname": "fax_attempt_owned_id",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempt_owned_id ON toolkit_rc_v3.fax_attempts USING btree (id, user_id, environment)"
+      },
+      {
+        "relname": "fax_attempts_environment_account_id_extension_id_message_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_environment_account_id_extension_id_message_id_key ON toolkit_rc_v3.fax_attempts USING btree (environment, account_id, extension_id, message_id)"
+      },
+      {
+        "relname": "fax_attempts_environment_user_id_idempotency_key_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_environment_user_id_idempotency_key_key ON toolkit_rc_v3.fax_attempts USING btree (environment, user_id, idempotency_key)"
+      },
+      {
+        "relname": "fax_attempts_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_attempts_pkey ON toolkit_rc_v3.fax_attempts USING btree (id)"
+      },
+      {
+        "relname": "fax_single_retry",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX fax_single_retry ON toolkit_rc_v3.fax_attempts USING btree (retry_of)"
+      },
+      {
+        "relname": "identities_environment_account_id_extension_id_user_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX identities_environment_account_id_extension_id_user_id_key ON toolkit_rc_v3.identities USING btree (environment, account_id, extension_id, user_id)"
+      },
+      {
+        "relname": "identities_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX identities_pkey ON toolkit_rc_v3.identities USING btree (environment, account_id, extension_id)"
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX oauth_transactions_pkey ON toolkit_rc_v3.oauth_transactions USING btree (state_hash)"
+      },
+      {
+        "relname": "rc_fax_history",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX rc_fax_history ON toolkit_rc_v3.fax_attempts USING btree (user_id, environment, created_at DESC)"
+      },
+      {
+        "relname": "rc_oauth_expiration",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX rc_oauth_expiration ON toolkit_rc_v3.oauth_transactions USING btree (expires_at)"
+      }
+    ],
+    "routines": [],
+    "triggers": [],
+    "policies": [],
+    "types": [
+      {
+        "typname": "_connections",
+        "typtype": "b"
+      },
+      {
+        "typname": "_fax_attempts",
+        "typtype": "b"
+      },
+      {
+        "typname": "_identities",
+        "typtype": "b"
+      },
+      {
+        "typname": "_oauth_transactions",
+        "typtype": "b"
+      },
+      {
+        "typname": "connections",
+        "typtype": "c"
+      },
+      {
+        "typname": "fax_attempts",
+        "typtype": "c"
+      },
+      {
+        "typname": "identities",
+        "typtype": "c"
+      },
+      {
+        "typname": "oauth_transactions",
+        "typtype": "c"
+      }
+    ]
+  },
+  "auth": {
+    "relations": [
+      {
+        "relname": "migrations",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "migrations_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions_expiration",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "sessions",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "sessions_expiration",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "sessions_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "sessions_user_id",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "users",
+        "relkind": "r",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "users_entra_tenant_id_entra_object_id_key",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      },
+      {
+        "relname": "users_pkey",
+        "relkind": "i",
+        "relrowsecurity": false,
+        "relforcerowsecurity": false,
+        "reloptions": null
+      }
+    ],
+    "columns": [
+      {
+        "relname": "migrations",
+        "attname": "name",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "migrations",
+        "attname": "checksum",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "migrations",
+        "attname": "applied_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "state_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "provider",
+        "type": "character varying(40)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "purpose",
+        "type": "character varying(40)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "binding_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "session_hash",
+        "type": "character(64)",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "nonce_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "pkce_verifier",
+        "type": "text",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "redirect_uri",
+        "type": "text",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "oauth_transactions",
+        "attname": "consumed_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "sessions",
+        "attname": "token_hash",
+        "type": "character(64)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "sessions",
+        "attname": "user_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "sessions",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "sessions",
+        "attname": "expires_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "sessions",
+        "attname": "revoked_at",
+        "type": "timestamp with time zone",
+        "attnotnull": false,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "users",
+        "attname": "id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "users",
+        "attname": "entra_tenant_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "users",
+        "attname": "entra_object_id",
+        "type": "uuid",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "users",
+        "attname": "display_name",
+        "type": "character varying(160)",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": null
+      },
+      {
+        "relname": "users",
+        "attname": "active",
+        "type": "boolean",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "true"
+      },
+      {
+        "relname": "users",
+        "attname": "created_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      },
+      {
+        "relname": "users",
+        "attname": "updated_at",
+        "type": "timestamp with time zone",
+        "attnotnull": true,
+        "attidentity": "",
+        "attgenerated": "",
+        "default_value": "now()"
+      }
+    ],
+    "constraints": [
+      {
+        "relname": "migrations",
+        "conname": "migrations_applied_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL applied_at"
+      },
+      {
+        "relname": "migrations",
+        "conname": "migrations_checksum_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL checksum"
+      },
+      {
+        "relname": "migrations",
+        "conname": "migrations_name_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL name"
+      },
+      {
+        "relname": "migrations",
+        "conname": "migrations_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (name)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (binding_hash ~ '^[0-9a-f]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_binding_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL binding_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (expires_at > created_at)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_check1",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK ((user_id IS NULL) = (session_hash IS NULL))"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_expires_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL expires_at"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_nonce_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (nonce_hash ~ '^[0-9a-f]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_nonce_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL nonce_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (state_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_provider_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL provider"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_purpose_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL purpose"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_redirect_uri_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL redirect_uri"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_session_hash_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (session_hash) REFERENCES toolkit_auth.sessions(token_hash)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (state_hash ~ '^[0-9a-f]{64}$'::text)"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_state_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL state_hash"
+      },
+      {
+        "relname": "oauth_transactions",
+        "conname": "oauth_transactions_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (expires_at > created_at)"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_expires_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL expires_at"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (token_hash)"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_token_hash_check",
+        "contype": "c",
+        "convalidated": true,
+        "definition": "CHECK (token_hash ~ '^[0-9a-f]{64}$'::text)"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_token_hash_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL token_hash"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_user_id_fkey",
+        "contype": "f",
+        "convalidated": true,
+        "definition": "FOREIGN KEY (user_id) REFERENCES toolkit_auth.users(id)"
+      },
+      {
+        "relname": "sessions",
+        "conname": "sessions_user_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL user_id"
+      },
+      {
+        "relname": "users",
+        "conname": "users_active_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL active"
+      },
+      {
+        "relname": "users",
+        "conname": "users_created_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL created_at"
+      },
+      {
+        "relname": "users",
+        "conname": "users_display_name_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL display_name"
+      },
+      {
+        "relname": "users",
+        "conname": "users_entra_object_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL entra_object_id"
+      },
+      {
+        "relname": "users",
+        "conname": "users_entra_tenant_id_entra_object_id_key",
+        "contype": "u",
+        "convalidated": true,
+        "definition": "UNIQUE (entra_tenant_id, entra_object_id)"
+      },
+      {
+        "relname": "users",
+        "conname": "users_entra_tenant_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL entra_tenant_id"
+      },
+      {
+        "relname": "users",
+        "conname": "users_id_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL id"
+      },
+      {
+        "relname": "users",
+        "conname": "users_pkey",
+        "contype": "p",
+        "convalidated": true,
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "relname": "users",
+        "conname": "users_updated_at_not_null",
+        "contype": "n",
+        "convalidated": true,
+        "definition": "NOT NULL updated_at"
+      }
+    ],
+    "indexes": [
+      {
+        "relname": "migrations_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX migrations_pkey ON toolkit_auth.migrations USING btree (name)"
+      },
+      {
+        "relname": "oauth_transactions_expiration",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX oauth_transactions_expiration ON toolkit_auth.oauth_transactions USING btree (expires_at)"
+      },
+      {
+        "relname": "oauth_transactions_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX oauth_transactions_pkey ON toolkit_auth.oauth_transactions USING btree (state_hash)"
+      },
+      {
+        "relname": "sessions_expiration",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX sessions_expiration ON toolkit_auth.sessions USING btree (expires_at)"
+      },
+      {
+        "relname": "sessions_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX sessions_pkey ON toolkit_auth.sessions USING btree (token_hash)"
+      },
+      {
+        "relname": "sessions_user_id",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE INDEX sessions_user_id ON toolkit_auth.sessions USING btree (user_id)"
+      },
+      {
+        "relname": "users_entra_tenant_id_entra_object_id_key",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX users_entra_tenant_id_entra_object_id_key ON toolkit_auth.users USING btree (entra_tenant_id, entra_object_id)"
+      },
+      {
+        "relname": "users_pkey",
+        "indisvalid": true,
+        "indisready": true,
+        "definition": "CREATE UNIQUE INDEX users_pkey ON toolkit_auth.users USING btree (id)"
+      }
+    ],
+    "routines": [],
+    "triggers": [],
+    "policies": [],
+    "types": [
+      {
+        "typname": "_migrations",
+        "typtype": "b"
+      },
+      {
+        "typname": "_oauth_transactions",
+        "typtype": "b"
+      },
+      {
+        "typname": "_sessions",
+        "typtype": "b"
+      },
+      {
+        "typname": "_users",
+        "typtype": "b"
+      },
+      {
+        "typname": "migrations",
+        "typtype": "c"
+      },
+      {
+        "typname": "oauth_transactions",
+        "typtype": "c"
+      },
+      {
+        "typname": "sessions",
+        "typtype": "c"
+      },
+      {
+        "typname": "users",
+        "typtype": "c"
+      }
+    ]
+  }
+}
