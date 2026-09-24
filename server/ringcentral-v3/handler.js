@@ -1,7 +1,7 @@
 import { authConfig } from '../auth/config.js';
 import { requireToolkitUser } from '../auth/service.js';
 import { cookieValue, cookie, hash, validToken, sameOrigin } from '../auth/security.js';
-import { rcConfig } from './config.js';
+import { v3Runtime } from './runtime.js';
 import { RcStore } from './store.js';
 import { RcService } from './service.js';
 import { RingCentralProvider } from './provider.js';
@@ -12,16 +12,15 @@ export function createRcHandler(action, dependencies = {}) {
     if (req.method !== method) { res.setHeader('Allow',method); return res.status(405).json({ error: 'Method not allowed' }); }
     let config;
     const testPage = outcome => {
-      if (!dependencies.developmentTestPage) return false;
-      try { config ||= dependencies.config || rcConfig(); } catch { return false; }
-      if (config.environment !== 'development' || config.origin !== 'http://localhost:5173') return false;
+      try { config ||= dependencies.config || v3Runtime(); } catch { return false; }
+      if (!(config.productionAcceptance === true || (dependencies.developmentTestPage && config.environment === 'development' && config.origin === 'http://localhost:5173'))) return false;
       res.setHeader('Location',config.origin+'/fax-sender-v3/?connection='+outcome);
       res.status(303).end(); return true;
     };
     try {
       const auth = dependencies.authConfig || authConfig();
       const user = await (dependencies.requireUser || requireToolkitUser)(req, { config: auth });
-      config = dependencies.config || rcConfig();
+      config = dependencies.config || v3Runtime();
       if (auth.origin !== config.origin) throw new Error();
       const session = cookieValue(req,auth.sessionCookie);
       if (!session) return res.status(401).json({ error: 'Toolkit sign-in required' });

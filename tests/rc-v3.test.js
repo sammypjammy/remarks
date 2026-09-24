@@ -108,9 +108,9 @@ test('migration success is emitted only after COMMIT succeeds',async()=>{
     assert.equal(result,fail?1:0);assert.equal(logs,fail?0:1);
   }
 });
-test('Phase 1 isolation: normal build, v2 sources and browser bundles never import new credentials or backend',async()=>{
+test('Isolation: v2 sources and browser bundles never import new credentials or backend',async()=>{
   const root=new URL('../',import.meta.url);
-  for(const path of ['vite.config.js','package.json','fax-sender/main.js','fax-sender/batch.js','fax-sender/history.js','settings/shared/app-shell.js']){
+  for(const path of ['package.json','fax-sender/main.js','fax-sender/batch.js','fax-sender/history.js','settings/shared/app-shell.js']){
     const source=await readFile(new URL(path,root),'utf8');
     assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3|fax-sender-v3/.test(source));
   }

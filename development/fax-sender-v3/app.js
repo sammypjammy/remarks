@@ -1,6 +1,5 @@
-import {Scope,Batch,Poller,number,formatNumber,receiptFilename,receiptZip,disposeLegacy,wait} from './client.js';
+import {Scope,Batch,Poller,number,formatNumber,receiptFilename,receiptZip,wait} from './client.js';
 const $=id=>document.getElementById(id);
-disposeLegacy(localStorage); // Delete only. Never read, parse, import or upload unowned v2 history.
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
 const note=message=>{$('faxNotice').textContent=message;};

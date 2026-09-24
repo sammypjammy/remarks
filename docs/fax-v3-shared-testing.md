@@ -1,5 +1,8 @@
 ﻿# Fax Sender v3 UI polish and shared testing preparation
 
+Superseded by [parallel Production staging](fax-v3-production-staging.md). Retained
+as historical analysis; the separate-project recommendation is no longer current.
+
 Status: local Development only. No deployment or production migration authorized.
 Fax Sender remains v2.16.0; no normal release-history entry or v3 navigation link.
 Phase 2 real acceptance is recorded as passed by the operator (single and sequential

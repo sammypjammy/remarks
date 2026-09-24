@@ -9,7 +9,7 @@ import {join,dirname,resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
 const browserPath=['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-test('Fax v3 desktop/mobile: contacts, batches, receipts, history, legacy disposal and employee changes',{skip:!browserPath,timeout:90000},async t=>{
+test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history preservation and employee changes',{skip:!browserPath,timeout:90000},async t=>{
   let employee='A',signedIn=true,sendCount=0,receiptCount=0,holdSend=false,releaseSend,holdContacts=false,releaseContacts;
   const histories={A:[],B:[]},requests=[];
   const server=createServer(async(req,res)=>{
@@ -50,13 +50,14 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, legacy dispos
   const cdp=(method,params={})=>new Promise((resolve,reject)=>{pending.set(++id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
   const ev=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails);return r.result.value;};
   const until=async expression=>{for(let i=0;i<200;i++){if(await ev(expression))return;await pause(50);}assert.fail('Browser condition: '+expression);};
+  await cdp('Page.enable');
   await cdp('Page.setDownloadBehavior',{behavior:'deny'});
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('packard.faxHistory.v1','PRIVATE LEGACY CANARY')"});
   const choose=async()=>{const {root}=await cdp('DOM.getDocument');const {nodeId}=await cdp('DOM.querySelector',{nodeId:root.nodeId,selector:'#pdfFiles'});await cdp('DOM.setFileInputFiles',{nodeId,files});await until("document.querySelectorAll('#documents li').length===2");};
   for(const width of [1280,390]){
     employee='A';signedIn=true;histories.A=[];histories.B=[];
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});await cdp('Page.navigate',{url:origin+'/fax-sender-v3/'});
-    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.length===0 && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
+    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.length===1 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
     await ev("document.getElementById('loadContacts').click()");await pause(200);assert.equal(await ev("document.getElementById('contactNotice').textContent"),'1 fax contacts loaded.');await until("document.querySelector('#contactResults button')");await ev("document.querySelector('#contactResults button').click()");
     assert.equal(await ev("document.getElementById('destination').value"),'+18015551234');
     await ev("document.getElementById('clearDestination').click()");assert(await ev("document.getElementById('destination').value==='' && document.activeElement.id==='destination'"));
@@ -78,7 +79,7 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, legacy dispos
     assert(await ev("!document.getElementById('contactResults').textContent.includes('Contact A') && document.querySelectorAll('#documents li').length===0 && document.documentElement.scrollWidth<=innerWidth"));
     await choose();holdSend=true;const n=sendCount;await ev("document.getElementById('destination').value='+18015551234';document.getElementById('lastFour').value='0012';document.getElementById('comment').value='synthetic comment';document.getElementById('send').click()");
     for(let i=0;i<100&&!releaseSend;i++)await pause(20);assert(releaseSend);await ev("document.getElementById('signOut').click()");await until("document.getElementById('faxWorkspace').hidden");holdSend=false;releaseSend();releaseSend=null;await pause(1200);assert.equal(sendCount,n+1);
-    assert(await ev("document.querySelectorAll('#documents li').length===0 && document.querySelectorAll('#faxHistory li').length===0 && localStorage.length===0 && sessionStorage.length===0"));
+    assert(await ev("document.querySelectorAll('#documents li').length===0 && document.querySelectorAll('#faxHistory li').length===0 && localStorage.length===1 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && sessionStorage.length===0"));
   }
   assert(requests.every(path=>path.startsWith('/api/fax-v3/')));
 });

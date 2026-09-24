@@ -9,7 +9,7 @@ import {validateSubmission,receiptFilename,contextFor,checkContext,metadataConte
 import {encrypt,decrypt} from '../server/ringcentral-v3/crypto.js';
 import {FaxProvider} from '../server/fax-v3/provider.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
-import {Scope,Batch,Poller,disposeLegacy,receiptZip,receiptFilename as browserFilename,number} from '../development/fax-sender-v3/client.js';
+import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,number} from '../development/fax-sender-v3/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
 const pdf=Buffer.from('%PDF-1.4\nsynthetic only');
 const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  PRIVATE COMMENT  ',idempotencyKey:randomUUID()});
@@ -107,11 +107,10 @@ test('polling intervals and terminal/expired rules prevent aggressive or indefin
   now+=10000;await poller.tick();assert.equal(calls,1);now+=29999;await poller.tick();assert.equal(calls,1);now++;await poller.tick();assert.equal(calls,2);
   now=new Date(entry.createdAt).getTime()+900001;await poller.tick();assert.equal(calls,2);assert.equal(poller.pending.size,0);
 });
-test('legacy disposal never reads and no client persistence; safe filenames and valid duplicate-name ZIP',async()=>{
-  const removed=[];disposeLegacy({getItem(){assert.fail('Legacy data read');},removeItem(k){removed.push(k);}});assert.deepEqual(removed,['packard.faxHistory.v1']);
+test('legacy history is untouched; v3 never reads and no client persistence; safe filenames and valid duplicate-name ZIP',async()=>{
   for(const name of ['Brief - SSA.pdf','bad<>:"/\\|?*.pdf','double.pdf.pdf'])assert.equal(browserFilename(name,'0012'),receiptFilename(name,'0012'));
   const filename=browserFilename('Brief.pdf','0012');assert.equal(filename,'Fax Receipt - Brief 0012.pdf');const blob=new Blob([pdf]);const zip=await receiptZip([{filename,blob},{filename,blob}]);const files=unzipSync(new Uint8Array(await zip.arrayBuffer()));assert.equal(Object.keys(files).length,2);assert.deepEqual(Buffer.from(files[filename]),pdf);
-  for(const file of ['app.js','client.js','test.js']){const source=await readFile(new URL('../development/fax-sender-v3/'+file,import.meta.url),'utf8');assert(!/localStorage\.(?:getItem|setItem)|sessionStorage|RC_USER_JWT|accessToken|refreshToken|clientSecret/.test(source));}
+  for(const file of ['app.js','client.js','test.js']){const source=await readFile(new URL('../development/fax-sender-v3/'+file,import.meta.url),'utf8');assert(!/localStorage|sessionStorage|RC_USER_JWT|accessToken|refreshToken|clientSecret/.test(source));}
   assert.equal(number('(801) 555-1234'),'+18015551234');assert.equal(number('+44 20 7946 0000'),'+442079460000');
 });
 test('migration 003 refuses Production before opening pool',async()=>{

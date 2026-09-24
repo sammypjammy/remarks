@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { cpSync, mkdirSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
+import { v3Runtime } from './server/ringcentral-v3/runtime.js';
 import react from "@vitejs/plugin-react";
 import sendFax from "./api/send-fax.js";
 import faxStatus from "./api/fax-status.js";
@@ -68,6 +69,15 @@ export default defineConfig({
       name: "copy-static-toolkit-files",
       closeBundle() {
         const outputDirectory = resolve(import.meta.dirname, "dist");
+        // Explicit opt-in only; ordinary builds continue excluding the candidate.
+        if (process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== undefined && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'disabled' && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'enabled') throw new Error('Invalid v3 build switch');
+        if (process.env.FAX_V3_PRODUCTION_ACCEPTANCE === 'enabled') {
+          const config = v3Runtime();
+          if (!config.productionAcceptance) throw new Error('Production acceptance configuration required');
+          const destination = resolve(outputDirectory, 'fax-sender-v3');
+          mkdirSync(destination, { recursive: true });
+          for (const file of ['index.html','app.js','client.js','test.js','style.css']) cpSync(resolve(import.meta.dirname, 'development/fax-sender-v3', file), resolve(destination, file));
+        }
         const staticPaths = [
           "settings/shared", "settings/settings.js", "home.js",
           "canned-remarks/remarks.js", "med-tabs-generator/parser.js",

@@ -1,14 +1,13 @@
 import { authConfig } from '../auth/config.js';
 import { requireToolkitUser } from '../auth/service.js';
 import { cookieValue,hash,sameOrigin } from '../auth/security.js';
-import { rcConfig } from '../ringcentral-v3/config.js';
+import { v3Runtime } from '../ringcentral-v3/runtime.js';
 import { RcService } from '../ringcentral-v3/service.js';
 import { RingCentralProvider } from '../ringcentral-v3/provider.js';
 import { FaxStore } from './store.js';
 import { FaxService } from './service.js';
 import { FaxProvider } from './provider.js';
 import { fail,receiptFilename,validateSubmission } from './safety.js';
-import { assertDevelopment } from '../../scripts/rc-v3-development-guard.mjs';
 async function body(req,max) {
   if(Number(req.headers['content-length'])>max)fail(413);
   let size=0;const parts=[];for await(const part of req) {size+=part.length;if(size>max)fail(413);parts.push(part);}return Buffer.concat(parts);
@@ -29,8 +28,8 @@ export function createFaxHandler(action,deps={}) {
   return async(req,res)=>{
     res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
     try {
-      const config=deps.config || rcConfig();if(config.environment!=='development')fail(404);
-      if(!deps.config)assertDevelopment(process.env);
+      const config=deps.config || v3Runtime();
+      if(config.environment!=='development' && !(config.environment==='production' && config.productionAcceptance===true))fail(404);
       const methods=action==='send'?['POST']:action==='contacts'?['GET','POST']:['GET'];
       if(!methods.includes(req.method)){res.setHeader('Allow',methods.join(', '));fail(405);}
       const auth=deps.authConfig || authConfig();if(auth.origin!==config.origin)fail();

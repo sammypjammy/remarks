@@ -3,7 +3,6 @@ export const validLastFour=value=>/^\d{4}$/.test(value);
 export function number(value) { let s=value.replace(/[\s().-]/g,'');if(/^\d{10}$/.test(s))s='+1'+s;else if(/^1\d{10}$/.test(s))s='+'+s;return /^\+[1-9]\d{6,14}$/.test(s)?s:''; }
 export function formatNumber(value) { return /^\+1\d{10}$/.test(value)?`(${value.slice(2,5)}) ${value.slice(5,8)}-${value.slice(8)}`:value; }
 export function receiptFilename(filename,lastFour) { if(!validLastFour(lastFour))throw Error();return `Fax Receipt - ${filename.replace(/(?:\.pdf)+$/i,'').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().slice(0,180)||'Document'} ${lastFour}.pdf`; }
-export function disposeLegacy(storage) { try{storage.removeItem('packard.faxHistory.v1');}catch{} }
 export class Scope {
   constructor(request=fetch,onReset=()=>{}) {this.request=(...args)=>request(...args);this.onReset=onReset;this.epoch=0;this.context=null;this.controller=new AbortController();}
   reset() {this.epoch++;this.context=null;this.controller.abort();this.controller=new AbortController();this.onReset();}

@@ -1,5 +1,8 @@
 {
   "functions": {
+    "api/fax-v3/send.js": { "maxDuration": 60 },
+    "api/fax-v3/receipt.js": { "maxDuration": 60 },
+    "api/fax-v3/status.js": { "maxDuration": 30 },
     "api/send-fax.js": { "maxDuration": 60 },
     "api/fax-status.js": { "maxDuration": 30 },
     "api/ringcentral-contacts.js": { "maxDuration": 60 }
@@ -15,6 +18,14 @@
     }
   ],
   "headers": [
+    {
+      "source": "/fax-sender-v3/:path*",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "Referrer-Policy", "value": "same-origin" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
     {
       "source": "/auth/callback",
       "headers": [
