@@ -112,6 +112,61 @@ node .\maintenance\fax-v3-production\neon-session.mjs auth
    first. A login error can leave session state; use the logout process below to clean
    up if a valid profile was saved, and do not assume an error means no grant exists.
 
+   Keep this terminal open. `NEON_CLI_CALLBACK_LISTENING_60_SECOND_WINDOW` confirms the
+   actual IPv4 loopback socket is listening before the CLI opens the browser. Complete
+   the login within the official CLI's 60-second window. `NEON_CLI_CALLBACK_RECEIVED`
+   means the active callback arrived; `NEON_CLI_AUTH_CREDENTIALS_SAVED` means the CLI
+   finished saving its session. Only `NEON_CLI_OAUTH_KEYRING_READY` establishes that the
+   helper's subsequent profile/storage check passed. Do not reuse a callback URL from
+   an earlier attempt; each invocation uses its own port and state.
+
+   The helper now distinguishes listener failure, browser failure, timeout, rejected
+   callback, token-exchange failure, keyring failure and an unknown process failure
+   with fixed `NEON_CLI_AUTH_*` messages. It never prints the underlying error, OAuth
+   URL, state, authorization code, token response or stack. A timeout is reported as
+   `NEON_CLI_AUTH_TIMEOUT`; the helper's separate 90-second process cap remains.
+
+### Local callback listener fix
+
+The underlying CLI remains the official, lockfile-pinned `neon@6.1.0`, invoked by
+`neon-process.mjs` with this argument list (paths are local and nonsecret):
+
+```text
+node <maintenance>/node_modules/neon/dist/cli.js auth --profile fax-v3-production-preflight --keyring --config-dir <LOCALAPPDATA>/PackardToolkit/fax-v3-neon-cli --context-file <same-config-dir>/unused-context.json --api-host https://console.neon.tech/api/v2 --oauth-host https://oauth2.neon.tech --client-id neonctl --no-analytics --no-color --output json
+```
+
+Use the session helper, not this underlying command directly: the helper installs
+the listener guard and private diagnostics before importing the official CLI.
+
+Neon 6.1.0 starts `http.Server` on `127.0.0.1` and a random port. Its request listener
+calls an async OAuth callback handler without catching rejection. An early GET to
+`/callback` without valid state/code immediately terminates the CLI; a later browser
+return sees a refused connection. This was reproduced offline with the unmodified
+official CLI and a synthetic early callback. A normal synthetic callback worked.
+The user's historical incoming requests were not retained, so their exact triggering
+request cannot be reconstructed. Immediate failure is distinct from the separate
+60-second CLI timeout and 90-second wrapper cap.
+
+`neon-auth-listener.mjs` installs a subprocess-only HTTP request guard. It rejects
+wrong methods/hosts/paths, missing or duplicate state/code, wrong state, unsolicited
+probes and concurrent callbacks before they reach the CLI handler. It obtains the
+active transient state/port from the official CLI's authorization URL without
+printing that URL. The official CLI still performs its own state, PKCE, token and
+ID-token validation; no identity or authentication verification is bypassed. A valid
+OAuth denial or failed token exchange stops with a fixed diagnostic and closes the
+listener. Unexpected exceptions never print secret-bearing messages or stacks.
+
+Tests run the installed CLI with synthetic discovery/token/JWKS responses, a fake
+browser and in-memory keyring, including success after early probes, denial, token
+errors, timeout and bind failure. A separate manual check used the actual Windows
+browser launcher and loopback callback with the same offline fixtures; it completed
+successfully. No real login, credential grant, Production API request or SQL connection
+was performed. Read-only local inspection found the dedicated profile, credential
+file and keyring entry absent; no cleanup was needed. Browser login cookies or remote
+OAuth grants were not inspected or revoked on the basis of absent local state.
+
+### Continue the read-only operator process
+
 5. Only when authorized to perform the read-only Production check, run:
 
 ```powershell
@@ -271,9 +326,11 @@ contract using an empty disposable directory. Loading the Windows keyring addon 
 tested without reading or changing any credential. No real browser login, logout,
 Production metadata request or database connection is part of these tests.
 
-Validation for this OAuth change: 247 regression checks passed; four database opt-in
-suites were skipped. All 18 targeted maintenance checks passed. Normal and opt-in
-browser artifact checks passed. Secret scans covered 203 source files and 49 normal
+Validation including the callback fix: 257 regression checks passed; four database
+opt-in suites were skipped. All 28 maintenance checks passed within regression. Normal
+and opt-in browser artifact checks passed. Secret scans covered 207 source files and 49 normal
 browser output files, compared four configured Development secret values only in
 memory, and found zero matches. The isolated CLI dependency audit found zero
-vulnerabilities. No Production value, real CLI session, or database operation was used.
+vulnerabilities; dependencies were unchanged by the callback fix. No Production value,
+real CLI authentication session, or database operation was used. The dedicated local
+profile/keyring presence inspection returned status only and made no changes.

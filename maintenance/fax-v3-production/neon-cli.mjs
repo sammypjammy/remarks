@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {dirname,isAbsolute,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {PROJECT,BRANCH,ENDPOINT,DEVELOPMENT_ENDPOINT} from './policy.mjs';
+import {AUTH_FAILURES,AUTH_PROGRESS} from './neon-auth-listener.mjs';
 
 export const PROFILE='fax-v3-production-preflight';
 export const CLI_VERSION='6.1.0';
@@ -26,7 +27,7 @@ export function configDirectory(env) {
  if(!local || !isAbsolute(local))stop();
  return join(local,'PackardToolkit','fax-v3-neon-cli');
 }
-export async function executeCli(action,path,{env=process.env}={}) {
+export async function executeCli(action,path,{env=process.env,onProgress=()=>{}}={}) {
  if(!['profiles','metadata','auth','logout'].includes(action) || (action==='metadata'?!METADATA_PATHS.includes(path):path!==undefined))stop();
  try {
   const pkg=JSON.parse(await readFile(join(directory,'node_modules/neon/package.json'),'utf8'));
@@ -38,14 +39,25 @@ export async function executeCli(action,path,{env=process.env}={}) {
     env:childEnv,cwd:directory,shell:false,windowsHide:true,timeout:action==='auth'?90000:45000,maxBuffer:512*1024,encoding:'utf8'
    },(error,stdout,stderr)=>{
     // Never forward upstream messages, URLs, headers, or error objects.
-    if(error)return reject(Error('NEON_CLI_VERIFICATION_FAILED'));
+    if(error){
+     const failure=action==='auth'?AUTH_FAILURES.find(code=>stderr.split(/\r?\n/).includes(code)):undefined;
+     return reject(Error(failure??(action==='auth'?'NEON_CLI_AUTH_PROCESS_FAILED':'NEON_CLI_VERIFICATION_FAILED')));
+    }
     if(action==='logout')return resolve(logoutEvidence(stderr));
     if(action==='auth')return resolve(undefined);
     try{resolve(JSON.parse(stdout));}catch{reject(Error('NEON_CLI_VERIFICATION_FAILED'));}
    });
+   if(action==='auth'){
+    let buffered='';const reported=new Set();
+    child.stderr.on('data',chunk=>{
+     buffered+=chunk;
+     const lines=buffered.split(/\r?\n/);buffered=lines.pop();
+     for(const line of lines)if(AUTH_PROGRESS.includes(line)&&!reported.has(line)){reported.add(line);onProgress(line);}
+    });
+   }
    child.stdin.end();
   });
- }catch{stop();}
+ }catch(error){if(action==='auth'&&AUTH_FAILURES.includes(error?.message))throw error;stop();}
 }
 export function requireOAuthProfile(rows) {
  if(!Array.isArray(rows))stop();
@@ -73,7 +85,7 @@ export async function sessionAction(action,{execute=executeCli,log=console.log}=
   // Do not replace/revoke an existing session or API key as a side effect of login.
   if(!Array.isArray(rows)||rows.some(r=>r?.name===PROFILE))stop();
   log('Complete Neon CLI authentication in the browser. No credentials need to be copied.');
-  await execute('auth');
+  await execute('auth',undefined,{onProgress:log});
   requireOAuthProfile(await execute('profiles'));
   log('NEON_CLI_OAUTH_KEYRING_READY');return 0;
  }
