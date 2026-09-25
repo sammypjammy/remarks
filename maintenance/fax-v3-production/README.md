@@ -1,214 +1,115 @@
-﻿# Production preflight and migrations 002/003 (PREPARATION ONLY)
+# Production preflight and migrations 002/003 (PREPARATION ONLY)
 
-Neither entry point has been run against Production. No build/API imports this tooling.
-Do not run the Production commands below until separately authorized. This package
-supersedes the migration-runner TODO in docs/fax-v3-production-staging.md; it does not
-authorize any staging step, acceptance switch, menu change, deployment or migration.
+No Production preflight or migration has been executed. This tooling is operator-only
+and is not imported by the application/build. There is no deployment, acceptance,
+menu, environment or version change. Migration execution requires separate approval.
 
-## Identity and read-only preflight
+## Identity assurance: deliberate replacement of live API checks
 
-`preflight.mjs --read-only --production --target <reviewed JSON>` accepts no apply
-arguments. It checks configuration and pinned SQL hashes before connecting to SQL.
-It requires an independently reviewed, NONSECRET target file containing the expected
-Neon project, Production branch ID, Development branch ID and database name.
-Copy target.example.json outside the repository and replace placeholders with IDs
-from Neon Console, not values inferred from an untrusted connection URL.
+Identity now uses a fresh HUMAN Neon dashboard attestation. No Neon CLI, API key,
+OAuth flow, credential store, session, or control-plane request is involved. The
+obsolete maintenance-only CLI package and its exclusive helpers/tests were removed;
+other workflows and the private encryption-key comparator are unchanged.
 
-The project is pinned to fragrant-block-21191473, Production branch to
-br-silent-lab-arnl9ia9, and database to neondb, using the operator's independently
-verified identifiers. The Development branch ID must still be independently entered;
-the tool does not infer its expected value from the metadata it is meant to verify.
-The fixed Production endpoint is ep-young-dream-arkoh9e5; the fixed Development
-endpoint ep-jolly-lake-ar7x7r37 was identified from the existing local Development
-configuration without printing its URL. The tool rejects every other endpoint and
-all Development/Preview/unknown environment labels. It uses GET-only Neon metadata
-requests to verify the Production endpoint's host/project/branch/read-write type,
-the Development endpoint's actual branch, and the expected Production branch object.
-Production and Development branch IDs must differ. API failure, redirects, metadata
-mismatch or timeout abort before any database connection. A moved/replaced endpoint
-requires separate review of the pins, never an operator bypass flag.
+The removed assurance is automatic, current endpoint/project/branch ownership,
+full endpoint hostname and read-write type verification via three live API records.
+The replacement is operator review of those SAME properties and a commitment to
+pause endpoint reassignment, branch restore/reset and related Neon administrative
+work from review through completion of the migration (or abandonment of the attempt).
+Endpoint IDs are stable but endpoint-to-branch associations can change. SQL schema
+checks cannot distinguish a compatible clone. A local attestation is not a signed
+Neon assertion and cannot prove the operator actually reviewed the dashboard or
+that another administrator honored the pause. Use this for supervised execution;
+stop if there is uncertainty or competing administrative work.
 
-Authentication uses the official npm Neon CLI 6.1.0 and its browser OAuth flow.
-The dedicated profile `fax-v3-production-preflight` must hold OAuth credentials in
-the OS keyring (Windows Credential Manager). A CLI-local profile inspection checks
-the authentication kind and storage before any metadata request. The CLI itself
-reads/refreshes the session; application code never reads credential files/keyring
-values or extracts tokens. API-key profiles, file-backed profiles, missing/unreadable
-credentials and missing access fail closed. No API-key fallback is available.
+## 1. Fresh dashboard verification and local identity record (NO database access)
 
-The adapter invokes `neon api <fixed-path> --method GET --profile <dedicated-profile>`
-for exactly the two endpoint records and the Production branch record. Inside the CLI
-process, a fetch guard requires the actual selected identity to be OAuth/keyring,
-pins the HTTPS API origin/path/method, rejects redirects, imposes a 10-second request
-timeout and refuses replay of a metadata request, including CLI recovery after 401.
-OAuth discovery/refresh stays on https://oauth2.neon.tech. No database contents or
-connection-string endpoint is accessed through the control plane. Missing account
-permissions stop here, before SQL; do not mint a key or change permissions to bypass it.
+Do this immediately before an authorized preflight, and repeat it immediately before
+separately authorized migration execution. Do not create a record hours in advance.
 
-CLI subprocesses receive only necessary OS environment settings. They do not receive
-DATABASE_URL, inherited API keys, application secrets, custom API/OAuth hosts, proxy
-settings or Node debug/preload/TLS overrides. Analytics and update notifications are
-disabled. An isolated CLI config directory under
-`$env:LOCALAPPDATA\PackardToolkit\fax-v3-neon-cli` prevents ambient/default profile
-selection; an existing context file there is refused. Output is captured in memory,
-bounded, and never forwarded as raw CLI errors, OAuth URLs, headers or metadata.
-
-The OAuth grant follows the account's existing permissions; it is NOT claimed to be
-a read-only credential. Read-only access is enforced by this tooling. Browser login
-and refresh can write local session state; they make no Production schema/data change.
-The session helper is operator-only and is never called by preflight/apply automatically.
-
-The SQL connection uses TLS certificate verification and bounded timeouts. Inside
-REPEATABLE READ READ ONLY it checks current_database() against the independent target,
-exact auth schema structure (including FK targets/primary keys), the immutable 001
-ledger checksum, absence of 002/003 ledger records, and absence of the entire
-`toolkit_rc_v3` namespace. Even an empty pre-existing namespace is a conflict. Unknown
-ledger entries, extra/missing auth structure, disabled/missing constraints and schema
-ambiguity fail closed. All SQL is SELECT/transaction-control/SET LOCAL; it ends with
-ROLLBACK, never schema/data writes. No personal row contents are selected or logged.
-
-Success is one sanitized JSON record: environment, project, branch, endpoint, database,
-host and PREFLIGHT_PASS. No credential-bearing URL, username, password, API token,
-upstream error, query parameters or key fingerprint is output.
-
-`--inspect` is the separate READ-ONLY reconciliation mode. It verifies the exact
-ledger + schema for CLEAN, 002_COMMITTED, or 002_003_COMMITTED. Staged v3 tables must
-still be empty; this is pre-acceptance reconciliation, not a general live-history
-inspection. Unexpected/nonempty states return failure and are never repaired/deleted.
-
-## Exact safe operator DB process (later authorization required)
-
-1. In Neon Console, independently record the project ID, database name, Production
-   branch ID attached to the fixed Production endpoint, and Development branch ID
-   attached to the fixed Development endpoint. No SQL operation is needed for this.
-2. Copy `target.example.json` to a private local NONSECRET target file, for example
-   `$env:LOCALAPPDATA\Temp\fax-v3-production-target.json`, fill those IDs, and review it.
-3. In a private operator PowerShell window, outside Codex/terminal recording/transcript,
-   use Node 20.19+ and install the pinned maintenance-only CLI from its lockfile. It is
-   not a runtime/build dependency and does not require a global installation:
+1. Open the official Neon dashboard with your existing account. Select project
+   fragrant-block-21191473. Check IDs, not just display names.
+2. On branch main, verify branch ID br-silent-lab-arnl9ia9, database neondb,
+   and that its primary/read-write compute is ep-young-dream-arkoh9e5.
+   Copy/verify the full DIRECT endpoint hostname from the dashboard's connection
+   details with pooling disabled. Copy only the hostname: no scheme, username,
+   password, port, database path or query string. Do not derive it from DATABASE_URL.
+   The actual regional/cell hostname must come from the dashboard, not an example.
+3. On branch development, verify branch ID br-morning-heart-ar9vtw8o and compute
+   ep-jolly-lake-ar7x7r37. Confirm Production and Development are distinct and both
+   are in the project above.
+4. Ensure no endpoint reassignment, branch restore/reset or related Neon administrative
+   work will occur between this verification and the end of migration execution.
+   If any such work occurs, abandon the record and repeat dashboard verification.
+5. In a private interactive PowerShell window, run ONLY the local record helper:
 
 ```powershell
 Set-Location "$env:LOCALAPPDATA\Temp\packard-fax-v3-phase1"
-npm.cmd ci --prefix .\maintenance\fax-v3-production --ignore-scripts --no-fund
+node .\maintenance\fax-v3-production\attest-identity.mjs --out "$env:LOCALAPPDATA\Temp\fax-v3-production-target.json"
 ```
 
-   Stop on an installation error. The lockfile includes patched `@hono/node-server`
-   and `diff` overrides; keep the CLI version pinned. The npm keyring addon is required;
-   a standalone CLI binary or inability to use Windows Credential Manager is refused.
+Paste the full DIRECT hostname at the hostname-only prompt. After verifying each
+statement in the dashboard, type MAIN, DEVELOPMENT, READ_WRITE, DISTINCT, and
+NO_ADMIN_CHANGES at their respective prompts. These are explicit attestations,
+not defaults. Any wrong answer aborts. The helper rejects redirected/noninteractive
+input, never asks for a secret, and makes no network/SQL request. It writes only the
+nonsecret record and prints DASHBOARD_ATTESTATION_RECORDED_NO_PREFLIGHT_RUN with its
+UTC expiry. A failure is not authorization to reuse an earlier file.
 
-4. Start the official Neon browser login through the private session helper:
+The window begins when the hostname is entered and lasts at most 15 minutes.
+Future, expired, malformed or longer windows fail closed. Every pinned ID, exact
+confirmation and the full hostname are mandatory; extra fields are rejected.
+The target.example.json file is deliberately invalid until a fresh review is done.
+Do not hand-edit timestamps to refresh an old attestation. If approval/execution is
+delayed, repeat the review and helper. Keep the record outside Git; it contains no
+DATABASE_URL or credentials. It does not authorize SQL or migration execution.
 
-```powershell
-node .\maintenance\fax-v3-production\neon-session.mjs auth
-```
+**Stop here unless separately authorized to run Production preflight.**
 
-   This runs `neon auth --profile fax-v3-production-preflight --keyring` with the fixed
-   config directory, official hosts and analytics disabled. It opens the browser and
-   suppresses raw CLI output, including the OAuth authorization URL. Sign in using the
-   intended existing Neon account; no token/key is copied. Continue only after
-   `NEON_CLI_OAUTH_KEYRING_READY` and exit code 0. If the browser cannot open, the account
-   cannot authenticate, or the OS keyring is unavailable, stop. No API key is substituted.
-   The helper refuses to replace an existing named profile; finish/revoke that session
-   first. A login error can leave session state; use the logout process below to clean
-   up if a valid profile was saved, and do not assume an error means no grant exists.
+## 2. Read-only Production preflight (NOT authorized now)
 
-   Keep this terminal open. `NEON_CLI_CALLBACK_LISTENING_60_SECOND_WINDOW` confirms the
-   actual IPv4 loopback socket is listening before the CLI opens the browser. Complete
-   the login within the official CLI's 60-second window. `NEON_CLI_CALLBACK_RECEIVED`
-   means the active callback arrived; `NEON_CLI_AUTH_CREDENTIALS_SAVED` means the CLI
-   finished saving its session. Only `NEON_CLI_OAUTH_KEYRING_READY` establishes that the
-   helper's subsequent profile/storage check passed. Do not reuse a callback URL from
-   an earlier attempt; each invocation uses its own port and state.
-
-   The helper now distinguishes listener failure, browser failure, timeout, rejected
-   callback, token-exchange failure, keyring failure and an unknown process failure
-   with fixed `NEON_CLI_AUTH_*` messages. It never prints the underlying error, OAuth
-   URL, state, authorization code, token response or stack. A timeout is reported as
-   `NEON_CLI_AUTH_TIMEOUT`; the helper's separate 90-second process cap remains.
-
-### Local callback listener fix
-
-The underlying CLI remains the official, lockfile-pinned `neon@6.1.0`, invoked by
-`neon-process.mjs` with this argument list (paths are local and nonsecret):
-
-```text
-node <maintenance>/node_modules/neon/dist/cli.js auth --profile fax-v3-production-preflight --keyring --config-dir <LOCALAPPDATA>/PackardToolkit/fax-v3-neon-cli --context-file <same-config-dir>/unused-context.json --api-host https://console.neon.tech/api/v2 --oauth-host https://oauth2.neon.tech --client-id neonctl --no-analytics --no-color --output json
-```
-
-Use the session helper, not this underlying command directly: the helper installs
-the listener guard and private diagnostics before importing the official CLI.
-
-Neon 6.1.0 starts `http.Server` on `127.0.0.1` and a random port. Its request listener
-calls an async OAuth callback handler without catching rejection. An early GET to
-`/callback` without valid state/code immediately terminates the CLI; a later browser
-return sees a refused connection. This was reproduced offline with the unmodified
-official CLI and a synthetic early callback. A normal synthetic callback worked.
-The user's historical incoming requests were not retained, so their exact triggering
-request cannot be reconstructed. Immediate failure is distinct from the separate
-60-second CLI timeout and 90-second wrapper cap.
-
-`neon-auth-listener.mjs` installs a subprocess-only HTTP request guard. It rejects
-wrong methods/hosts/paths, missing or duplicate state/code, wrong state, unsolicited
-probes and concurrent callbacks before they reach the CLI handler. It obtains the
-active transient state/port from the official CLI's authorization URL without
-printing that URL. The official CLI still performs its own state, PKCE, token and
-ID-token validation; no identity or authentication verification is bypassed. A valid
-OAuth denial or failed token exchange stops with a fixed diagnostic and closes the
-listener. Unexpected exceptions never print secret-bearing messages or stacks.
-
-Tests run the installed CLI with synthetic discovery/token/JWKS responses, a fake
-browser and in-memory keyring, including success after early probes, denial, token
-errors, timeout and bind failure. A separate manual check used the actual Windows
-browser launcher and loopback callback with the same offline fixtures; it completed
-successfully. No real login, credential grant, Production API request or SQL connection
-was performed. Read-only local inspection found the dedicated profile, credential
-file and keyring entry absent; no cleanup was needed. Browser login cookies or remote
-OAuth grants were not inspected or revoked on the basis of absent local state.
-
-### Continue the read-only operator process
-
-5. Only when authorized to perform the read-only Production check, run:
+Once separately authorized, use a fresh record from step 1 and the existing approved
+Production DATABASE_URL source. No Neon authentication or maintenance npm install is
+required. Use the repository's normal locked Node dependencies (including pg).
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\maintenance\fax-v3-production\preflight-private.ps1 -TargetFile "$env:LOCALAPPDATA\Temp\fax-v3-production-target.json"
 ```
 
-The wrapper asks ONLY for the existing Production DATABASE_URL via concealed
-SecureString input. Paste directly from the approved secret manager without revealing
-it; never put secrets in command arguments, shell assignments, an env file, a Git file,
-chat, a screenshot or a transcript. There is no Neon credential prompt. The database
-child receives DATABASE_URL in process memory,
-with local maintenance environment labels; no parent/Vercel environment is changed.
-Inherited Node debug/preload options are removed. The wrapper discards raw stderr and
-forwards only the tool's fixed/sanitized stdout. Process memory is not protection from
-an administrator/debugger; use a trusted private machine, no debug instrumentation.
-Use `-Inspect` on the SAME wrapper for later read-only commit reconciliation.
+The wrapper prompts ONLY for Production DATABASE_URL with concealed SecureString
+input, supplies it to the SQL child in memory, removes inherited Node debug/preload
+options, and suppresses raw stderr. Never put the URL in command arguments, chat,
+files, screenshots or a transcript. Parent/Vercel environment variables are not changed.
+Use a trusted private machine; process memory is not protection from a debugger/admin.
 
-6. When finished, including after a failed preflight, revoke/logout of the dedicated
-   CLI session through the private helper:
+Before opening SQL the tool validates the dashboard attestation and exact full host
+against the private URL. Production endpoint is pinned; Development/Preview/unknown
+targets and routing overrides are rejected. Only recognized URL options are accepted.
+A pooler host is normalized solely for preflight; migrations require the direct host.
+The database must be neondb in both URL and current_database(). The existing database
+adapter enforces TLS certificate/hostname verification, unaffected by URL sslmode.
 
-```powershell
-node .\maintenance\fax-v3-production\neon-session.mjs logout
-```
+The preflight uses REPEATABLE READ READ ONLY, bounded query/lock timeouts, and ROLLBACK.
+It checks the exact auth schema/catalog shape and foreign-key prerequisites, migration
+001's expected checksum, absence of 002/003 and unexpected ledger entries, and absence
+of the entire toolkit_rc_v3 namespace (even an empty conflicting schema fails).
+It creates or changes no schema/data. Connecting may wake a suspended compute.
+Attestation expiry is checked again before reporting success. The sanitized output
+explicitly labels identityVerification as operator-dashboard-attestation; it does
+not claim live API verification. No secret or credential fingerprint is output.
 
-   This runs `neon profile remove fax-v3-production-preflight --yes` in the same fixed
-   config directory. Success is `NEON_CLI_SESSION_REVOKED_AND_REMOVED` and exit code 0,
-   only after the CLI reports OAuth revocation AND deletion of the OS keyring item.
-   `NEON_CLI_LOGOUT_UNCONFIRMED_STOP` means one or both could not be confirmed. Neon can
-   remove the local profile even when remote revocation fails, so deleting local files
-   or rerunning logout is not proof of revocation. Stop and resolve the OAuth grant with
-   Neon account support if necessary; do not retrieve/display its tokens. Access tokens
-   may remain valid until expiry depending on server revocation behavior. Logging out
-   of the website alone does not revoke this separate CLI session.
+Use -Inspect on the SAME wrapper only for separately authorized, read-only commit
+reconciliation. It verifies CLEAN, 002_COMMITTED or 002_003_COMMITTED schema/ledger
+states; unexpected/nonempty v3 state fails closed and is never repaired automatically.
+Reconciliation also requires a fresh dashboard record.
 
-Vercel Sensitive DATABASE_URL cannot be read back from its API. If the original
-approved secret source is unavailable, do NOT unhide/export/rotate the variable to
-run this. A separately authorized private execution in an environment already holding
-that exact Production value is required. This preparation adds no such deployment.
-Comparing/inspecting a source-of-truth copy does not independently attest the currently
-injected Vercel snapshot; provenance or approved in-environment execution is necessary.
+A successful preflight is NOT migration approval. The next stage has its own
+explicit authorization and repeats preflight, including after taking the advisory lock.
+Vercel Sensitive values cannot be read back by this workflow. A source copy does not
+independently prove the currently injected Vercel snapshot; preserve approved secret
+provenance. Do not rotate, unhide or export a variable just to perform verification.
 
-## Production runner (not executed; separate later approval)
+## 3. Separate migration authorization and execution (NOT authorized now)
 
 `apply.mjs` requires all exact arguments below, a future expiry no more than 15 minutes
 away, a direct NON-POOLER connection, and the same verified target/configuration:
@@ -219,9 +120,10 @@ node maintenance/fax-v3-production/apply.mjs --apply --production --target <revi
 
 This is not a currently authorized command. Supply DATABASE_URL only through an
 approved protected process/secret-manager launch, never inline values. The runner
-uses the same pinned CLI OAuth profile and live metadata guard as preflight; it no
-longer accepts a manually supplied Neon API credential. Authenticate/revoke using
-the same operator helper. No preflight report or earlier metadata is trusted.
+requires the same dashboard-attested identity record. Perform a NEW dashboard review
+and recreate the record immediately before this separately authorized execution.
+The migration authorization expiry is independent of the attestation expiry; both
+must remain valid before each migration and COMMIT. No earlier preflight report is trusted.
 TOOLKIT_ORIGIN must match the Production origin; VERCEL_ENV must be production. These
 are maintenance process checks, not permission to modify Vercel variables. The checked
 Production branch/endpoint, not an environment label alone, determines the SQL target.
@@ -251,10 +153,9 @@ They fail closed on catalog-format/version differences; investigate rather than 
 
 - Exit 0: preflight/reconciliation passed, or both commits verified (see fixed messages).
 - Exit 1 / PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION:
-  expected target/configuration, CLI session/access or live metadata verification
-  failed before opening SQL. Stop; do not loosen the checks or supply an API key.
-  A missing CLI dependency, startup timeout or cold Windows startup delay also fails
-  closed. Diagnose locally; do not automatically retry a Production operation.
+  target/configuration, hostname or dashboard attestation is invalid, expired or
+  unconfirmed. No SQL connection was opened. Recheck the dashboard; never edit
+  timestamps alone to extend an old review. No API credential is accepted or needed.
 - Exit 1 / PRECOMMIT_FAILED_NO_MIGRATION_COMMIT_ACKNOWLEDGED: no migration COMMIT was
   acknowledged in this run; stop and investigate. Rollback attempted on the connection.
 - Exit 1 / 003_PRECOMMIT_FAILED_002_REMAINS_COMMITTED_STOP: 002 committed/verified;
@@ -303,34 +204,21 @@ input, returning only SAME/DIFFERENT. Do not create a public diagnostic endpoint
 export either key, log hashes, add persistent comparison variables or rotate keys to
 perform this check. No such process is deployed/created/executed by this preparation.
 
-## Validation
+## Validation and scope
 
-Tests use synthetic Neon metadata and fake migration clients for every Production
-runner invocation. Real SQL schema inspection tests run ONLY inside random disposable
-Development schemas with rollback. Key-comparison tests use synthetic SecureStrings.
-No real Production preflight, metadata verification or migration invocation is part
-of the test suite. No real key comparison has been performed.
+Tests use synthetic dashboard attestations and fake SQL clients for Production
+runner invocations. Optional real database suites remain Development-only and opt-in;
+no Production check is a test. Tests cover identifier/hostname separation, strict URL
+options, every confirmation, timestamp boundaries, expiry before commits, immutable
+001/checksums, locking, ordered commits and ambiguous acknowledgements. Build checks
+verify normal and opt-in browser artifacts without deploying or changing environments.
+
+No old local CLI credential/profile is read, removed or revoked by this design.
+Prior status checks found the dedicated local profile/keyring entry absent. Possible
+remote OAuth grants are not treated as revoked, but absent local tokens with no
+exposure evidence do not require support contact as a prerequisite to this workflow.
 
 References:
-- https://github.com/neondatabase/neon-pkgs/tree/main/packages/cli
-- https://github.com/neondatabase/neon-pkgs/blob/main/packages/cli/src/commands/profile.ts
-- https://github.com/neondatabase/neon-pkgs/blob/main/packages/cli/src/commands/api.ts
 - https://neon.com/docs/manage/endpoints/
 - https://neon.com/docs/connect/connection-pooling
 - https://vercel.com/docs/environment-variables/sensitive-environment-variables
-
-OAuth adapter tests cover the exact metadata record set, target separation, profile
-kind/storage rejection, credential-free subprocess environment, redirect/method/host
-guards, session lifecycle outcomes, and the official CLI's offline profile-listing
-contract using an empty disposable directory. Loading the Windows keyring addon is
-tested without reading or changing any credential. No real browser login, logout,
-Production metadata request or database connection is part of these tests.
-
-Validation including the callback fix: 257 regression checks passed; four database
-opt-in suites were skipped. All 28 maintenance checks passed within regression. Normal
-and opt-in browser artifact checks passed. Secret scans covered 207 source files and 49 normal
-browser output files, compared four configured Development secret values only in
-memory, and found zero matches. The isolated CLI dependency audit found zero
-vulnerabilities; dependencies were unchanged by the callback fix. No Production value,
-real CLI authentication session, or database operation was used. The dedicated local
-profile/keyring presence inspection returned status only and made no changes.

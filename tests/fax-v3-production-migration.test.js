@@ -1,33 +1,44 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {run} from '../maintenance/fax-v3-production/runner.mjs';import {authorize,targetConfig,verifyNeon,ENDPOINT,DEVELOPMENT_ENDPOINT,PROJECT,BRANCH,DATABASE} from '../maintenance/fax-v3-production/policy.mjs';
-const target={environment:'production',endpoint:ENDPOINT,project:PROJECT,branch:BRANCH,developmentBranch:'br-development-fixture',database:DATABASE};
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {run} from '../maintenance/fax-v3-production/runner.mjs';import {authorize,targetConfig,attestedIdentity,assertFresh,ATTESTATION_MS,ENDPOINT,DEVELOPMENT_ENDPOINT,PROJECT,BRANCH,DEVELOPMENT_BRANCH,DATABASE} from '../maintenance/fax-v3-production/policy.mjs';
+const target={environment:'production',endpoint:ENDPOINT,project:PROJECT,branch:BRANCH,developmentBranch:DEVELOPMENT_BRANCH,developmentEndpoint:DEVELOPMENT_ENDPOINT,database:DATABASE,host:ENDPOINT+'.us-east-1.aws.neon.tech',verifiedAt:new Date(0).toISOString(),expiresAt:new Date(ATTESTATION_MS).toISOString(),confirmations:{productionAttachedToMain:true,developmentAttachedToDevelopment:true,productionReadWrite:true,distinct:true,noAdministrativeChanges:true}};
 const env={TOOLKIT_ORIGIN:'https://packardtoolkit.vercel.app',VERCEL_ENV:'production',DATABASE_URL:'postgresql://synthetic:private-password-canary@'+ENDPOINT+'.us-east-1.aws.neon.tech/neondb?sslmode=require'};
 const args=apply=>apply?['--apply','--production','--target','synthetic.json','--authorize','APPLY_002_003_TO_PRODUCTION','--expires-at',new Date(600000).toISOString()]:['--read-only','--production','--target','synthetic.json'];
-const readMetadata=async url=>url.endsWith('/endpoints/'+DEVELOPMENT_ENDPOINT)?{endpoint:{id:DEVELOPMENT_ENDPOINT,project_id:target.project,branch_id:target.developmentBranch}}:url.includes('/endpoints/')?{endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write'}}:{branch:{id:target.branch,project_id:target.project}};
 async function exercise(options={}){
  const queries=[],logs=[],checks=[];let opened=0,commits=0;const c={query:async(sql,params)=>{queries.push({sql,params});if(options.query)await options.query(sql,queries);if(sql==='COMMIT'){commits++;if(options.lostCommit===commits)throw Error('private-driver-canary');}return {rows:sql.includes('pg_try_advisory_lock')?[{locked:!options.busy}]:[]};},end:async()=>queries.push({sql:'END_CONNECTION'})};
- const code=await run({args:args(options.apply!==false),env,target,expected:{},readSql:name=>readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'),openClient:async()=>{opened++;return c;},readMetadata,now:()=>options.expireAfterCheck&&checks.length>=3?700000:0,log:s=>logs.push(s),check:async(_c,_id,_expected,stage)=>{checks.push(stage);if(options.badStage===stage || (options.postCommitFailure&&commits===1))throw Error('private-schema-canary');},...options.dependencies});
+ const code=await run({args:args(options.apply!==false),env,target,expected:{},readSql:name=>readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8'),openClient:async()=>{opened++;return c;},now:()=>options.expireAfterCheck&&checks.length>=3?700000:0,log:s=>logs.push(s),check:async(_c,_id,_expected,stage)=>{checks.push(stage);if(options.badStage===stage || (options.postCommitFailure&&commits===1))throw Error('private-schema-canary');},...options.dependencies});
  assert(!logs.join().includes('private-'));return {code,queries,logs,checks,opened,commits};
 }
 test('target guard positively pins Production and rejects Development, Preview and unknown targets before connection',async()=>{
- assert.equal(targetConfig(env,target).endpoint,ENDPOINT);
+ assert.equal(targetConfig(env,target,{now:0}).endpoint,ENDPOINT);
  for(const change of [{VERCEL_ENV:'development'},{VERCEL_ENV:'preview'},{VERCEL_ENV:undefined},{TOOLKIT_ORIGIN:'http://localhost:5173'},{DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,DEVELOPMENT_ENDPOINT)},{DATABASE_URL:env.DATABASE_URL.replace('/neondb?','/other?')}]){
   let opened=0;const r=await exercise({dependencies:{env:{...env,...change},openClient:async()=>{opened++;throw Error();}}});assert.equal(r.code,1);assert.equal(opened,0);
  }
- assert.throws(()=>targetConfig({...env,DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,ENDPOINT+'-pooler')},target,{apply:true}));
- assert.throws(()=>targetConfig(env,{...target,branch:target.developmentBranch}));
- for(const change of [{branch_id:target.developmentBranch},{host:'wrong.neon.tech'},{id:'ep-other'},{project_id:'other'},{type:'read_only'}])await assert.rejects(verifyNeon(env,target,async()=>({endpoint:{id:ENDPOINT,project_id:target.project,branch_id:target.branch,host:ENDPOINT+'.us-east-1.aws.neon.tech',type:'read_write',...change}})));
+ assert.throws(()=>targetConfig({...env,DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,ENDPOINT+'-pooler')},target,{apply:true,now:0}));
+ assert.throws(()=>targetConfig(env,{...target,branch:target.developmentBranch},{now:0}));
 });
-test('all three live records remain mandatory, including independent Development separation and branch ownership',async()=>{
- const paths=[];await verifyNeon(env,target,async path=>{paths.push(path);return readMetadata(path);});
- assert.deepEqual(paths,[`/projects/${PROJECT}/endpoints/${ENDPOINT}`,`/projects/${PROJECT}/endpoints/${DEVELOPMENT_ENDPOINT}`,`/projects/${PROJECT}/branches/${BRANCH}`]);
- for(const index of [1,2])for(const change of [{id:'unknown'},{project_id:'unknown'},index===1?{branch_id:BRANCH}:{id:target.developmentBranch}]){
-  let count=0;await assert.rejects(verifyNeon(env,target,async path=>{const record=await readMetadata(path);if(count++===index)Object.assign(record.endpoint??record.branch,change);return record;}));
- }
- for(const change of [{project:'unknown-project'},{branch:'br-unknown'},{database:'other'},{developmentBranch:BRANCH}])assert.throws(()=>targetConfig(env,{...target,...change}));
- for(const apply of [true,false]){
-  const r=await exercise({apply,dependencies:{readMetadata:async()=>{throw Error('private-upstream-canary');}}});
+
+test('dashboard attestation requires every pinned identifier, full hostname and exact confirmation',async()=>{
+ assert.equal(attestedIdentity(target,0).identityVerification,'operator-dashboard-attestation');
+ const changes=[{project:'unknown'},{branch:'br-other'},{endpoint:DEVELOPMENT_ENDPOINT},{developmentEndpoint:ENDPOINT},{developmentBranch:BRANCH},{developmentBranch:'br-other'},{database:'other'},{host:ENDPOINT+'.us-west-2.aws.neon.tech'},{host:target.host+'.evil.invalid'},{host:target.host.toUpperCase()},{host:target.host.replace(ENDPOINT,ENDPOINT+'-pooler')},{secret:'private-canary'}];
+ for(const key of Object.keys(target))changes.push({[key]:undefined});
+ for(const key of Object.keys(target.confirmations))for(const value of [false,undefined,'true',1])changes.push({confirmations:{...target.confirmations,[key]:value}});
+ changes.push({confirmations:{...target.confirmations,extra:true}});
+ for(const change of changes)for(const apply of [true,false]){
+  const r=await exercise({apply,dependencies:{target:{...target,...change}}});
   assert.equal(r.opened,0);assert.equal(r.code,1);assert.deepEqual(r.logs,['PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION']);
  }
+});
+
+test('freshness rejects future, stale, malformed or excessive windows before SQL',async()=>{
+ for(const change of [{verifiedAt:new Date(1).toISOString()},{verifiedAt:new Date(-ATTESTATION_MS).toISOString()},{expiresAt:new Date(0).toISOString()},{expiresAt:new Date(ATTESTATION_MS+1).toISOString()},{expiresAt:'tomorrow'},{verifiedAt:'1970-01-01'},{verifiedAt:0}]){
+  const r=await exercise({dependencies:{target:{...target,...change}}});assert.equal(r.opened,0);assert.equal(r.code,1);
+ }
+ assert.doesNotThrow(()=>assertFresh(target,ATTESTATION_MS-1));assert.throws(()=>assertFresh(target,ATTESTATION_MS));
+ const r=await exercise({apply:false,dependencies:{now:()=>NaN}});assert.equal(r.opened,0);
+});
+
+test('strict URL validation rejects routing overrides and accepts only attested host/database',()=>{
+ for(const url of [env.DATABASE_URL+'&options=endpoint%3Dep-other',env.DATABASE_URL+'&host=evil.invalid',env.DATABASE_URL+'&sslmode=disable',env.DATABASE_URL+'&sslmode=require',env.DATABASE_URL.replace(':private-password-canary',''),env.DATABASE_URL.replace('.us-east-1.','.us-west-2.'),env.DATABASE_URL.replace('/neondb?','/other?'),env.DATABASE_URL.replace('/neondb?',':5433/neondb?')])assert.throws(()=>targetConfig({...env,DATABASE_URL:url},target,{now:0}));
+ assert.equal(targetConfig({...env,DATABASE_URL:env.DATABASE_URL.replace(ENDPOINT,ENDPOINT+'-pooler')},target,{now:0}).host,target.host);
 });
 
 test('explicit authorization is short-lived and rejects omissions, duplicate/extra args and expired windows',()=>{
@@ -51,4 +62,13 @@ test('post-commit verification failure differs from 003 pre-commit failure; neit
  let r=await exercise({postCommitFailure:true});assert.equal(r.code,3);assert.equal(r.commits,1);assert.equal(r.logs.at(-1),'COMMITTED_BUT_VERIFICATION_FAILED_STOP_NO_RETRY');
  r=await exercise({query:async sql=>{if(sql.startsWith('-- Development Phase 2'))throw Error();}});assert.equal(r.code,1);assert.equal(r.commits,1);assert.equal(r.logs.at(-1),'003_PRECOMMIT_FAILED_002_REMAINS_COMMITTED_STOP');
  r=await exercise({expireAfterCheck:true});assert.equal(r.code,1);assert.equal(r.commits,0);
+});
+
+test('attestation expiry during SQL stops before COMMIT, including after 002',async()=>{
+ for(const expiredStage of [2,3]){
+  let time=0;
+  const r=await exercise({dependencies:{target:{...target,expiresAt:new Date(500000).toISOString()},now:()=>time,check:async(_c,_id,_expected,stage)=>{if(stage===expiredStage)time=500000;}}});
+  assert.equal(r.code,1);assert.equal(r.commits,expiredStage===2?0:1);
+ }
+ let time=0;const r=await exercise({apply:false,dependencies:{now:()=>time,check:async()=>{time=ATTESTATION_MS;}}});assert.equal(r.code,1);assert(!r.logs.some(s=>s.includes('PREFLIGHT_PASS')));
 });

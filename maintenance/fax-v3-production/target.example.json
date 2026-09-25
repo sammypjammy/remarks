@@ -1,8 +1,19 @@
-﻿{
+{
   "environment": "production",
   "endpoint": "ep-young-dream-arkoh9e5",
   "project": "fragrant-block-21191473",
   "branch": "br-silent-lab-arnl9ia9",
-  "developmentBranch": "REPLACE_WITH_DEVELOPMENT_BRANCH_ID",
-  "database": "neondb"
+  "developmentBranch": "br-morning-heart-ar9vtw8o",
+  "developmentEndpoint": "ep-jolly-lake-ar7x7r37",
+  "database": "neondb",
+  "host": "COPY_FULL_DIRECT_HOSTNAME_FROM_NEON_DASHBOARD",
+  "verifiedAt": "RECORD_AFTER_FRESH_DASHBOARD_REVIEW",
+  "expiresAt": "NO_MORE_THAN_15_MINUTES_AFTER_VERIFICATION",
+  "confirmations": {
+    "productionAttachedToMain": false,
+    "developmentAttachedToDevelopment": false,
+    "productionReadWrite": false,
+    "distinct": false,
+    "noAdministrativeChanges": false
+  }
 }

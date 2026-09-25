@@ -127,13 +127,20 @@ ledger reconciliation; never assume failure means no commit happened.
 Neither migration SQL needs modification for fresh Production staging. Preserve its
 applied Development checksum, including the historical Development comment in 003.
 Both EXISTING runners intentionally reject Production. Do not repurpose --development,
-spoof VERCEL_ENV, relax the migration guard, or use the 001 migration runner. A separate
-reviewed Production runner is still required before execution: explicit apply +
-Production approval/expiry, exact endpoint/origin/project checks, pinned 001/002/003
-checksums, read-only schema preflight, bounded lock/statement timeouts, the same
-advisory lock, a transaction spanning 002+003 plus ledger entries, no 001 execution,
-and safe diagnostics. Test it against synthetic fixtures before authorizing execution.
-No production migration command is supplied as if it already existed.
+spoof VERCEL_ENV, relax the migration guard, or use the 001 migration runner. The separate Production runner is prepared
+in
+[maintenance/fax-v3-production](../maintenance/fax-v3-production/README.md), but has
+NOT been executed. Follow that operator guide: fresh dashboard identity attestation,
+then separately authorized read-only preflight, then separate migration approval.
+It verifies pinned Production/Development identifiers and the complete dashboard
+hostname against the private URL, with a 15-minute human-attestation window. It does
+not use Neon CLI/API authentication. The human review replaces automatic live
+control-plane verification; endpoint reassignment remains an explicit review risk.
+SQL/catalog/ledger checks, authorization expiry, direct-session advisory locking,
+checksums and immutable 001 remain enforced. Migration 002 and 003 each have their
+OWN transaction and post-commit verification; 002 may remain committed if 003 fails.
+An ambiguous COMMIT is never automatically retried. This supersedes the earlier
+proposal for a single transaction spanning both migrations.
 
 After rollback of an uncommitted transaction, no DDL/ledger changes remain. After a
 successful commit, application rollback should LEAVE the additive schema and ledger
