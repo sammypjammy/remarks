@@ -1,4 +1,5 @@
 ﻿import {authorize,targetConfig,assertFresh,HASHES,digest,fail} from './policy.mjs';
+import {identityReason} from './identity-errors.mjs';
 import {inspect,readOnly} from './schema.mjs';
 // No retries, no production auto-run hook, no schema/identity data in error output.
 export async function run({args,env,target,expected,readSql,openClient,now=Date.now,log=console.log,check=inspect}) {
@@ -34,8 +35,8 @@ export async function run({args,env,target,expected,readSql,openClient,now=Date.
    log(stage===2?'002_COMMITTED_VERIFIED':'003_COMMITTED_VERIFIED');
   }
   log('PRODUCTION_MIGRATIONS_VERIFIED');return 0;
- }catch{
-  if(phase==='IDENTITY'){log('PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION');return 1;}
+ }catch(error){
+  if(phase==='IDENTITY'){log('PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION');log('IDENTITY_REASON_'+identityReason(error));return 1;}
   if(commitPending){log('COMMIT_ACKNOWLEDGEMENT_UNKNOWN_STOP_NO_RETRY');return 2;}
   await c?.query('ROLLBACK').catch(()=>{});
   if(phase.startsWith('VERIFY_')){log('COMMITTED_BUT_VERIFICATION_FAILED_STOP_NO_RETRY');return 3;}

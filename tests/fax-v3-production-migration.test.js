@@ -24,7 +24,7 @@ test('dashboard attestation requires every pinned identifier, full hostname and 
  changes.push({confirmations:{...target.confirmations,extra:true}});
  for(const change of changes)for(const apply of [true,false]){
   const r=await exercise({apply,dependencies:{target:{...target,...change}}});
-  assert.equal(r.opened,0);assert.equal(r.code,1);assert.deepEqual(r.logs,['PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION']);
+  assert.equal(r.opened,0);assert.equal(r.code,1);assert.equal(r.logs[0],'PRODUCTION_IDENTITY_VERIFICATION_FAILED_STOP_NO_DATABASE_CONNECTION');assert.match(r.logs[1],/^IDENTITY_REASON_[A-Z_]+$/);
  }
 });
 

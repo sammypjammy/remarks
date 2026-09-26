@@ -1,5 +1,6 @@
 ﻿import {createHash} from 'node:crypto';
-import {connectionCheck} from '../verify-production/validate.mjs';
+import {checkedUrl} from './url-identity.mjs';
+import {rejectIdentity as reject} from './identity-errors.mjs';
 export const ENDPOINT='ep-young-dream-arkoh9e5';
 export const DEVELOPMENT_ENDPOINT='ep-jolly-lake-ar7x7r37';
 export const PROJECT='fragrant-block-21191473';
@@ -18,26 +19,32 @@ export const fail=()=>{throw Error('VERIFICATION_FAILED');};
 // so an accidental connection string or other secret cannot enter identity output.
 export function attestedIdentity(target,now=Date.now()) {
  const keys=['environment','endpoint','project','branch','developmentBranch','developmentEndpoint','database','host','verifiedAt','expiresAt','confirmations'];
- if(!target || Object.keys(target).sort().join()!==keys.sort().join())fail();
- if(target.environment!=='production'||target.endpoint!==ENDPOINT||target.project!==PROJECT||target.branch!==BRANCH||target.developmentBranch!==DEVELOPMENT_BRANCH||target.developmentEndpoint!==DEVELOPMENT_ENDPOINT||target.database!==DATABASE)fail();
+ if(!target || Object.keys(target).sort().join()!==keys.sort().join())reject('TARGET_RECORD_INVALID');
+ if(target.environment!=='production'||target.endpoint!==ENDPOINT||target.project!==PROJECT||target.branch!==BRANCH||target.developmentBranch!==DEVELOPMENT_BRANCH||target.developmentEndpoint!==DEVELOPMENT_ENDPOINT||target.database!==DATABASE)reject('ATTESTATION_ID_MISMATCH');
  const c=target.confirmations;
- if(!c || Object.keys(c).sort().join()!==['productionAttachedToMain','developmentAttachedToDevelopment','productionReadWrite','distinct','noAdministrativeChanges'].sort().join() || Object.values(c).some(v=>v!==true))fail();
+ if(!c || Object.keys(c).sort().join()!==['productionAttachedToMain','developmentAttachedToDevelopment','productionReadWrite','distinct','noAdministrativeChanges'].sort().join() || Object.values(c).some(v=>v!==true))reject('ATTESTATION_CONFIRMATION_INVALID');
  // Dashboard supplies the full DIRECT hostname. Never derive it from DATABASE_URL.
- if(typeof target.host!=='string'||target.host!==target.host.toLowerCase()||!new RegExp('^'+ENDPOINT+'\\.(?:c-[1-9][0-9]*\\.)?[a-z0-9]+(?:-[a-z0-9]+)*\\.(aws|azure)\\.neon\\.tech$').test(target.host))fail();
+ if(typeof target.host!=='string'||target.host!==target.host.toLowerCase()||!new RegExp('^'+ENDPOINT+'\\.(?:c-[1-9][0-9]*\\.)?[a-z0-9]+(?:-[a-z0-9]+)*\\.(aws|azure)\\.neon\\.tech$').test(target.host))reject('ATTESTATION_HOST_INVALID');
  assertFresh(target,now);
  return {environment:'production',project:PROJECT,branch:BRANCH,endpoint:ENDPOINT,database:DATABASE,host:target.host,identityVerification:'operator-dashboard-attestation',verifiedAt:target.verifiedAt,expiresAt:target.expiresAt};
 }
 export function assertFresh(target,now=Date.now()) {
  const stamp=value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString()===value;
- if(!stamp(target?.verifiedAt)||!stamp(target?.expiresAt)||!Number.isFinite(now))fail();
+ if(!stamp(target?.verifiedAt)||!stamp(target?.expiresAt)||!Number.isFinite(now))reject('ATTESTATION_TIME_INVALID');
  const verified=Date.parse(target.verifiedAt),expires=Date.parse(target.expiresAt);
- if(verified>now||now-verified>=ATTESTATION_MS||expires<=now||expires<=verified||expires-verified>ATTESTATION_MS)fail();
+ if(verified>now)reject('ATTESTATION_FUTURE');
+ if(expires<=verified||expires-verified>ATTESTATION_MS)reject('ATTESTATION_WINDOW_INVALID');
+ if(now-verified>=ATTESTATION_MS||expires<=now)reject('ATTESTATION_EXPIRED');
 }
 export function targetConfig(env,target,{apply=false,now=Date.now()}={}) {
  const identity=attestedIdentity(target,now);
- if(env.TOOLKIT_ORIGIN!=='https://packardtoolkit.vercel.app'||env.VERCEL_ENV!=='production'||connectionCheck(env.DATABASE_URL,{production:true})!=='PASS')fail();
- const url=new URL(env.DATABASE_URL);
- if(decodeURIComponent(url.pathname.slice(1))!==DATABASE||(apply&&url.hostname.split('.')[0].endsWith('-pooler'))||url.hostname.replace('-pooler.','.')!==identity.host)fail();
+ if(env.TOOLKIT_ORIGIN!=='https://packardtoolkit.vercel.app')reject('ORIGIN_MISMATCH');
+ if(env.VERCEL_ENV!=='production')reject('ENVIRONMENT_MISMATCH');
+ const url=checkedUrl(env.DATABASE_URL);
+ let database;try{database=decodeURIComponent(url.pathname.slice(1));}catch{reject('URL_DATABASE_PATH_INVALID');}
+ if(database!==DATABASE)reject('DATABASE_NAME_MISMATCH');
+ if(apply&&url.hostname.split('.')[0].endsWith('-pooler'))reject('POOLING_FORBIDDEN');
+ if(url.hostname.replace('-pooler.','.')!==identity.host)reject('HOSTNAME_MISMATCH');
  return identity;
 }
 export function authorize(args,now=Date.now()) {

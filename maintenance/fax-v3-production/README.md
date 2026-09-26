@@ -1,6 +1,7 @@
 # Production preflight and migrations 002/003 (PREPARATION ONLY)
 
-No Production preflight or migration has been executed. This tooling is operator-only
+The first operator preflight attempt stopped at identity validation before SQL.
+No Production migration has been executed. This tooling is operator-only
 and is not imported by the application/build. There is no deployment, acceptance,
 menu, environment or version change. Migration execution requires separate approval.
 
@@ -222,3 +223,48 @@ References:
 - https://neon.com/docs/manage/endpoints/
 - https://neon.com/docs/connect/connection-pooling
 - https://vercel.com/docs/environment-variables/sensitive-environment-variables
+
+## Offline identity diagnostics (NO connection, not Production preflight)
+
+The earlier generic IDENTITY failure did not preserve which check rejected input.
+The supplied c-4.us-west-2 direct hostname and synthetic URLs with sslmode=require
+and channel_binding=require pass the existing rules. That does not prove the exact
+operator input passed: its contents were neither retained nor inspected.
+
+For diagnosis only, use the SAME concealed-input wrapper with -IdentityOnly:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\maintenance\fax-v3-production\preflight-private.ps1 -TargetFile "$env:LOCALAPPDATA\Temp\fax-v3-production-target.json" -IdentityOnly
+```
+
+This selects identity-diagnostic.mjs, a separate entry with no SQL client, runner,
+network or credential-service imports. It cannot perform preflight, authenticate
+against SQL, check schema or apply a migration. -Inspect and -IdentityOnly together
+are refused. Never omit -IdentityOnly when following these diagnostic instructions.
+
+Output is a fixed-vocabulary JSON record. urlPolicy checks the original strict URL
+policy independently, even when the attestation expired. preflightIdentity checks
+attestation, environment, full hostname and database; migrationIdentity additionally
+checks the direct/non-pooler rule when preflightIdentity passes. PASS means only
+local validation passed; it proves neither working credentials nor live SQL state.
+No raw input, hostname, path, query key/value, username, password or URL is printed.
+
+Normal preflight identity failures retain the stop marker and append an
+IDENTITY_REASON_* line. Reasons distinguish target schema/IDs/confirmations, invalid,
+future or expired attestation, hostname/database/endpoint mismatch, malformed or
+wrapped input, missing credential fields, forbidden port, duplicate/forbidden URL
+parameters, invalid sslmode/channel_binding, and forbidden migration pooling.
+Unexpected errors emit IDENTITY_CHECK_FAILED rather than raw exception text.
+
+URL_COPY_FORMAT_INVALID can mean quotes, whitespace, a psql command, assignment,
+or an unescaped fragment/backslash. Supply only the original URI, never a command
+or surrounding quotes. No trimming, unquoting, parameter stripping or automatic
+repair is performed. URL_PARAMETER_FORBIDDEN is intentionally generic: arbitrary
+parameter names can themselves contain secrets. Do not remove a parameter blindly
+or relax validation; review its intended purpose privately before any policy change.
+Missing sslmode/channel_binding remains allowed because TLS is enforced by the SQL
+adapter; unsupported supplied values still fail. The shared validator is unchanged.
+
+If the record expired, repeat the dashboard review and record helper; never edit
+an old timestamp. Run only the identity diagnostic and report its fixed output.
+Stop before Production preflight regardless of diagnostic PASS.
