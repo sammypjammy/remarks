@@ -304,3 +304,41 @@ Retry the SAME IdentityOnly command above with the existing record. Ignore
 ATTESTATION_EXPIRED for now. Supply the same intended URI through concealed input;
 report only the fixed JSON or fixed wrapper error code. Do not manually encode or
 strip anything based on a suspected cause before the new evidence is reviewed.
+
+### Invisible-character classes (still no input transformations)
+
+invisibleClasses lists unique, sorted coarse categories: LEADING, TRAILING or
+EMBEDDED combined with ASCII_WHITESPACE, ASCII_CONTROL, CR_OR_LF,
+UNICODE_WHITESPACE, UNICODE_FORMAT or OTHER_CONTROL. ALL_INPUT applies when there
+is no non-invisible content. No character, numeric value, offset, count, length,
+substring or fingerprint is emitted. These are descriptive categories only.
+
+invisibleContext is USERINFO_ONLY, OUTSIDE_USERINFO, USERINFO_AND_OTHER_REGIONS,
+URI_STRUCTURE_UNDETERMINED or NOT_APPLICABLE. Userinfo location is determined only
+when the untouched input has an anchored PostgreSQL scheme, unambiguous authority
+and user/password separator. This does not establish whether a character is a
+legitimate credential character. Ambiguous URI structure is never reconstructed.
+
+The observed URL_MALFORMED (rather than URL_COPY_FORMAT_INVALID) excludes ordinary
+JavaScript whitespace and CR/LF under the current policy. A non-whitespace control
+or Unicode format character remains possible. NOT_EVALUATED additionally means the
+older heuristic could not identify scheme/userinfo boundaries. Synthetic tests
+reproduce the complete combination with disrupted URI syntax; this is not evidence
+that the operator's input has that particular corruption or that Neon caused it.
+
+A password may contain data that cannot appear literally in a URI. Whitespace,
+controls and non-ASCII formatting data, if truly part of a credential, require
+appropriate percent-encoding in a URI representation. Do not delete them from a
+password or percent-encode a whole connection URI. A leading formatting character
+outside URI syntax is not legitimate credential content, but its origin is not
+established merely by finding it. PostgreSQL URI rules:
+https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS
+https://www.rfc-editor.org/rfc/rfc3986.html#section-3.2.1
+
+The transport match excludes changes AFTER SecureString capture, not earlier
+browser/clipboard/terminal transformations. No general SecureString artifact was
+reproduced in the synthetic end-to-end tests. No clipboard inspection is performed.
+Use the existing expired record with the same IdentityOnly command; report only
+the diagnostic JSON. Do not renew the attestation, manually edit the URI, trim,
+encode or otherwise transform it before the class is reviewed. No Production
+preflight is authorized by this investigation, even if URL policy later passes.

@@ -1,6 +1,6 @@
 import {readFile} from 'node:fs/promises';
 import {targetConfig} from './policy.mjs';
-import {inputDiagnostics,compareTransport} from './input-diagnostic.mjs';
+import {inputDiagnostics,invisibleDiagnostics,compareTransport} from './input-diagnostic.mjs';
 import {checkedUrl} from './url-identity.mjs';
 import {identityReason,rejectIdentity} from './identity-errors.mjs';
 // Deliberately separate entry point: no pg, runner, SQL, DNS, HTTP or child process.
@@ -14,7 +14,7 @@ if(verifyTransport){
   console.log(JSON.stringify(result));process.exit(1);
  }
 }else result.inputTransport='NOT_CHECKED_DIRECT_INVOCATION';
-Object.assign(result,inputDiagnostics(process.env.DATABASE_URL));
+Object.assign(result,inputDiagnostics(process.env.DATABASE_URL),invisibleDiagnostics(process.env.DATABASE_URL));
 try{checkedUrl(process.env.DATABASE_URL);result.urlPolicy='PASS';}catch(error){result.urlPolicy=identityReason(error);}
 try{
  const [flag,path,...extra]=verifyTransport?args.slice(0,2):args;if(flag!=='--target'||!path||extra.length)rejectIdentity('TARGET_RECORD_INVALID');
