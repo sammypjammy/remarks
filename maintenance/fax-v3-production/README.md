@@ -265,6 +265,42 @@ or relax validation; review its intended purpose privately before any policy cha
 Missing sslmode/channel_binding remains allowed because TLS is enforced by the SQL
 adapter; unsupported supplied values still fail. The shared validator is unchanged.
 
-If the record expired, repeat the dashboard review and record helper; never edit
-an old timestamp. Run only the identity diagnostic and report its fixed output.
-Stop before Production preflight regardless of diagnostic PASS.
+While diagnosing URL input, keep the expired record: do NOT repeat dashboard
+attestation until urlPolicy passes. Report only the fixed diagnostic output and
+stop before Production preflight regardless of diagnostic PASS.
+
+### Concealed-input and transport diagnosis
+
+IdentityOnly now compares the captured value over two private in-memory channels:
+child environment and redirected stdin. The stdin copy is raw UTF-16, avoiding
+console, shell, JSON and code-page transformations. PowerShell first verifies its
+BSTR-to-managed-string conversion against the SecureString code units. NUL input,
+which Windows environment blocks cannot represent, fails before launching Node.
+Temporary BSTR/byte buffers are cleared; managed-string copies cannot be guaranteed
+erased. No secret enters process arguments, files, hashes, debug logs or output.
+
+The child emits only SECURE_INPUT_TRANSPORT_MATCH, MISMATCH or FAILED. On mismatch
+or failure it stops without parsing or reporting identity. MATCH means the Node
+value equals the value captured by Read-Host, not that clipboard contents were
+pasted correctly: the tool does not read the clipboard or inspect terminal history.
+Direct Node invocations report NOT_CHECKED_DIRECT_INVOCATION.
+
+Additional fixed fields distinguish empty input, command/assignment wrappers,
+quotes, whitespace/control/invisible characters, missing/nonstandard scheme,
+WHATWG parser success/failure, and credential percent-encoding shape. A suspected
+unescaped userinfo delimiter is a heuristic, not proof that Neon's snippet was bad.
+No character, substring, length, fingerprint, hostname, username, query or password
+is emitted. Diagnostics do not trim, unquote, encode, decode for use, reconstruct,
+or accept an input that the unchanged shared URL policy rejects. Encoding checks
+are descriptive only; they do not override policy or prove credentials are valid.
+
+Offline end-to-end tests replace only Read-Host with synthetic SecureStrings, then
+exercise the actual wrapper, BSTR conversion, environment, pipe and Node entry.
+Reserved/percent-encoded passwords, punctuation, wrappers, newlines and invisible
+prefixes are covered. These tests do not simulate the operator's terminal paste UI,
+do not read the operator's clipboard, and make no SQL connection.
+
+Retry the SAME IdentityOnly command above with the existing record. Ignore
+ATTESTATION_EXPIRED for now. Supply the same intended URI through concealed input;
+report only the fixed JSON or fixed wrapper error code. Do not manually encode or
+strip anything based on a suspected cause before the new evidence is reviewed.

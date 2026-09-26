@@ -3,11 +3,25 @@
 $ErrorActionPreference = 'Stop'
 $databaseSecret = $null
 $databasePointer = [IntPtr]::Zero
+$databaseValue = $null
+$transportBytes = $null
+$wrapperFailure = 'PREFLIGHT_WRAPPER_FAILED'
 try {
     if ($Inspect -and $IdentityOnly) { throw 'MODE_INVALID' }
     $targetPath = (Resolve-Path -LiteralPath $TargetFile).Path
+    $wrapperFailure = 'SECURE_INPUT_CAPTURE_FAILED'
     $databaseSecret = Read-Host 'Production DATABASE_URL (concealed input)' -AsSecureString
     $databasePointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($databaseSecret)
+    $wrapperFailure = 'SECURE_INPUT_CONVERSION_FAILED'
+    $databaseValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($databasePointer)
+    if ($databaseValue.Length -ne $databaseSecret.Length) { throw 'CONVERSION_FAILED' }
+    for ($inputIndex = 0; $inputIndex -lt $databaseSecret.Length; $inputIndex++) {
+        $nativeUnit = [Runtime.InteropServices.Marshal]::ReadInt16($databasePointer, 2 * $inputIndex) -band 65535
+        if ($nativeUnit -ne [int][char]$databaseValue[$inputIndex]) { throw 'CONVERSION_FAILED' }
+    }
+    $wrapperFailure = 'SECURE_INPUT_ENVIRONMENT_UNREPRESENTABLE'
+    if ($databaseValue.IndexOf([char]0) -ge 0) { throw 'NUL_INPUT' }
+    $wrapperFailure = 'PREFLIGHT_WRAPPER_FAILED'
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.FileName = (Get-Command node.exe -ErrorAction Stop).Source
     $start.UseShellExecute = $false
@@ -22,7 +36,11 @@ try {
     if ($IdentityOnly) { $entry = Join-Path $PSScriptRoot 'identity-diagnostic.mjs' }
     $start.Arguments = '"' + $entry + '" ' + $mode + ' --production --target "' + $targetPath + '"'
     if ($IdentityOnly) { $start.Arguments = '"' + $entry + '" --target "' + $targetPath + '"' }
-    $start.EnvironmentVariables['DATABASE_URL'] = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($databasePointer)
+    $start.EnvironmentVariables['DATABASE_URL'] = $databaseValue
+    if ($IdentityOnly) {
+        $start.RedirectStandardInput = $true
+        $start.Arguments += ' --verify-transport'
+    }
     $start.EnvironmentVariables.Remove('NEON_API_KEY')
     $start.EnvironmentVariables['TOOLKIT_ORIGIN'] = 'https://packardtoolkit.vercel.app'
     $start.EnvironmentVariables['VERCEL_ENV'] = 'production'
@@ -32,6 +50,17 @@ try {
     $process = New-Object Diagnostics.Process
     $process.StartInfo = $start
     [void]$process.Start()
+    if ($IdentityOnly) {
+        # Independent pipe copy proves the child environment received the captured
+        # string exactly. Raw UTF-16 avoids shell/JSON/console encoding conversions.
+        $wrapperFailure = 'SECURE_INPUT_TRANSPORT_FAILED'
+        $transportBytes = [Text.Encoding]::Unicode.GetBytes($databaseValue)
+        $process.StandardInput.BaseStream.Write($transportBytes, 0, $transportBytes.Length)
+        $process.StandardInput.BaseStream.Flush()
+        $process.StandardInput.Close()
+        [Array]::Clear($transportBytes, 0, $transportBytes.Length)
+        $wrapperFailure = 'PREFLIGHT_WRAPPER_FAILED'
+    }
     $output = $process.StandardOutput.ReadToEnd()
     $null = $process.StandardError.ReadToEnd()
     $process.WaitForExit()
@@ -41,8 +70,10 @@ try {
     $start.EnvironmentVariables.Remove('NEON_API_KEY')
     $process.Dispose()
     exit $result
-} catch { [Console]::Error.WriteLine('PREFLIGHT_WRAPPER_FAILED'); exit 1 }
+} catch { [Console]::Error.WriteLine($wrapperFailure); exit 1 }
 finally {
+    if ($null -ne $transportBytes) { [Array]::Clear($transportBytes, 0, $transportBytes.Length) }
+    $databaseValue = $null
     if ($databasePointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($databasePointer) }
     if ($null -ne $databaseSecret) { $databaseSecret.Dispose() }
 }
