@@ -342,3 +342,39 @@ Use the existing expired record with the same IdentityOnly command; report only
 the diagnostic JSON. Do not renew the attestation, manually edit the URI, trim,
 encode or otherwise transform it before the class is reviewed. No Production
 preflight is authorized by this investigation, even if URL policy later passes.
+
+### Actual concealed-prompt investigation: control-only capture
+
+A real interactive Windows PowerShell Read-Host -AsSecureString prompt was tested
+with synthetic data (not a mocked Read-Host). A distinctive synthetic URI reached
+Node and passed URL policy. Delivering a synthetic paste-shortcut control event to
+the same prompt reproduced ALL_INPUT_ASCII_CONTROL, WHATWG_PARSE_FAILED,
+NOT_EVALUATED and SECURE_INPUT_TRANSPORT_MATCH. This establishes a concrete console
+capture failure mode; it does not identify the operator's exact key or clipboard.
+
+Trace: Read-Host returns SecureString -> SecureStringToBSTR -> PtrToStringBSTR
+produces a managed copy -> EnvironmentVariables receives that copy -> the same
+copy is encoded to a private UTF-16 pipe -> Node compares the pipe with its own
+environment string -> classifiers and checkedUrl read that environment string.
+Both channels derive from the SAME capture. Their agreement proves transport, not
+that the console captured clipboard contents. A captured control-only value is
+therefore consistently copied and correctly classified as control-only.
+
+No masked prompt output, sentinel or pipe framing is used as input. PowerShell
+clears the pipe byte buffer after Write/Flush; the copied pipe data is independent.
+Node clears its comparison buffers, not its immutable environment string. The BSTR
+is zeroed and SecureString disposed only in the wrapper's finally, after Node exits.
+This cleanup does not turn the classified URI into control characters.
+
+The wrapper now rejects nonempty control-only captures before launching Node with:
+SECURE_INPUT_CONTROL_ONLY_CAPTURE_REJECTED_USE_TERMINAL_PASTE
+It never trims, normalizes, reads the clipboard or repairs input. A legitimate
+PostgreSQL URI cannot consist entirely of ASCII controls. Hostname/database/TLS/
+endpoint/query validation remains unchanged. No new credential mechanism is added.
+
+Retry IdentityOnly with the expired record, using the terminal application's Paste
+action at the concealed prompt (for example its context-menu Paste). Avoid sending
+a raw shortcut key directly to Read-Host. On a control-only rejection, start a fresh
+invocation and use the host's Paste action; do not edit the secret or append it to
+the rejected input. Do not renew dashboard attestation during this investigation.
+Terminal paste behavior depends on the host; no terminal settings are changed.

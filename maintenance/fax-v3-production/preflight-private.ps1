@@ -10,7 +10,7 @@ try {
     if ($Inspect -and $IdentityOnly) { throw 'MODE_INVALID' }
     $targetPath = (Resolve-Path -LiteralPath $TargetFile).Path
     $wrapperFailure = 'SECURE_INPUT_CAPTURE_FAILED'
-    $databaseSecret = Read-Host 'Production DATABASE_URL (concealed input)' -AsSecureString
+    $databaseSecret = Read-Host 'Production DATABASE_URL (concealed input; use the terminal Paste action)' -AsSecureString
     $databasePointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($databaseSecret)
     $wrapperFailure = 'SECURE_INPUT_CONVERSION_FAILED'
     $databaseValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($databasePointer)
@@ -19,6 +19,10 @@ try {
         $nativeUnit = [Runtime.InteropServices.Marshal]::ReadInt16($databasePointer, 2 * $inputIndex) -band 65535
         if ($nativeUnit -ne [int][char]$databaseValue[$inputIndex]) { throw 'CONVERSION_FAILED' }
     }
+    # Some console hosts deliver a paste shortcut as a control key to Read-Host.
+    # Reject that capture; do not read clipboard, strip controls or synthesize a URI.
+    $wrapperFailure = 'SECURE_INPUT_CONTROL_ONLY_CAPTURE_REJECTED_USE_TERMINAL_PASTE'
+    if ($databaseValue -cmatch '\A[\x00-\x1f\x7f]+\z') { throw 'CONTROL_ONLY_CAPTURE' }
     $wrapperFailure = 'SECURE_INPUT_ENVIRONMENT_UNREPRESENTABLE'
     if ($databaseValue.IndexOf([char]0) -ge 0) { throw 'NUL_INPUT' }
     $wrapperFailure = 'PREFLIGHT_WRAPPER_FAILED'
