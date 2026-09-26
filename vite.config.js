@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { cpSync, mkdirSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import { v3Runtime } from './server/ringcentral-v3/runtime.js';
 import react from "@vitejs/plugin-react";
@@ -54,6 +54,11 @@ function authCallbackRoute(server) {
   });
 }
 
+function productionAcceptanceEnabled() {
+  if (process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== undefined && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'disabled' && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'enabled') throw new Error('Invalid v3 build switch');
+  return process.env.FAX_V3_PRODUCTION_ACCEPTANCE === 'enabled';
+}
+
 export default defineConfig({
   server: { port: 5173, strictPort: true },
   plugins: [
@@ -67,11 +72,16 @@ export default defineConfig({
     },
     {
       name: "copy-static-toolkit-files",
+      transform(source, id) {
+        if (!id.replaceAll('\\', '/').endsWith('/welcome-email-sender/App.jsx')) return;
+        const marker = 'const faxV3ProductionAcceptance = false;';
+        if (source.split(marker).length !== 2) throw new Error('V3 navigation build marker missing or ambiguous');
+        return productionAcceptanceEnabled() ? source.replace(marker, 'const faxV3ProductionAcceptance = true;') : source;
+      },
       closeBundle() {
         const outputDirectory = resolve(import.meta.dirname, "dist");
-        // Explicit opt-in only; ordinary builds continue excluding the candidate.
-        if (process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== undefined && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'disabled' && process.env.FAX_V3_PRODUCTION_ACCEPTANCE !== 'enabled') throw new Error('Invalid v3 build switch');
-        if (process.env.FAX_V3_PRODUCTION_ACCEPTANCE === 'enabled') {
+        const productionAcceptance = productionAcceptanceEnabled();
+        if (productionAcceptance) {
           const config = v3Runtime();
           if (!config.productionAcceptance) throw new Error('Production acceptance configuration required');
           const destination = resolve(outputDirectory, 'fax-sender-v3');
@@ -88,6 +98,13 @@ export default defineConfig({
           const destination = resolve(outputDirectory, path);
           mkdirSync(resolve(destination, ".."), { recursive: true });
           cpSync(resolve(import.meta.dirname, path), destination, { recursive: true });
+        }
+        if (productionAcceptance) {
+          const shellPath = resolve(outputDirectory, 'settings/shared/app-shell.js');
+          const shell = readFileSync(shellPath, 'utf8');
+          const marker = 'const faxV3ProductionAcceptance = false;';
+          if (shell.split(marker).length !== 2) throw new Error('V3 navigation build marker missing or ambiguous');
+          writeFileSync(shellPath, shell.replace(marker, 'const faxV3ProductionAcceptance = true;'));
         }
       }
     }

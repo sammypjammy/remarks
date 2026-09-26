@@ -4,12 +4,14 @@ authStyles.href = new URL('./toolkit-auth.css', document.currentScript.src).href
 document.head.append(authStyles);
 const activePage = document.body.dataset.page || "home";
 const routePrefix = activePage === "home" ? "./" : "../";
+const faxV3ProductionAcceptance = false;
 const routes = {
   home: routePrefix,
   remarks: `${routePrefix}canned-remarks/`,
   medTabs: `${routePrefix}med-tabs-generator/`,
   email: `${routePrefix}welcome-email-sender/`,
   fax: `${routePrefix}fax-sender/`,
+  faxV3: `${routePrefix}fax-sender-v3/`,
   intake: `${routePrefix}intake-checker/`,
   settings: `${routePrefix}settings/`,
   versionHistory: `${routePrefix}version-history/`
@@ -87,6 +89,7 @@ const toolkitNavigationConfig = [
       { id: "remarks", label: "Canned Remarks", url: routes.remarks },
       { id: "email", label: "Welcome Emails", url: routes.email },
       { id: "fax", label: "Fax Sender", url: routes.fax },
+      ...(faxV3ProductionAcceptance ? [{ id: "fax-v3-testing", label: "Fax Sender v3 — Testing", url: routes.faxV3 }] : []),
       { id: "intake", label: "Intake Checker", url: routes.intake }
     ]
   },

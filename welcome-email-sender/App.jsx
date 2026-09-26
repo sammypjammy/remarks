@@ -17,6 +17,7 @@ const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office365.com",
   "outlook.cloud.microsoft",
 ]);
+const faxV3ProductionAcceptance = false;
 function getToolkitNavigation(isSettingsPage) {
   return [
   {
@@ -27,6 +28,7 @@ function getToolkitNavigation(isSettingsPage) {
       { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
       { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
       { id: "fax", label: "Fax Sender", href: "/fax-sender/" },
+      ...(faxV3ProductionAcceptance ? [{ id: "fax-v3-testing", label: "Fax Sender v3 — Testing", href: "/fax-sender-v3/" }] : []),
       { id: "intake", label: "Intake Checker", href: "/intake-checker/" },
     ],
   },

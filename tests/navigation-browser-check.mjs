@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, extname, sep } from "node:path";
 import { spawn } from "node:child_process";
@@ -11,14 +12,16 @@ import { checkIntake } from "../intake-checker/browser-check.mjs";
 const browser = process.argv[2];
 assert(browser, "Provide a Chromium executable path");
 const root = resolve("dist");
+const faxV3ProductionAcceptance = existsSync(join(root, "fax-sender-v3", "index.html"));
 const failures = [];
 const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".pdf": "application/pdf" };
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
   if (pathname === '/api/auth/session') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(401, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ authenticated: false }));
   }
+  if (pathname === '/favicon.ico') return res.writeHead(204).end();
   // This server has no credentials or API handlers; any accidental API use fails.
   if (pathname.startsWith("/api/")) failures.push(`Unexpected API request: ${pathname}`);
   const path = resolve(root, `.${pathname.endsWith("/") ? pathname + "index.html" : pathname}`);
@@ -66,7 +69,11 @@ try {
       event.error ? promise.reject(new Error(event.error.message)) : promise.resolve(event.result);
     }
     if (event.method === "Runtime.exceptionThrown") failures.push(event.params.exceptionDetails.exception?.description || event.params.exceptionDetails.text);
-    if (event.method === "Log.entryAdded" && event.params.entry.level === "error") failures.push(event.params.entry.text);
+    if (event.method === "Log.entryAdded" && event.params.entry.level === "error") {
+      const entry = event.params.entry;
+      const expectedSignedOut = entry.url?.endsWith('/api/auth/session') && entry.text.includes('401');
+      if (!expectedSignedOut) failures.push(entry.text);
+    }
     if (event.method === "Runtime.consoleAPICalled" && event.params.type === "error") failures.push("Console error: " + event.params.args.map(arg => arg.value || arg.description).join(" "));
   };
   function cdp(method, params = {}) {
@@ -122,15 +129,22 @@ try {
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
-      const expectedLinks = page === "/version-history/" ? 7 : 6;
+      const expectedLinks = (page === "/version-history/" ? 7 : 6) + (faxV3ProductionAcceptance ? 1 : 0);
       assert.equal(links.length, expectedLinks, `Toolkit links on ${page}`);
       assert(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)).length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(item => /Fax Sender|Intake Checker/.test(item.textContent)).length) === 2`), `Fax Sender and Intake Checker appear once on ${page}`);
+      assert.equal(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => a.textContent.trim() === 'Fax Sender v3 — Testing' && new URL(a.href).pathname === '/fax-sender-v3/').length)`), faxV3ProductionAcceptance ? 1 : 0, `Guarded v3 navigation on ${page}`);
       for (const link of links) {
+        if (link.path === "/fax-sender-v3/") continue;
         await visit(page);
         await evaluate(`document.querySelector('.app-menu-toggle').click()`);
         await until(() => evaluate(`!!document.querySelector('.toolkit-navigation a')`), "menu links");
         await click(`.toolkit-navigation a[href=${JSON.stringify(link.href)}]`, link.path);
       }
+    }
+    if (faxV3ProductionAcceptance) {
+      await cdp("Page.navigate", { url: origin + "/fax-sender-v3/" });
+      await until(() => evaluate("location.pathname === '/fax-sender-v3/' && document.readyState === 'complete' && document.querySelector('h1')?.textContent === 'Fax Sender'"), "v3 candidate page");
+      assert.equal(await evaluate("document.getElementById('toolkitState').textContent"), "Signed out of the Toolkit.", "v3 requires Toolkit authentication");
     }
     await visit("/settings/");
     await evaluate("localStorage.removeItem('packard-toolkit-homepage'); location.reload()");

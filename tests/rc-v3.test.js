@@ -110,10 +110,13 @@ test('migration success is emitted only after COMMIT succeeds',async()=>{
 });
 test('Isolation: v2 sources and browser bundles never import new credentials or backend',async()=>{
   const root=new URL('../',import.meta.url);
-  for(const path of ['package.json','fax-sender/main.js','fax-sender/batch.js','fax-sender/history.js','settings/shared/app-shell.js']){
+  for(const path of ['package.json','fax-sender/main.js','fax-sender/batch.js','fax-sender/history.js']){
     const source=await readFile(new URL(path,root),'utf8');
     assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3|fax-sender-v3/.test(source));
   }
+  const shell=await readFile(new URL('settings/shared/app-shell.js',root),'utf8');
+  assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3/.test(shell));
+  assert.match(shell,/faxV3ProductionAcceptance \? \[\{ id: "fax-v3-testing", label: "Fax Sender v3 — Testing"/);
   for(const path of ['config','crypto','provider','store','service','handler']){
     const source=await readFile(new URL(`server/ringcentral-v3/${path}.js`,root),'utf8');
     assert(!/console\.|localStorage|sessionStorage|RC_USER_JWT|jwt-bearer/.test(source));

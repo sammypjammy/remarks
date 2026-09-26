@@ -1,7 +1,8 @@
 ﻿# Parallel Production acceptance plan: Fax Sender v2 + v3
 
-Status: preparation only. No Production deployment, migration, environment change,
-provider setting change, menu change or real fax is authorized by this document.
+Status: parallel-acceptance deployment preparation only. The operator reports that
+Production migrations 002 and 003 committed and verified. No Production deployment,
+environment change, provider setting change or real fax is authorized by this document.
 This supersedes the separate-project recommendation in fax-v3-shared-testing.md.
 Released Fax Sender remains v2.16.0; v3.0.0 requires explicit final-cutover approval.
 
@@ -17,7 +18,9 @@ Keep /fax-sender/ and every existing v2 API, JWT variable and old RingCentral ap
 unchanged. v2 has no dependency on toolkit_rc_v3 or on v3 OAuth. The implementation
 now removes v3's legacy-history deletion: opening v3 does not read, write, import or
 delete packard.faxHistory.v1. This was a real blocker to sharing the production origin.
-No v2 source, shared navigation, homepage, Entra auth source or migration SQL changed.
+No v2 source, homepage, Entra auth source or migration SQL changed. The shared
+navigation candidate is build-gated and remains absent outside an explicitly enabled,
+validated Production acceptance build.
 
 Same-origin isolation is application authorization, NOT a browser security boundary.
 An XSS in any same-origin module would affect this boundary; a separate project/origin
@@ -64,7 +67,8 @@ valid inputs for plaintext comparison. Separate documented read endpoints verifi
 the non-secret restriction/origin/key-ID values. No sensitive values were displayed,
 written to disk or changed. Production-vs-Development key inequality is NOT confirmed;
 it remains a mandatory pre-staging gate. No Production DB connection was opened.
-Production migration status is operator-reported, not independently queried here.
+Production migrations 002 and 003 are operator-reported as committed and verified;
+this code-preparation step did not independently query or modify Production.
 
 Before deployment, verify key inequality privately using the original approved key
 provenance or a separately authorized in-environment verifier returning only PASS/FAIL.
@@ -189,10 +193,10 @@ needs no new Entra redirect or SPA/CORS origin. Keep Email Sender's separate
 Toolkit login currently returns home; during acceptance the temporary menu gives a
 path back to v3. No auth return-url behavior is changed.
 
-Later-only shared menu edit: retain "Fax Sender" -> /fax-sender/ and add
-"Fax Sender v3 - Testing" -> /fax-sender-v3/ immediately alongside it. Use an em dash
-in the displayed label if preferred. No homepage change; no released version bump.
-No menu implementation has been made in this checkpoint.
+The guarded acceptance build retains "Fax Sender" -> /fax-sender/ and adds
+"Fax Sender v3 — Testing" -> /fax-sender-v3/ immediately alongside it. Ordinary and
+Preview builds keep the item disabled and exclude the v3 page assets. There is no
+homepage change or released version bump.
 
 ## Two-employee acceptance without new real faxes
 
@@ -236,15 +240,12 @@ No menu implementation has been made in this checkpoint.
    provider-registration and any tester-access policy verification. Record the exact
    known-good production deployment ID and origin/main SHA; ensure Neon recovery is
    available. Read-only snapshot/ledger review only at this step.
-2. Prepare/review/test the separate bounded Production migration runner described
-   above. Ensure auth-session cleanup accounts for RC OAuth foreign keys. Reconfirm
-   001 checksum; v3 schema/ledger absent; zero history/import. Authorize migrations
-   separately from deployment. Do not use ordinary Preview with Production data.
-3. In an approved quiet window execute 002+003 transactionally against the verified
-   Production endpoint. Reconcile checksums/empty row counts read-only after COMMIT.
-   Stop on contention, unexpected existing state or mismatch. v2 stays live throughout.
-4. Authorize the exact temporary shared-menu diff separately. Revalidate all Toolkit
-   modules and v2 artifact, preserving the five unrelated workspace modifications.
+2. Completed by the operator: the bounded Production runner verified 001, applied
+   002 then 003, and reported both commits and final verification. Do not rerun it.
+3. Completed by the operator: read-only reconciliation confirmed the clean starting
+   state before the successful run. Preserve the additive schema during application rollback.
+4. Prepared here: the exact build-gated temporary shared-menu diff was validated with
+   the Toolkit modules and v2 artifact, without copying the five unrelated main-checkout changes.
 5. Authorize Production-only FAX_V3_PRODUCTION_ACCEPTANCE=enabled, then an explicit
    production build/deployment of the reviewed candidate on the existing project.
    Do not merge main or remove the development branch deployment block implicitly.
