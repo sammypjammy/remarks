@@ -1,8 +1,6 @@
 {
   "functions": {
-    "api/fax-v3/send.js": { "maxDuration": 60 },
-    "api/fax-v3/receipt.js": { "maxDuration": 60 },
-    "api/fax-v3/status.js": { "maxDuration": 30 },
+    "api/fax-v3/[action].js": { "maxDuration": 60 },
     "api/send-fax.js": { "maxDuration": 60 },
     "api/fax-status.js": { "maxDuration": 30 },
     "api/ringcentral-contacts.js": { "maxDuration": 60 }

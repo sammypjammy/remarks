@@ -167,9 +167,12 @@ whole-database restore would rewind unrelated Toolkit authentication too.
   excludes v3. No server configuration enters browser assets. No migration is built in.
 - Enabled Production OAuth callback returns to the fixed /fax-sender-v3/ success/fail
   destination, ignoring request return URLs; connection is confirmed server-side.
-- v3 send/receipt functions receive 60-second limits; status 30 seconds. v2 limits
-  and APIs remain unchanged. The switch is a deployment environment snapshot: editing
-  a Vercel variable alone does NOT disable an already-running deployment.
+- The eleven v3 route wrappers are consolidated into one exact-path RingCentral router
+  and one exact-path fax router. The fax router preserves raw multipart input and uses
+  a 60-second maximum; all public paths and v2 function limits remain unchanged. The
+  deployable inventory is ten existing functions plus two v3 routers, exactly twelve.
+  The switch is a deployment environment snapshot: editing a Vercel variable alone
+  does NOT disable an already-running deployment.
 - Removed v3 legacy history deletion and added browser proof of preservation through
   reload, sending mocks, Clear All and employee/session changes.
 
@@ -250,8 +253,8 @@ homepage change or released version bump.
    production build/deployment of the reviewed candidate on the existing project.
    Do not merge main or remove the development branch deployment block implicitly.
    A later deployment authorization must identify the commit and target explicitly.
-   Explicitly use npm run build and dist output; verify function-count/duration quotas
-   for the project plan before proceeding. Verify page/API no-store handling, provider callbacks, main v2 assets and environment
+   Explicitly use npm run build and dist output; verify the twelve-function inventory
+   before proceeding. Verify page/API no-store handling, provider callbacks, main v2 assets and environment
    snapshot before opening the candidate menu. Existing required secrets stay managed
    in Vercel. No automatic migrations, Development data imports or JWT changes.
 6. Run the two-employee plan above. Inspect safe status/error diagnostics, not tokens,
