@@ -3,8 +3,15 @@ const $=id=>document.getElementById(id);
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
 const note=message=>{$('faxNotice').textContent=message;};
+const accountStatus=$('accountStatus'),accountStatusTop=$('accountStatusTop'),accountStatusBottom=$('accountStatusBottom');
+function placeAccountStatusTop(){accountStatusTop.append(accountStatus);accountStatusBottom.hidden=true;}
+function placeAccountStatusIfHealthy(){
+  const healthy=signedIn&&Boolean(scope.context)&&!$('faxWorkspace').hidden&&$('toolkitState').textContent.startsWith('Signed in as ')&&$('connectionState').textContent==='Connected to RingCentral.';
+  const target=healthy?accountStatusBottom:accountStatusTop;target.append(accountStatus);accountStatusBottom.hidden=!healthy;
+}
 const pollingNotice='Fax status could not be refreshed. The fax outcome is unchanged. Review RingCentral and do not resend it.';
 const scope=new Scope(fetch,()=>{
+  placeAccountStatusTop();
   historySequence++;entries=[];contacts=[];selectedName='';receiptBusy=false;contactBusy=false;poller?.clear();batch?.clear();
   for(const url of objectUrls)URL.revokeObjectURL(url);objectUrls.clear();
   $('faxForm').reset();$('contactResults').replaceChildren();$('faxHistory').replaceChildren();$('contactNotice').textContent='';$('receiptNotice').textContent='';$('faxWorkspace').hidden=true;
@@ -63,13 +70,13 @@ async function sync() {
     const r=await fetch('/api/fax-v3/context',{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(15000)}),data=await r.json();
     if(epoch!==scope.epoch)return;
     if(!r.ok || data.state!=='connected' || !/^[a-f0-9]{64}$/.test(data.context||'')){scope.reset();return;}
-    const changed=scope.context!==data.context,previous=scope.context;scope.set(data.context);$('faxWorkspace').hidden=false;
+    const changed=scope.context!==data.context,previous=scope.context;scope.set(data.context);$('faxWorkspace').hidden=false;placeAccountStatusIfHealthy();
     if(changed){if(previous)note('Session or RingCentral authorization changed. The queue and selected files were cleared. Review history before starting again.');await historyRefresh();}render();
-  }catch{if(epoch===scope.epoch){scope.reset();note('Authorization status unavailable. Work stopped; refresh status before continuing.');}}
+  }catch{if(epoch===scope.epoch){placeAccountStatusTop();scope.reset();note('Authorization status unavailable. Work stopped; refresh status before continuing.');}}
   finally{syncing=false;}
 }
-window.addEventListener('toolkit-rc-state',event=>{signedIn=event.detail==='connected';if(signedIn)void sync();else scope.reset();});
-window.addEventListener('toolkit-rc-reset',()=>{signedIn=false;scope.reset();});
+window.addEventListener('toolkit-rc-state',event=>{signedIn=event.detail==='connected';if(signedIn)void sync();else{placeAccountStatusTop();scope.reset();}});
+window.addEventListener('toolkit-rc-reset',()=>{signedIn=false;placeAccountStatusTop();scope.reset();});
 window.addEventListener('pagehide',()=>{signedIn=false;scope.reset();});
 window.addEventListener('beforeunload',event=>{if(batch.running){event.preventDefault();event.returnValue='';}});
 setInterval(()=>{if(!document.hidden)void sync();},5000);setInterval(()=>void poller.tick(),1000);
