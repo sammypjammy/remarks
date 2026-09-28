@@ -25,7 +25,7 @@ export class FaxStore extends RcStore {
   }
   public(row,config) {
     const metadata=decrypt(row.metadata_envelope,metadataContext(row),config);
-    return {faxId:row.id,filename:metadata.filename,lastFour:metadata.lastFour,recipientName:metadata.recipientName,faxNumber:metadata.faxNumber,
+    return {faxId:row.id,filename:metadata.filename,lastFour:metadata.lastFour,recipientName:metadata.recipientName,faxNumber:metadata.faxNumber,...(uuid(metadata.batchId)?{batchId:metadata.batchId}:{}),
       createdAt:new Date(row.created_at).toISOString(),status:publicState(row),retryable:row.state==='failed',
       tracking:!!row.message_id && !['sent','failed'].includes(row.state) && new Date(row.tracking_deadline).getTime()>Date.now()};
   }

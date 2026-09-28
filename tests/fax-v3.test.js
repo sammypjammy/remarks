@@ -9,8 +9,9 @@ import {validateSubmission,receiptFilename,contextFor,checkContext,metadataConte
 import {encrypt,decrypt} from '../server/ringcentral-v3/crypto.js';
 import {FaxProvider} from '../server/fax-v3/provider.js';
 import {FaxService} from '../server/fax-v3/service.js';
+import {FaxStore} from '../server/fax-v3/store.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
-import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,number} from '../fax-sender/client.js';
+import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,latestBatchReceipts,number} from '../fax-sender/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
 const pdf=Buffer.from('%PDF-1.4\nsynthetic only');
 const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  PRIVATE COMMENT  ',idempotencyKey:randomUUID()});
@@ -20,11 +21,18 @@ const contextual=fn=>(path,options)=>path==='/api/fax-v3/context'?response({stat
 const file=()=>new File([pdf],'Brief.pdf',{type:'application/pdf',lastModified:1});
 const settings=()=>({faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  comment  '});
 test('submission validation, immutable cover payload and metadata privacy',()=>{
-  const f=fields(),input=validateSubmission(f,pdf);assert.equal(input.payload.coverIndex,5);assert.equal(input.payload.coverPageText,'PRIVATE COMMENT');assert.equal(input.payload.to[0].name,'Recipient');assert(!JSON.stringify(input.payload).includes('0012'));assert(!JSON.stringify(input.metadata).includes('COMMENT'));
+  const f=fields(),batchId=randomUUID(),input=validateSubmission({...f,batchId},pdf);assert.equal(input.payload.coverIndex,5);assert.equal(input.payload.coverPageText,'PRIVATE COMMENT');assert.equal(input.payload.to[0].name,'Recipient');assert.equal(input.metadata.batchId,batchId);assert(!JSON.stringify(input.payload).includes('0012'));assert(!JSON.stringify(input.metadata).includes('COMMENT'));
   const off=validateSubmission({...f,includeCoverSheet:false},pdf);assert.equal(off.payload.coverIndex,0);assert(!Object.hasOwn(off.payload,'coverPageText'));
   for(const lastFour of ['123','12345','abcd',' 1234',''])assert.throws(()=>validateSubmission({...f,lastFour},pdf));
-  assert.throws(()=>validateSubmission({...f,coverPageText:'😀'.repeat(513)},pdf));assert.throws(()=>validateSubmission({...f,token:'unexpected'},pdf));assert.throws(()=>validateSubmission(f,Buffer.from('not PDF')));assert.throws(()=>validateSubmission(f,Buffer.alloc(4000001)));
-  assert.equal(validateSubmission({...f,retryOf:randomUUID()},pdf).requestHash,input.requestHash);
+  assert.throws(()=>validateSubmission({...f,coverPageText:'😀'.repeat(513)},pdf));assert.throws(()=>validateSubmission({...f,batchId:'not-a-uuid'},pdf));assert.throws(()=>validateSubmission({...f,batchId:''},pdf));assert.throws(()=>validateSubmission({...f,token:'unexpected'},pdf));assert.throws(()=>validateSubmission(f,Buffer.from('not PDF')));assert.throws(()=>validateSubmission(f,Buffer.alloc(4000001)));
+  assert.equal(validateSubmission({...f,retryOf:randomUUID()},pdf).requestHash,input.requestHash);assert.equal(validateSubmission({...f,batchId:randomUUID()},pdf).requestHash,input.requestHash);
+});
+test('public history exposes only valid encrypted batch IDs and ignores malformed legacy metadata',()=>{
+  const c=config(),attempt={id:randomUUID(),user_id:randomUUID(),connection_id:randomUUID(),environment:'development',account_id:'827653020',extension_id:'12345',created_at:new Date(),state:'sent',message_id:'123',tracking_deadline:new Date(Date.now()+1000)},batchId=randomUUID(),store=new FaxStore(null);
+  const metadata={filename:'Brief.pdf',lastFour:'0012',recipientName:'Recipient',faxNumber:'+18015551234',batchId},envelope=encrypt(metadata,metadataContext(attempt),c);
+  const valid=store.public({...attempt,metadata_envelope:envelope},c);assert.equal(valid.batchId,batchId);
+  const malformed=store.public({...attempt,metadata_envelope:encrypt({...metadata,batchId:'manipulated'},metadataContext(attempt),c)},c);assert.equal(Object.hasOwn(malformed,'batchId'),false);
+  assert.throws(()=>store.public({...attempt,metadata_envelope:{...envelope,ciphertext:'tampered'}},c));
 });
 test('context and encrypted metadata bind owner, session, environment, connection and identity',()=>{
   const c=config(),r=row();c.accountId=r.account_id;const context=contextFor(r,'session-a',c);
@@ -87,7 +95,16 @@ test('batch validates Last 4 before submission; snapshot, sequential spacing and
   const batch=new Batch(scope,()=>{},async ms=>delays.push(ms));await batch.add([file(),new File([pdf],'Second.pdf',{type:'application/pdf'})]);
   await assert.rejects(batch.run({...settings(),lastFour:'123'}));assert.equal(inputs.length,0);
   const s=settings();const run=batch.run(s);s.lastFour='9999';s.faxNumber='+442079460000';await run;
-  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.lastFour==='0012'&&i.faxNumber==='+18015551234'));await batch.run(settings());assert.equal(inputs.length,2);
+  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.lastFour==='0012'&&i.faxNumber==='+18015551234'));assert.equal(new Set(inputs.map(i=>i.batchId)).size,1);assert.match(inputs[0].batchId,/^[0-9a-f-]{36}$/);await batch.run(settings());assert.equal(inputs.length,2);
+  const firstBatch=inputs[0].batchId;batch.clear();await batch.add([file()]);await batch.run(settings());assert.equal(inputs.length,3);assert.notEqual(inputs[2].batchId,firstBatch);
+});
+test('recent-batch receipt selection handles mixed outcomes, older batches and legacy history safely',()=>{
+  const id=()=>randomUUID(),batchA=randomUUID(),batchB=randomUUID(),entry=(status,batchId,accessible=true)=>({faxId:id(),status,batchId,accessible});
+  const newest=[entry('Queued',batchB),entry('Sent',batchB),entry('Failed',batchB),entry('Processing',batchB),entry('Unknown',batchB),entry('Sent',batchB,false),entry('Sent',batchA)];
+  assert.deepEqual(latestBatchReceipts(newest).map(row=>row.faxId),[newest[1].faxId]);
+  assert.deepEqual(latestBatchReceipts([entry('Failed',batchB),entry('Sent',batchA)]),[]);
+  const legacy=[entry('Queued',undefined),entry('Sent',undefined,false),entry('Sent',batchA),entry('Sent',undefined),entry('Sent',undefined)];assert.deepEqual(latestBatchReceipts(legacy).map(row=>row.faxId),[legacy[3].faxId]);
+  assert.deepEqual(latestBatchReceipts([]),[]);
 });
 test('ambiguity halts queue; only definitive failure allows explicit retry',async()=>{
   let calls=0;const scope=new Scope(async()=>{calls++;throw Error('synthetic lost acknowledgement');});scope.set('c');const batch=new Batch(scope,()=>{},async()=>{});await batch.add([file(),new File([pdf],'Second.pdf',{type:'application/pdf'})]);await batch.run(settings());assert.equal(calls,1);assert.equal(batch.documents[0].state,'Unknown');await batch.run(settings(),true);assert.equal(calls,1);
@@ -127,6 +144,12 @@ test('explicit owned status reconciliation may verify an expired attempt without
   const service=new FaxService({},store,{accessToken:async()=> 'synthetic-token'},{message:async()=>{providerCalls++;return {messageStatus:'Sent'};}});
   assert.equal((await service.fax({},id)).status,'Unknown');assert.equal(providerCalls,0);
   assert.equal((await service.fax({},id,false,true)).status,'Sent');assert.equal(providerCalls,1);
+});
+test('receipt lookup cannot cross users or reach token/provider work for a foreign fax ID',async()=>{
+  const owner='employee-a',foreign='employee-b',faxId=randomUUID();let tokens=0,providerCalls=0;
+  const store={locked:async(ctx,fn)=>fn({},{}),owned:async(_c,ctx,id)=>{assert.equal(id,faxId);if(ctx.user!==owner)throw Error('not owned');return {id:faxId,message_id:'123',state:'sent'};},public:row=>({faxId:row.id,status:'Sent'})};
+  const service=new FaxService({},store,{accessToken:async()=>{tokens++;return 'token';}},{receipt:async()=>{providerCalls++;return Buffer.from('%PDF');}});
+  await assert.rejects(service.fax({user:foreign},faxId,true));assert.equal(tokens,0);assert.equal(providerCalls,0);
 });
 test('legacy history is untouched; v3 never reads and no client persistence; safe filenames and valid duplicate-name ZIP',async()=>{
   for(const name of ['Brief - SSA.pdf','bad<>:"/\\|?*.pdf','double.pdf.pdf'])assert.equal(browserFilename(name,'0012'),receiptFilename(name,'0012'));

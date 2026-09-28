@@ -1,4 +1,4 @@
-import {Scope,Batch,Poller,number,formatNumber,receiptFilename,receiptZip,wait} from './client.js';
+import {Scope,Batch,Poller,number,formatNumber,receiptFilename,receiptZip,latestBatchReceipts,wait} from './client.js';
 const $=id=>document.getElementById(id);
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
@@ -51,7 +51,7 @@ function renderHistory() {
     li.append(d);return li;
   }));
   const any=entries.some(e=>e.status==='Sent'&&e.accessible!==false);
-  $('downloadAll').disabled=receiptBusy||!any;$('downloadZip').disabled=receiptBusy||!any;
+  $('downloadAll').disabled=receiptBusy||!latestBatchReceipts(entries).length;$('downloadZip').disabled=receiptBusy||!any;
 }
 async function historyRefresh() {
   const sequence=++historySequence,epoch=scope.epoch;
@@ -121,5 +121,5 @@ async function download(list,zip) {
   }catch{if(epoch===scope.epoch)$('receiptNotice').textContent='Receipt download unavailable. Sent status is unchanged. Retry the download; do not resend the fax.';}
   finally{if(epoch===scope.epoch){receiptBusy=false;renderHistory();}}
 }
-$('downloadAll').addEventListener('click',()=>download(entries.filter(e=>e.status==='Sent'&&e.accessible!==false),false));
+$('downloadAll').addEventListener('click',()=>download(latestBatchReceipts(entries),false));
 $('downloadZip').addEventListener('click',()=>download(entries.filter(e=>e.status==='Sent'&&e.accessible!==false),true));

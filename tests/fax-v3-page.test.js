@@ -11,7 +11,7 @@ const browserPath=['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/P
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 test('Fax v3 desktop/mobile: responsive polish, connection placement, contacts, batches, receipts, history and employee changes',{skip:!browserPath,timeout:90000},async t=>{
   let employee='A',signedIn=true,connectionState='connected',connectionFailure=false,sendCount=0,receiptCount=0,holdSend=false,releaseSend,holdContacts=false,releaseContacts,holdSession=false,releaseSession;
-  const histories={A:[],B:[]},requests=[];
+  const histories={A:[],B:[]},requests=[],receiptIds=[];
   const server=createServer(async(req,res)=>{
     const path=req.url.split('?')[0];res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
     if(path==='/api/auth/session'){if(holdSession)await new Promise(r=>releaseSession=r);res.statusCode=signedIn?200:401;return res.end(JSON.stringify(signedIn?{authenticated:true,user:{displayName:'Employee '+employee}}:{authenticated:false}));}
@@ -30,9 +30,9 @@ test('Fax v3 desktop/mobile: responsive polish, connection placement, contacts, 
         sendCount++;const chunks=[];for await(const chunk of req)chunks.push(chunk);const form=await new Response(Buffer.concat(chunks),{headers:{'Content-Type':req.headers['content-type']}}).formData();
         assert.equal(form.get('lastFour'),'0012');assert.equal(form.get('includeCoverSheet'),'true');assert.equal(form.getAll('file').length,1);assert.equal(form.get('coverPageText'),'synthetic comment');
         if(holdSend)await new Promise(r=>releaseSend=r);
-        const entry={faxId:randomUUID(),filename:form.get('file').name,lastFour:form.get('lastFour'),recipientName:form.get('recipientName'),faxNumber:form.get('faxNumber'),createdAt:new Date().toISOString(),status:'Sent',retryable:false,tracking:false,accessible:true};histories[owner].unshift(entry);return res.end(JSON.stringify(entry));
+        const entry={faxId:randomUUID(),batchId:form.get('batchId'),filename:form.get('file').name,lastFour:form.get('lastFour'),recipientName:form.get('recipientName'),faxNumber:form.get('faxNumber'),createdAt:new Date().toISOString(),status:'Sent',retryable:false,tracking:false,accessible:true};histories[owner].unshift(entry);return res.end(JSON.stringify(entry));
       }
-      if(path.endsWith('/receipt')){receiptCount++;res.setHeader('Content-Type','application/pdf');return res.end('%PDF-synthetic');}
+      if(path.endsWith('/receipt')){receiptCount++;receiptIds.push(new URL(req.url,origin).searchParams.get('faxId'));res.setHeader('Content-Type','application/pdf');return res.end('%PDF-synthetic');}
       res.statusCode=404;return res.end('{}');
     }
     if(path.startsWith('/settings/shared/')){
@@ -93,10 +93,15 @@ test('Fax v3 desktop/mobile: responsive polish, connection placement, contacts, 
     await until("document.querySelectorAll('#faxHistory li').length===2 && document.getElementById('progress').textContent===''");assert.equal(sendCount,before+2);
     assert(await ev("document.getElementById('destination').disabled && document.getElementById('lastFour').disabled && !document.querySelector('#faxHistory details[open]') && document.querySelectorAll('#faxHistory .status.sent').length===2"));
     const historyShot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(join(tmpdir(),'fax-v3-polish-history-'+width+'.png'),Buffer.from(historyShot.data,'base64'));
-    await ev("document.getElementById('downloadZip').click()");await until("document.getElementById('receiptNotice').textContent.includes('2 receipt(s)')");assert(receiptCount>=2);
-    await ev("document.getElementById('clear').click()");await until("document.querySelectorAll('#documents li').length===0");assert.equal(await ev("document.querySelectorAll('#faxHistory li').length"),2);
+    const firstBatch=histories.A[0].batchId;assert(firstBatch);assert.equal(new Set(histories.A.slice(0,2).map(entry=>entry.batchId)).size,1,'One send run shares one batch ID');
+    await ev("document.getElementById('clear').click()");await until("document.querySelectorAll('#documents li').length===0");await choose();await ev("document.getElementById('destination').value='+18015551234';document.getElementById('lastFour').value='0012';document.getElementById('comment').value='synthetic comment';document.getElementById('send').click()");await until("document.querySelectorAll('#faxHistory li').length===4 && document.getElementById('progress').textContent==='' ");
+    const newestBatch=histories.A[0].batchId;assert(newestBatch);assert.notEqual(newestBatch,firstBatch,'Separate send runs receive different batch IDs');assert.equal(new Set(histories.A.slice(0,2).map(entry=>entry.batchId)).size,1);
+    histories.A[0]={...histories.A[0],status:'SendingFailed',retryable:true};await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===4 && document.querySelectorAll('#faxHistory .status.failed').length===1 && document.querySelectorAll('#faxHistory .status.sent').length===3 && !document.getElementById('downloadAll').disabled");
+    const beforeRecent=receiptIds.length;await ev("document.getElementById('downloadAll').click()");await until("document.getElementById('receiptNotice').textContent.includes('1 receipt(s)')");assert.deepEqual(receiptIds.slice(beforeRecent),[histories.A[1].faxId],'Download all receipts selects only Sent receipts in the newest batch');
+    const beforeZip=receiptIds.length;await ev("document.getElementById('downloadZip').click()");await until("document.getElementById('receiptNotice').textContent.includes('3 receipt(s)')");assert.deepEqual(new Set(receiptIds.slice(beforeZip)),new Set(histories.A.filter(entry=>entry.status==='Sent').map(entry=>entry.faxId)),'Download ZIP still includes all available Sent history receipts');
+    await ev("document.getElementById('clear').click()");await until("document.querySelectorAll('#documents li').length===0");assert.equal(await ev("document.querySelectorAll('#faxHistory li').length"),4);
     await ev("document.getElementById('destination').value='+442079460000';document.getElementById('contactName').value='New Contact';document.getElementById('createContact').click()");await until("document.getElementById('contactNotice').textContent==='Contact saved and selected.'");
-    await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===2 && !document.getElementById('loadContacts').disabled");
+    await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===4 && document.querySelectorAll('#faxHistory .status.sent').length===3 && !document.getElementById('loadContacts').disabled");const beforeReloadedBatch=receiptIds.length;await ev("document.getElementById('downloadAll').click()");await until("document.getElementById('receiptNotice').textContent.includes('1 receipt(s)')");assert.deepEqual(receiptIds.slice(beforeReloadedBatch),[histories.A[1].faxId],'Reloaded history preserves newest-batch grouping');
     holdContacts=true;await ev("document.getElementById('loadContacts').click()");for(let i=0;i<100&&!releaseContacts;i++)await pause(20);assert(releaseContacts);
     employee='B';await ev("document.getElementById('refresh').click()");await until("document.getElementById('toolkitState').textContent==='Signed in as Employee B' && document.querySelectorAll('#faxHistory li').length===0");holdContacts=false;releaseContacts();releaseContacts=null;await pause(150);
     assert(await ev("!document.getElementById('contactResults').textContent.includes('Contact A') && document.querySelectorAll('#documents li').length===0 && document.documentElement.scrollWidth<=innerWidth"));

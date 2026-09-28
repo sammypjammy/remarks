@@ -22,7 +22,7 @@ test('Development-only PostgreSQL fax ownership, durable attempts and mocked ope
   const provider={send:async()=>{calls++;if(failure)throw Error('synthetic private diagnostic');return {messageId:String(100000+calls),status};},message:async()=>({messageStatus:status}),receipt:async()=>Buffer.from('%PDF-synthetic'),contacts:async row=>[{id:'1',name:'Synthetic',numbers:[row.extension_id]}],createContact:async row=>({id:'2',name:row.extension_id,numbers:['+18015551234']})};
   const rcProvider={refresh:async()=>{refreshes++;return {...token(),ownerId:null};}};
   const service=new FaxService(c,store,new RcService(c,store,rcProvider),provider),service2=new FaxService(c,store2,new RcService(c,store2,rcProvider),provider);
-  const input=()=>validateSubmission({filename:'Synthetic.pdf',lastFour:'0012',faxNumber:'+18015551234',recipientName:'Synthetic',coverPageText:'PRIVATE COVER COMMENT',includeCoverSheet:true,idempotencyKey:randomUUID()},Buffer.from('%PDF-synthetic'));
+  const input=(overrides={})=>validateSubmission({filename:'Synthetic.pdf',lastFour:'0012',faxNumber:'+18015551234',recipientName:'Synthetic',coverPageText:'PRIVATE COVER COMMENT',includeCoverSheet:true,idempotencyKey:randomUUID(),...overrides},Buffer.from('%PDF-synthetic'));
   try {
     for(const name of ['001_toolkit_auth','002_ringcentral_v3','003_fax_v3_operations']){
       const sql=await readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8');
@@ -45,9 +45,10 @@ test('Development-only PostgreSQL fax ownership, durable attempts and mocked ope
       const raw=(await pool.query(`SELECT * FROM ${schema}.fax_attempts WHERE id=$1`,[again.faxId])).rows[0];assert(!JSON.stringify(raw).includes('PRIVATE COVER COMMENT'));assert(!JSON.stringify(raw.metadata_envelope).includes('0012'));assert(!JSON.stringify(again).includes(raw.message_id));
     });
     await t.test('foreign and guessed fax IDs fail before any provider or refresh; contacts/history isolate employees',async()=>{
-      status='Sent';const owned=await service.send(a,input());const before=calls;
+      status='Sent';const batchId=randomUUID(),owned=await service.send(a,input({batchId}));const before=calls;
       for(const id of [owned.faxId,randomUUID()]){await assert.rejects(service.fax(b,id));await assert.rejects(service.fax(b,id,true));}
       assert.equal(calls,before);assert.equal(refreshes,0);assert.equal((await store.history(b)).length,0);
+      assert.equal((await store.history(a)).find(entry=>entry.faxId===owned.faxId).batchId,batchId);
       const ca=await service.contacts(a),cb=await service.contacts(b);assert.notDeepEqual(ca,cb);
       assert.equal((await service.contacts(a,{name:'Synthetic',faxNumber:'+18015551234'})).name,a.connection.extension_id);
       const receipt=await service.fax(a,owned.faxId,true);assert(receipt.bytes.subarray(0,5).equals(Buffer.from('%PDF-')));
@@ -57,6 +58,11 @@ test('Development-only PostgreSQL fax ownership, durable attempts and mocked ope
         const res={setHeader(){},status(code){this.code=code;return this;},json(data){this.data=data;},end(){}};
         await createFaxHandler(action,{config:c,authConfig:{origin:c.origin,sessionCookie:'toolkit_session'},requireUser:async()=>({id:b.user}),store,service})(req,res);assert.equal(res.code,404);
       }
+    });
+    await t.test('encrypted batch grouping survives a fresh store without a migration',async()=>{
+      const batchId=randomUUID();status='Sent';const first=await service.send(b,input({batchId})),second=await service.send(b,input({batchId}));
+      const history=await store2.history(b),group=history.filter(entry=>entry.batchId===batchId);assert.equal(group.length,2);assert.deepEqual(new Set(group.map(entry=>entry.faxId)),new Set([first.faxId,second.faxId]));
+      const raw=(await pool.query(`SELECT metadata_envelope FROM ${schema}.fax_attempts WHERE id=ANY($1::uuid[])`,[[first.faxId,second.faxId]])).rows;assert.equal(raw.length,2);assert(raw.every(row=>!JSON.stringify(row).includes(batchId)));
     });
     await t.test('ambiguous provider acknowledgement persists Unknown and never replays duplicate or retry',async()=>{
       failure=true;const data=input(),before=calls;const result=await service.send(a,data);failure=false;

@@ -3,6 +3,12 @@ export const validLastFour=value=>/^\d{4}$/.test(value);
 export function number(value) { let s=value.replace(/[\s().-]/g,'');if(/^\d{10}$/.test(s))s='+1'+s;else if(/^1\d{10}$/.test(s))s='+'+s;return /^\+[1-9]\d{6,14}$/.test(s)?s:''; }
 export function formatNumber(value) { return /^\+1\d{10}$/.test(value)?`(${value.slice(2,5)}) ${value.slice(5,8)}-${value.slice(8)}`:value; }
 export function receiptFilename(filename,lastFour) { if(!validLastFour(lastFour))throw Error();return `Fax Receipt - ${filename.replace(/(?:\.pdf)+$/i,'').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().slice(0,180)||'Document'} ${lastFour}.pdf`; }
+export function latestBatchReceipts(entries) {
+  const available=entry=>entry.status==='Sent'&&entry.accessible!==false;
+  const newest=entries[0];if(!newest)return [];
+  if(newest.batchId)return entries.filter(entry=>entry.batchId===newest.batchId&&available(entry));
+  const legacy=entries.find(entry=>!entry.batchId&&available(entry));return legacy?[legacy]:[];
+}
 export class Scope {
   constructor(request=fetch,onReset=()=>{}) {this.request=(...args)=>request(...args);this.onReset=onReset;this.epoch=0;this.context=null;this.controller=new AbortController();}
   reset() {this.epoch++;this.context=null;this.controller.abort();this.controller=new AbortController();this.onReset();}
@@ -39,13 +45,13 @@ export class Batch {
     if(this.running || this.adding || !this.scope.context)return;
     if(!validLastFour(settings.lastFour) || !number(settings.faxNumber) || settings.coverPageText.trim().length>1024)throw Error('Enter the destination, exactly four Last 4 digits, and a comment of at most 1024 characters.');
     const queue=this.documents.filter(d=>retry?d.entry?.retryable===true:d.state==='Ready');if(!queue.length)return;
-    const epoch=this.scope.epoch;this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber),coverPageText:settings.coverPageText.trim()});
+    const epoch=this.scope.epoch,batchId=crypto.randomUUID();this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber),coverPageText:settings.coverPageText.trim()});
     this.locked=true;this.running=true;this.onChange();
     try { for(let i=0;i<queue.length;i++) {
       if(epoch!==this.scope.epoch)break;
       const doc=queue[i],form=new FormData();
       for(const [key,value] of Object.entries(this.snapshot))form.append(key,String(value));
-      form.append('file',doc.file,doc.file.name);
+      form.append('file',doc.file,doc.file.name);form.append('batchId',batchId);
       if(retry){form.append('retryOf',doc.entry.faxId);doc.idempotencyKey=crypto.randomUUID();}
       form.append('idempotencyKey',doc.idempotencyKey);doc.state='Submitting';doc.entry=null;this.onChange();
       try { const entry=await this.scope.api('send',{method:'POST',body:form});if(epoch!==this.scope.epoch)break;
