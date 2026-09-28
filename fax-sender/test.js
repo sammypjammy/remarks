@@ -16,7 +16,7 @@ const controls=()=>{for(const id of ['connect','disconnect','signOut','refresh']
 const url=new URL(location.href);
 if(url.searchParams.get('connection')==='failed')notice('RingCentral connection could not be completed. Confirm Toolkit sign-in and try again.');
 // Success is established only by the authenticated status response, never a URL flag.
-if(url.search)history.replaceState(null,'','/fax-sender-v3/');
+if(url.search)history.replaceState(null,'','/fax-sender/');
 async function refresh({background=false}={}){
   const current=++sequence;
   if(!background){signedIn=false;clearConnection();$('signOut').hidden=true;$('signIn').hidden=true;

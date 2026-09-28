@@ -10,7 +10,7 @@ import {encrypt,decrypt} from '../server/ringcentral-v3/crypto.js';
 import {FaxProvider} from '../server/fax-v3/provider.js';
 import {FaxService} from '../server/fax-v3/service.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
-import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,number} from '../development/fax-sender-v3/client.js';
+import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,number} from '../fax-sender/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
 const pdf=Buffer.from('%PDF-1.4\nsynthetic only');
 const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  PRIVATE COMMENT  ',idempotencyKey:randomUUID()});
@@ -70,7 +70,7 @@ test('empty address book and formatted fax fields retain v2-compatible contact b
   const empty=new FaxProvider(async()=>response({records:[],paging:{page:1,totalPages:0}}));assert.deepEqual(await empty.contacts(row(),'synthetic'),[]);
   const formatted=new FaxProvider(async()=>response({records:[{id:'1',nickName:'Nickname',businessFax:'+1 (801) 555-1234',otherFax:'+18015551234'}]}));assert.deepEqual((await formatted.contacts(row(),'synthetic'))[0].numbers,['+18015551234']);
 });
-test('every operational handler requires Toolkit session, context and Development; rejects CSRF before provider',async()=>{
+test('every operational handler requires Toolkit session and context in Development or Production; rejects unknown environments and CSRF before provider',async()=>{
   for(const action of ['context','contacts','send','status','message','receipt','history']) {
     const c=config();let work=0;
     const deps={config:c,authConfig:{origin:c.origin,sessionCookie:'toolkit_session'},requireUser:async()=>{throw Object.assign(Error(),{status:401});},store:{locked:async()=>{work++;throw Object.assign(Error(),{status:409});}},service:new Proxy({},{get:()=>async()=>{work++;return {};}})};
@@ -79,7 +79,7 @@ test('every operational handler requires Toolkit session, context and Developmen
     assert.equal((await run({requireUser:async()=>({id:randomUUID()})})).code,401);
     const headers={cookie:'toolkit_session='+'a'.repeat(43),origin:c.origin};
     const result=await run({requireUser:async()=>({id:randomUUID()})},headers);assert.equal(result.headers['Cache-Control'],'no-store');assert.equal(result.code,action==='context'?200:409);
-    assert.equal((await run({config:{...c,environment:'production'}})).code,404);
+    assert.equal((await run({config:{...c,environment:'preview'}})).code,404);
   }
 });
 test('batch validates Last 4 before submission; snapshot, sequential spacing and one PDF per call',async()=>{
@@ -131,7 +131,7 @@ test('explicit owned status reconciliation may verify an expired attempt without
 test('legacy history is untouched; v3 never reads and no client persistence; safe filenames and valid duplicate-name ZIP',async()=>{
   for(const name of ['Brief - SSA.pdf','bad<>:"/\\|?*.pdf','double.pdf.pdf'])assert.equal(browserFilename(name,'0012'),receiptFilename(name,'0012'));
   const filename=browserFilename('Brief.pdf','0012');assert.equal(filename,'Fax Receipt - Brief 0012.pdf');const blob=new Blob([pdf]);const zip=await receiptZip([{filename,blob},{filename,blob}]);const files=unzipSync(new Uint8Array(await zip.arrayBuffer()));assert.equal(Object.keys(files).length,2);assert.deepEqual(Buffer.from(files[filename]),pdf);
-  for(const file of ['app.js','client.js','test.js']){const source=await readFile(new URL('../development/fax-sender-v3/'+file,import.meta.url),'utf8');assert(!/localStorage|sessionStorage|RC_USER_JWT|accessToken|refreshToken|clientSecret/.test(source));}
+  for(const file of ['app.js','client.js','test.js']){const source=await readFile(new URL('../fax-sender/'+file,import.meta.url),'utf8');assert(!/localStorage|sessionStorage|RC_USER_JWT|accessToken|refreshToken|clientSecret/.test(source));}
   assert.equal(number('(801) 555-1234'),'+18015551234');assert.equal(number('+44 20 7946 0000'),'+442079460000');
 });
 test('migration 003 refuses Production before opening pool',async()=>{

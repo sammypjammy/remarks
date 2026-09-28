@@ -13,8 +13,8 @@ export function createRcHandler(action, dependencies = {}) {
     let config;
     const testPage = outcome => {
       try { config ||= dependencies.config || v3Runtime(); } catch { return false; }
-      if (!(config.productionAcceptance === true || (dependencies.developmentTestPage && config.environment === 'development' && config.origin === 'http://localhost:5173'))) return false;
-      res.setHeader('Location',config.origin+'/fax-sender-v3/?connection='+outcome);
+      if (!(config.environment === 'production' || (dependencies.developmentTestPage && config.environment === 'development' && config.origin === 'http://localhost:5173'))) return false;
+      res.setHeader('Location',config.origin+'/fax-sender/?connection='+outcome);
       res.status(303).end(); return true;
     };
     try {

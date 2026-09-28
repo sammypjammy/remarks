@@ -22,12 +22,17 @@ test('Development OAuth page: signed-out, identity, reconnect, disconnect, error
       assert.equal(req.method,'POST');
       // Exercise the real CSRF gate on the browser-generated request, not a
       // synthetic header. No credentials or request headers enter diagnostics.
-      try{sameOrigin(req,{origin});}catch{csrfRejected++;res.writeHead(303,{Location:'/fax-sender-v3/?connection=failed'});return res.end();}
-      connects++;state='connected';res.writeHead(303,{Location:'/fax-sender-v3/?connection=connected'});return res.end();
+      try{sameOrigin(req,{origin});}catch{csrfRejected++;res.writeHead(303,{Location:'/fax-sender/?connection=failed'});return res.end();}
+      connects++;state='connected';res.writeHead(303,{Location:'/fax-sender/?connection=connected'});return res.end();
     }
-    const file=path==='/fax-sender-v3/'?'index.html':path==='/fax-sender-v3/test.js'?'test.js':null;
+    if(path.startsWith('/settings/shared/')){
+      const shared=path.slice('/settings/shared/'.length);
+      if(!['favicon.png','style.css','footer.css','settings-storage.js','app-shell.js','toolkit-auth.css','toolkit-auth.js'].includes(shared)){res.statusCode=404;return res.end();}
+      res.setHeader('Content-Type',shared.endsWith('.js')?'text/javascript':shared.endsWith('.css')?'text/css':'image/png');return res.end(await readFile(new URL('../settings/shared/'+shared,import.meta.url)));
+    }
+    const file=path==='/fax-sender/'?'index.html':path==='/fax-sender/test.js'?'test.js':null;
     if(!file){res.statusCode=404;return res.end();}
-    res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':'text/html');res.end(await readFile(new URL('../development/fax-sender-v3/'+file,import.meta.url)));
+    res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript':'text/html');res.end(await readFile(new URL('../fax-sender/'+file,import.meta.url)));
   });
   await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
   const origin='http://127.0.0.1:'+server.address().port;
@@ -43,7 +48,7 @@ test('Development OAuth page: signed-out, identity, reconnect, disconnect, error
   for(const width of [1280,390]){
     signedIn=false;state='disconnected';error=false;
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
-    await cdp('Page.navigate',{url:origin+'/fax-sender-v3/'});
+    await cdp('Page.navigate',{url:origin+'/fax-sender/'});
     await until("document.getElementById('toolkitState')?.textContent==='Signed out of the Toolkit.'");
     assert(await ev("document.getElementById('connectForm').hidden && !document.getElementById('signIn').hidden"));
     signedIn=true;await ev("document.getElementById('refresh').click()");await until("!document.getElementById('connectForm').hidden");
@@ -55,7 +60,7 @@ test('Development OAuth page: signed-out, identity, reconnect, disconnect, error
     await ev("document.getElementById('disconnect').click()");await until("!document.getElementById('connectForm').hidden");
     error=true;await ev("document.getElementById('refresh').click()");await until("document.getElementById('connectionState').textContent.startsWith('Connection status unavailable')");assert(await ev("!document.body.textContent.includes('private-canary') && document.getElementById('identity').hidden"));
     error=false;await ev("document.getElementById('signOut').click()");await until("document.getElementById('toolkitState').textContent==='Signed out of the Toolkit.'");
-    assert(await ev("localStorage.length===0 && sessionStorage.length===0 && document.documentElement.scrollWidth<=innerWidth"));
+    assert(await ev("![...Object.keys(localStorage)].some(key=>/fax-v3|ringcentral|token/i.test(key)) && sessionStorage.length===0 && document.documentElement.scrollWidth<=innerWidth"));
   }
   assert.equal(connects,2);assert.equal(disconnects,2);assert.equal(csrfRejected,0);
   // Reproduce the original policy failure and prove the CSRF check remains strict.

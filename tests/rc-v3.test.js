@@ -116,7 +116,7 @@ test('Isolation: v2 sources and browser bundles never import new credentials or 
   }
   const shell=await readFile(new URL('settings/shared/app-shell.js',root),'utf8');
   assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3/.test(shell));
-  assert.match(shell,/faxV3ProductionAcceptance \? \[\{ id: "fax-v3-testing", label: "Fax Sender v3 — Testing"/);
+  assert.doesNotMatch(shell,/faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
   for(const path of ['config','crypto','provider','store','service','handler']){
     const source=await readFile(new URL(`server/ringcentral-v3/${path}.js`,root),'utf8');
     assert(!/console\.|localStorage|sessionStorage|RC_USER_JWT|jwt-bearer/.test(source));
@@ -143,8 +143,8 @@ test('opt-in Development harness serves only authenticated RC routes and preserv
   try{
     server=await createServer({configFile:new URL('../vite.rc-v3.config.js',import.meta.url).pathname.replace(/^\/([A-Za-z]:)/,'$1'),envDir:false,logLevel:'silent',server:{host:'127.0.0.1',port:0,strictPort:false}});
     await server.listen();const base='http://127.0.0.1:'+server.httpServer.address().port;
-    const page=await fetch(base+'/fax-sender-v3/');assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');assert.equal(page.headers.get('referrer-policy'),'same-origin');assert.match(await page.text(),/Connect RingCentral/);
-    const script=await fetch(base+'/fax-sender-v3/test.js');assert.equal(script.status,200);assert.match(await script.text(),/clearIdentity/);
+    const page=await fetch(base+'/fax-sender/');assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');assert.equal(page.headers.get('referrer-policy'),'same-origin');assert.match(await page.text(),/Connect RingCentral/);
+    const script=await fetch(base+'/fax-sender/test.js');assert.equal(script.status,200);assert.match(await script.text(),/clearIdentity/);
     for(const [route,method] of [['connection','GET'],['connect','POST'],['callback','GET'],['disconnect','POST']]){
       const r=await fetch(base+'/api/ringcentral/'+route,{method,redirect:'manual'});assert.equal(r.status,401,route);assert.equal(r.headers.get('cache-control'),'no-store');assert.deepEqual(await r.json(),{error:'Toolkit sign-in required'});
     }
@@ -155,15 +155,13 @@ test('connection status exposes verified identity fields only, never token envel
   const service=new RcService(config(),{get:async()=>({state:'connected',display_name:'Employee',account_id:'827653020',extension_id:'12345',token_envelope:'private-canary',refresh_claim:'private-canary'})},{});
   assert.deepEqual(await service.status('user'),{state:'connected',displayName:'Employee',accountId:'827653020',extensionId:'12345'});
 });
-test('only opt-in Development callback returns to test page; errors use a fixed flag',async()=>{
+test('Development harness and Production callbacks return to the canonical page with a fixed result flag',async()=>{
   const state=randomToken(),binding=randomToken(),session=randomToken();
   for(const production of [false,true])for(const failure of [false,true]){
     const c=production?rcConfig({...env(),VERCEL_ENV:'production',TOOLKIT_ORIGIN:'https://packardtoolkit.vercel.app'}):config();
     const deps={developmentTestPage:true,config:c,authConfig:{origin:c.origin,sessionCookie:'toolkit_session'},requireUser:async()=>({id:'user'}),service:{callback:async()=>{if(failure)throw Error('private-canary')}}};
     const res=response();await createRcHandler('callback',deps)({method:'GET',url:`/api/ringcentral/callback?state=${state}&code=private-code`,headers:{cookie:`toolkit_session=${session}; ${c.bindingCookie}=${binding}`}},res);
     assert(!JSON.stringify(res).includes('private-'));
-    if(!production){assert.equal(res.code,303);assert.equal(res.headers.Location,c.origin+'/fax-sender-v3/?connection='+(failure?'failed':'connected'));}
-    else if(!failure)assert.equal(res.headers.Location,c.origin+'/api/ringcentral/connection');
-    else assert.equal(res.code,503);
+    assert.equal(res.code,303);assert.equal(res.headers.Location,c.origin+'/fax-sender/?connection='+(failure?'failed':'connected'));
   }
 });

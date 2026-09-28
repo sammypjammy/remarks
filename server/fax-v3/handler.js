@@ -36,7 +36,7 @@ export function createFaxHandler(action,deps={}) {
     res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
     try {
       const config=deps.config || v3Runtime();
-      if(config.environment!=='development' && !(config.environment==='production' && config.productionAcceptance===true))fail(404);
+      if(!['development','production'].includes(config.environment))fail(404);
       const methods=action==='send'?['POST']:action==='contacts'?['GET','POST']:['GET'];
       if(!methods.includes(req.method)){res.setHeader('Allow',methods.join(', '));fail(405);}
       const auth=deps.authConfig || authConfig();if(auth.origin!==config.origin)fail();

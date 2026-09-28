@@ -35,9 +35,14 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
       if(path.endsWith('/receipt')){receiptCount++;res.setHeader('Content-Type','application/pdf');return res.end('%PDF-synthetic');}
       res.statusCode=404;return res.end('{}');
     }
-    const name=path==='/fax-sender-v3/'?'index.html':path.split('/').pop();
+    if(path.startsWith('/settings/shared/')){
+      const shared=path.slice('/settings/shared/'.length);
+      if(!['favicon.png','style.css','footer.css','settings-storage.js','app-shell.js','toolkit-auth.css','toolkit-auth.js'].includes(shared)){res.statusCode=404;return res.end();}
+      res.setHeader('Content-Type',shared.endsWith('.js')?'text/javascript':shared.endsWith('.css')?'text/css':'image/png');return res.end(await readFile(new URL('../settings/shared/'+shared,import.meta.url)));
+    }
+    const name=path==='/fax-sender/'?'index.html':path.split('/').pop();
     if(!['index.html','test.js','app.js','client.js','style.css'].includes(name)){res.statusCode=404;return res.end();}
-    res.setHeader('Referrer-Policy','same-origin');res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(await readFile(new URL('../development/fax-sender-v3/'+name,import.meta.url)));
+    res.setHeader('Referrer-Policy','same-origin');res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html');res.end(await readFile(new URL('../fax-sender/'+name,import.meta.url)));
   });
   await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.closeAllConnections();server.close(r);}));
   const origin='http://127.0.0.1:'+server.address().port;
@@ -56,8 +61,8 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
   const choose=async()=>{const {root}=await cdp('DOM.getDocument');const {nodeId}=await cdp('DOM.querySelector',{nodeId:root.nodeId,selector:'#pdfFiles'});await cdp('DOM.setFileInputFiles',{nodeId,files});await until("document.querySelectorAll('#documents li').length===2");};
   for(const width of [1280,390]){
     employee='A';signedIn=true;histories.A=[];histories.B=[];
-    await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});await cdp('Page.navigate',{url:origin+'/fax-sender-v3/'});
-    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.length===1 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});await cdp('Page.navigate',{url:origin+'/fax-sender/'});
+    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && ![...Object.keys(localStorage)].some(key=>/fax-v3|ringcentral/i.test(key)) && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
     if(width===1280){
       holdSession=true;await ev("window.dispatchEvent(new Event('focus'))");for(let i=0;i<100&&!releaseSession;i++)await pause(20);assert(releaseSession);
       assert(await ev("document.getElementById('toolkitState').textContent==='Signed in as Employee A' && !document.getElementById('identity').hidden && !document.getElementById('faxWorkspace').hidden"));
@@ -88,7 +93,7 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
     assert(await ev("!document.getElementById('contactResults').textContent.includes('Contact A') && document.querySelectorAll('#documents li').length===0 && document.documentElement.scrollWidth<=innerWidth"));
     await choose();holdSend=true;const n=sendCount;await ev("document.getElementById('destination').value='+18015551234';document.getElementById('lastFour').value='0012';document.getElementById('comment').value='synthetic comment';document.getElementById('send').click()");
     for(let i=0;i<100&&!releaseSend;i++)await pause(20);assert(releaseSend);await ev("document.getElementById('signOut').click()");await until("document.getElementById('faxWorkspace').hidden");holdSend=false;releaseSend();releaseSend=null;await pause(1200);assert.equal(sendCount,n+1);
-    assert(await ev("document.querySelectorAll('#documents li').length===0 && document.querySelectorAll('#faxHistory li').length===0 && localStorage.length===1 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && sessionStorage.length===0"));
+    assert(await ev("document.querySelectorAll('#documents li').length===0 && document.querySelectorAll('#faxHistory li').length===0 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && ![...Object.keys(localStorage)].some(key=>/fax-v3|ringcentral/i.test(key)) && sessionStorage.length===0"));
   }
   assert(requests.every(path=>path.startsWith('/api/fax-v3/')));
 });

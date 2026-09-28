@@ -15,9 +15,21 @@
       "destination": "/welcome-email-sender/callback.html"
     }
   ],
-  "headers": [
+  "redirects": [
+    {
+      "source": "/fax-sender-v3",
+      "destination": "/fax-sender/",
+      "permanent": false
+    },
     {
       "source": "/fax-sender-v3/:path*",
+      "destination": "/fax-sender/",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/fax-sender/:path*",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" },
         { "key": "Referrer-Policy", "value": "same-origin" },
