@@ -19,7 +19,7 @@ function render() {
   $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
   $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
   $('documents').replaceChildren(...batch.documents.map((doc,index)=>{
-    const li=element('li'),title=element('strong',doc.file.name);li.tabIndex=-1;li.append(title,element('p',doc.state));
+    const li=element('li'),title=element('strong',doc.file.name),state=element('p',doc.state);li.tabIndex=-1;li.dataset.state=doc.state;state.className='document-state';li.append(title,state);
     if(doc.state==='Ready'&&!busy) {
       li.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
       if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
@@ -36,8 +36,9 @@ function renderHistory() {
   $('historyEmpty').hidden=entries.length>0;
   $('faxHistory').replaceChildren(...entries.map(entry=>{
     const li=element('li'),d=element('details');d.dataset.id=entry.faxId;d.open=open.has(entry.faxId);
-    const summary=element('summary');summary.append(element('strong',entry.filename+' '+entry.lastFour),element('p',`${entry.recipientName || formatNumber(entry.faxNumber)} · ${new Date(entry.createdAt).toLocaleString()}`));
-    const status=element('span',entry.status==='SendingFailed'?'Error — SendingFailed':entry.status);status.className='status '+(entry.status==='Sent'?'sent':entry.status==='SendingFailed'?'error':'');summary.append(status);d.append(summary,element('p','Destination: '+formatNumber(entry.faxNumber)));
+    const summary=element('summary'),displayStatus=entry.status==='SendingFailed'?'Failed':entry.status;
+    summary.append(element('strong',entry.filename+' · '+entry.lastFour),element('p',`${entry.recipientName || formatNumber(entry.faxNumber)} · ${new Date(entry.createdAt).toLocaleString()}`));
+    const status=element('span',displayStatus);status.className='status '+displayStatus.toLowerCase();summary.append(status);d.append(summary,element('p','Destination: '+formatNumber(entry.faxNumber)));
     if(entry.status==='Unknown')d.append(element('p','Unconfirmed outcome. Review RingCentral; do not automatically resend.'));
     if(entry.status==='Sent'&&entry.accessible!==false)d.append(action('Download Fax Receipt',()=>download([entry],false)));
     li.append(d);return li;

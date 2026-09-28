@@ -62,7 +62,7 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
   for(const width of [1280,390]){
     employee='A';signedIn=true;histories.A=[];histories.B=[];
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});await cdp('Page.navigate',{url:origin+'/fax-sender/'});
-    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && ![...Object.keys(localStorage)].some(key=>/fax-v3|ringcentral/i.test(key)) && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
+    await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && ![...Object.keys(localStorage)].some(key=>/fax-v3|ringcentral/i.test(key)) && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY') && document.getElementById('accountId').hidden"));
     if(width===1280){
       holdSession=true;await ev("window.dispatchEvent(new Event('focus'))");for(let i=0;i<100&&!releaseSession;i++)await pause(20);assert(releaseSession);
       assert(await ev("document.getElementById('toolkitState').textContent==='Signed in as Employee A' && !document.getElementById('identity').hidden && !document.getElementById('faxWorkspace').hidden"));
@@ -79,11 +79,13 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
     await choose();assert.equal(await ev("document.getElementById('documentCount').textContent"),'PDF documents (2)');
     await ev("[...document.querySelectorAll('#documents li:first-child button')].find(b=>b.textContent==='Move down').click()");assert(await ev("document.activeElement===document.querySelectorAll('#documents li')[1]"));
     assert(await ev("document.documentElement.scrollWidth<=innerWidth && document.querySelector('h1').textContent==='Fax Sender'"));
+    assert(await ev("(()=>{const root=document.documentElement,panel=document.querySelector('.composer-panel');root.dataset.theme='light';const light=getComputedStyle(panel).backgroundColor;root.dataset.theme='dark';return light!==getComputedStyle(panel).backgroundColor&&getComputedStyle(root).colorScheme==='dark'})()"));await ev("document.documentElement.dataset.theme='light'");
     const shot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(join(tmpdir(),'fax-v3-polish-'+width+'.png'),Buffer.from(shot.data,'base64'));
     const before=sendCount;await ev("document.getElementById('lastFour').value='123';document.getElementById('send').click()");await pause(150);assert.equal(sendCount,before);
     await ev("document.getElementById('lastFour').value='0012';document.getElementById('comment').value='synthetic comment';document.getElementById('send').click()");
     await until("document.querySelectorAll('#faxHistory li').length===2 && document.getElementById('progress').textContent===''");assert.equal(sendCount,before+2);
-    assert(await ev("document.getElementById('destination').disabled && document.getElementById('lastFour').disabled && !document.querySelector('#faxHistory details[open]')"));
+    assert(await ev("document.getElementById('destination').disabled && document.getElementById('lastFour').disabled && !document.querySelector('#faxHistory details[open]') && document.querySelectorAll('#faxHistory .status.sent').length===2"));
+    const historyShot=await cdp('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});await writeFile(join(tmpdir(),'fax-v3-polish-history-'+width+'.png'),Buffer.from(historyShot.data,'base64'));
     await ev("document.getElementById('downloadZip').click()");await until("document.getElementById('receiptNotice').textContent.includes('2 receipt(s)')");assert(receiptCount>=2);
     await ev("document.getElementById('clear').click()");await until("document.querySelectorAll('#documents li').length===0");assert.equal(await ev("document.querySelectorAll('#faxHistory li').length"),2);
     await ev("document.getElementById('destination').value='+442079460000';document.getElementById('contactName').value='New Contact';document.getElementById('createContact').click()");await until("document.getElementById('contactNotice').textContent==='Contact saved and selected.'");

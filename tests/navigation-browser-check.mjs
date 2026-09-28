@@ -107,7 +107,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v3.0.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v3.0.2' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert.equal(await evaluate("document.getElementById('toolkitState').textContent"), "Signed out of the Toolkit.", "Canonical Fax Sender requires Toolkit authentication");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -199,7 +199,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 27, "All historical entries and v3.0.1 preserved");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 28, "All historical entries and v3.0.2 preserved");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -210,7 +210,7 @@ try {
     await evaluate("localStorage.setItem('packard.faxHistory.v1','PRIVATE LEGACY CANARY')");
     await visit("/fax-sender/");
     await until(() => evaluate("document.getElementById('toolkitState')?.textContent === 'Signed out of the Toolkit.'"), "canonical Fax Sender authentication gate");
-    assert(await evaluate("location.pathname === '/fax-sender/' && document.querySelector('h1').textContent === 'Fax Sender' && document.querySelector('[data-app-version=\"Fax Sender v3.0.1\"]')"), "Canonical Fax Sender v3.0.1 page");
+    assert(await evaluate("location.pathname === '/fax-sender/' && document.querySelector('h1').textContent === 'Fax Sender' && document.querySelector('[data-app-version=\"Fax Sender v3.0.2\"]')"), "Canonical Fax Sender v3.0.2 page");
     assert(await evaluate("document.getElementById('faxWorkspace').hidden && !document.getElementById('signIn').hidden && document.getElementById('connectForm').hidden"), "Signed-out users cannot access fax operations");
     assert(await evaluate("localStorage.getItem('packard.faxHistory.v1') === 'PRIVATE LEGACY CANARY' && ![...Object.keys(localStorage)].some(key => /fax-v3|ringcentral/i.test(key))"), "Canonical v3 preserves v2 localStorage history and creates no browser fax state");
     assert(await evaluate("!document.getElementById('sendFax') && !document.getElementById('faxHistoryList') && document.documentElement.scrollWidth <= innerWidth"), "Legacy v2 browser application is no longer canonical and v3 fits the viewport");
@@ -218,7 +218,7 @@ try {
     const faxShot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: faxMetrics.cssContentSize.height, scale: 1 } });
     const faxPath = join(profile, `fax-v3-release-${width}.png`);
     await writeFile(faxPath, Buffer.from(faxShot.data, "base64"));
-    console.log(`Fax v3.0.1 release screenshot: ${faxPath}`);
+    console.log(`Fax v3.0.2 release screenshot: ${faxPath}`);
     console.log(`PASS (${width}px): Settings/history, footer links on all 8 pages, one canonical Fax Sender navigation entry, and no overflow.`);
   }
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");

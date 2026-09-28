@@ -45,7 +45,7 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     const welcomeScript = `dist${welcomeHtml.match(/<script type="module"[^>]+src="([^"]+)"/)?.[1]}`;
     const welcome = await readFile(welcomeScript, 'utf8');
     assert.match(faxHtml, /Connect RingCentral/);
-    assert.match(faxHtml, /Fax Sender v3\.0\.1/);
+    assert.match(faxHtml, /Fax Sender v3\.0\.2/);
     assert(!Object.keys(release).some(path => path.includes('fax-sender-v3')));
     assert.doesNotMatch(shell, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
     assert.doesNotMatch(welcome, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
