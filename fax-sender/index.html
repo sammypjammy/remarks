@@ -48,15 +48,14 @@
               <div class="field-heading"><label for="destination">Contact or fax number</label><span>Required</span></div>
               <input id="destination" aria-describedby="contactNotice" autocomplete="off" placeholder="Search contacts or enter a fax number">
             </div>
-            <div class="last-four-field"><label for="lastFour">Last 4 of SSN <span>(required)</span></label><input id="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="0000" required><p>Used for history and receipt filenames only.</p></div>
+            <div class="last-four-field"><label for="lastFour">Last 4 of SSN <span>(required)</span></label><input id="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="0000" required></div>
           </div>
-          <div class="field-actions"><button id="loadContacts" class="secondary-btn compact-btn" type="button">Refresh contacts</button><button id="clearDestination" class="text-btn" type="button">Clear destination</button></div>
+          <div class="field-actions"><div class="destination-action-buttons"><button id="loadContacts" class="secondary-btn compact-btn" type="button">Refresh contacts</button><button id="clearDestination" class="text-btn" type="button">Clear destination</button></div><label class="cover-toggle"><input id="cover" type="checkbox" checked><span><strong>Classic cover sheet</strong><small>Include the standard cover page with every fax.</small></span></label></div>
           <div id="contactResults" role="group" aria-label="Matching fax contacts"></div>
           <p id="contactNotice" role="status"></p>
           <details id="saveContact" class="save-contact"><summary>Save as a new RingCentral contact</summary><div class="save-contact-fields"><label for="contactName">Contact name</label><input id="contactName" maxlength="60"><button id="createContact" class="secondary-btn" type="button">Save current fax number</button></div></details>
         </div>
         <div class="form-section cover-options">
-          <label class="cover-toggle"><input id="cover" type="checkbox" checked><span><strong>Classic cover sheet</strong><small>Include the standard cover page with every fax.</small></span></label>
           <div id="commentField"><label for="comment">Optional cover-sheet comment</label><textarea id="comment" maxlength="1024" rows="2" aria-describedby="commentHelp" autocomplete="off" spellcheck="false" placeholder="Add a short note for the recipient"></textarea><p id="commentHelp" class="note">Applied to every fax in this batch and not saved in history.</p></div>
         </div>
         <div class="form-section documents-section">
@@ -70,11 +69,11 @@
       <p class="safety-note">Unknown results require human review in RingCentral. Never resend an unconfirmed fax. Sent means successful transmission, not recipient review.</p>
     </section>
     <section class="panel history-panel">
-      <div class="section-heading history-heading"><div><p class="section-eyebrow">Your activity</p><h2>Recent fax activity</h2></div><p>Clearing the composer preserves this history.</p></div>
+      <div class="section-heading history-heading"><div><p class="section-eyebrow">Your activity</p><h2>Recent fax activity</h2></div></div>
       <div class="history-actions"><button id="downloadAll" class="secondary-btn" type="button">Download all receipts</button><button id="downloadZip" class="secondary-btn" type="button">Download ZIP</button></div>
       <p id="receiptNotice" role="status"></p><p id="historyEmpty">No fax activity yet.</p><ol id="faxHistory" tabindex="0" aria-label="Your 20 most recent fax attempts"></ol>
     </section>
   </div>
   <div id="accountStatusBottom" class="account-status-bottom" hidden></div>
-</main><div data-app-footer data-app-version="Fax Sender v3.0.3"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
+</main><div data-app-footer data-app-version="Fax Sender v3.0.4"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
 </html>
