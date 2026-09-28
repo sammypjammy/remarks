@@ -45,7 +45,7 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     const welcomeScript = `dist${welcomeHtml.match(/<script type="module"[^>]+src="([^"]+)"/)?.[1]}`;
     const welcome = await readFile(welcomeScript, 'utf8');
     assert.match(faxHtml, /Connect RingCentral/);
-    assert.match(faxHtml, /Fax Sender v3\.0\.0/);
+    assert.match(faxHtml, /Fax Sender v3\.0\.1/);
     assert(!Object.keys(release).some(path => path.includes('fax-sender-v3')));
     assert.doesNotMatch(shell, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
     assert.doesNotMatch(welcome, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
@@ -53,8 +53,21 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     const vercel = JSON.parse(await readFile('vercel.json', 'utf8'));
     assert.deepEqual(vercel.redirects, [
       { source: '/fax-sender-v3', destination: '/fax-sender/', permanent: false },
+      { source: '/fax-sender-v3/', destination: '/fax-sender/', permanent: false },
       { source: '/fax-sender-v3/:path*', destination: '/fax-sender/', permanent: false }
     ]);
+    const redirect = path => vercel.redirects.find(rule => {
+      const suffix = '/:path*';
+      if (!rule.source.endsWith(suffix)) return rule.source === path;
+      const prefix = rule.source.slice(0, -suffix.length);
+      return path.startsWith(prefix + '/') && path.length > prefix.length + 1;
+    });
+    for (const path of ['/fax-sender-v3', '/fax-sender-v3/', '/fax-sender-v3/legacy/bookmark']) {
+      assert.deepEqual(redirect(path), vercel.redirects[path === '/fax-sender-v3' ? 0 : path === '/fax-sender-v3/' ? 1 : 2]);
+      assert.equal(redirect(path).destination, '/fax-sender/');
+      assert.equal(redirect(path).permanent, false);
+    }
+    for (const path of ['/fax-sender/', '/api/ringcentral/callback', '/api/fax-v3/status']) assert.equal(redirect(path), undefined);
     assert(vercel.headers.some(rule => rule.source === '/fax-sender/:path*'));
     for (const path of Object.keys(release)) {
       if (!/\.(?:html|js|css|json)$/.test(path)) continue;

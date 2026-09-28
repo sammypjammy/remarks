@@ -22,6 +22,11 @@
       "permanent": false
     },
     {
+      "source": "/fax-sender-v3/",
+      "destination": "/fax-sender/",
+      "permanent": false
+    },
+    {
       "source": "/fax-sender-v3/:path*",
       "destination": "/fax-sender/",
       "permanent": false
