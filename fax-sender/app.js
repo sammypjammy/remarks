@@ -22,7 +22,7 @@ function render() {
   if(!batch)return;
   const busy=batch.running||batch.adding,locked=batch.locked;
   for(const id of ['destination','clearDestination','lastFour','cover','comment','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
-  $('commentField').hidden=!$('cover').checked;$('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('comment').disabled ||= !$('cover').checked;$('pdfFiles').disabled=busy;
+  $('coverOptions').hidden=!$('cover').checked;$('commentField').hidden=!$('cover').checked;$('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('comment').disabled ||= !$('cover').checked;$('pdfFiles').disabled=busy;
   $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
   $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
   $('documents').replaceChildren(...batch.documents.map((doc,index)=>{
