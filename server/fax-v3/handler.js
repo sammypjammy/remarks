@@ -7,7 +7,7 @@ import { RingCentralProvider } from '../ringcentral-v3/provider.js';
 import { FaxStore } from './store.js';
 import { FaxService } from './service.js';
 import { FaxProvider } from './provider.js';
-import { fail,receiptFilename,validateSubmission } from './safety.js';
+import { fail,receiptFilename,uuid,validateSubmission } from './safety.js';
 async function body(req,max) {
   if(Number(req.headers['content-length'])>max)fail(413);
   let size=0;const parts=[];for await(const part of req) {size+=part.length;if(size>max)fail(413);parts.push(part);}return Buffer.concat(parts);
@@ -23,6 +23,13 @@ export async function upload(req) {
   }
   if(!['true','false'].includes(fields.includeCoverSheet))fail(400);fields.includeCoverSheet=fields.includeCoverSheet==='true';
   return validateSubmission(fields,pdf);
+}
+export function operationFaxId(requestUrl,action,origin) {
+  const url=new URL(requestUrl,origin),faxIds=url.searchParams.getAll('faxId'),routeActions=url.searchParams.getAll('action');
+  if(faxIds.length!==1 || routeActions.length>1 || (routeActions.length===1 && routeActions[0]!==action) ||
+      [...url.searchParams.keys()].some(key=>key!=='faxId'&&key!=='action'))fail(400);
+  if(!uuid(faxIds[0]))fail(404);
+  return faxIds[0];
 }
 export function createFaxHandler(action,deps={}) {
   return async(req,res)=>{
@@ -48,10 +55,8 @@ export function createFaxHandler(action,deps={}) {
         return res.status(200).json({contacts:await service.contacts(ctx,input)});
       }
       if(action==='send')return res.status(200).json(await service.send(ctx,await upload(req)));
-      const url=new URL(req.url,config.origin);
-      if(url.searchParams.getAll('faxId').length!==1 || [...url.searchParams.keys()].some(k=>k!=='faxId'))fail(400);
       if(!['status','message','receipt'].includes(action))fail(404);
-      const result=await service.fax(ctx,url.searchParams.get('faxId'),action==='receipt');
+      const result=await service.fax(ctx,operationFaxId(req.url,action,config.origin),action==='receipt',action==='status');
       if(action==='receipt') {
         if(!result.bytes || !result.entry)fail();
         res.setHeader('Content-Type','application/pdf');res.setHeader('Content-Disposition',"attachment; filename*=UTF-8''"+encodeURIComponent(receiptFilename(result.entry.filename,result.entry.lastFour)));

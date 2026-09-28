@@ -35,14 +35,14 @@ export class FaxService {
     }
   }
   async contacts(ctx,input) { return this.operation(ctx,(_c,row,token)=>input?this.provider.createContact(row,token,input):this.provider.contacts(row,token)); }
-  async fax(ctx,id,receipt=false) {
+  async fax(ctx,id,receipt=false,reconcile=false) {
     // Reject guessed/foreign identifiers before even a refresh request.
     await this.store.locked(ctx,(c,row)=>this.store.owned(c,ctx,id,row));
     return this.operation(ctx,async(c,connection,token)=>{
       const row=await this.store.owned(c,ctx,id,connection);
       if(!row.message_id)return this.store.public(row,this.config);
       if(receipt) { if(row.state!=='sent')fail();return {bytes:await this.provider.receipt(row,token),entry:this.store.public(row,this.config)}; }
-      if(['sent','failed'].includes(row.state) || new Date(row.tracking_deadline).getTime()<=Date.now())return this.store.public(row,this.config);
+      if(['sent','failed'].includes(row.state) || (!reconcile && new Date(row.tracking_deadline).getTime()<=Date.now()))return this.store.public(row,this.config);
       const message=await this.provider.message(row,token);
       const updated=await c.query(`UPDATE ${this.store.schema}.fax_attempts SET state=$1,provider_status=$4,updated_at=now() WHERE id=$2 AND user_id=$3 AND state NOT IN ('sent','failed') RETURNING *`,[stateOf(message.messageStatus),id,ctx.user,safeStatus(message.messageStatus)]);
       return this.store.public(updated.rows[0] || row,this.config);

@@ -10,11 +10,11 @@ import {randomUUID} from 'node:crypto';
 const browserPath=['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync);
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history preservation and employee changes',{skip:!browserPath,timeout:90000},async t=>{
-  let employee='A',signedIn=true,sendCount=0,receiptCount=0,holdSend=false,releaseSend,holdContacts=false,releaseContacts;
+  let employee='A',signedIn=true,sendCount=0,receiptCount=0,holdSend=false,releaseSend,holdContacts=false,releaseContacts,holdSession=false,releaseSession;
   const histories={A:[],B:[]},requests=[];
   const server=createServer(async(req,res)=>{
     const path=req.url.split('?')[0];res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');
-    if(path==='/api/auth/session'){res.statusCode=signedIn?200:401;return res.end(JSON.stringify(signedIn?{authenticated:true,user:{displayName:'Employee '+employee}}:{authenticated:false}));}
+    if(path==='/api/auth/session'){if(holdSession)await new Promise(r=>releaseSession=r);res.statusCode=signedIn?200:401;return res.end(JSON.stringify(signedIn?{authenticated:true,user:{displayName:'Employee '+employee}}:{authenticated:false}));}
     if(path==='/api/auth/logout'){signedIn=false;return res.end('{}');}
     if(path==='/api/ringcentral/connection')return res.end(JSON.stringify({state:'connected',displayName:'Employee '+employee,accountId:'827653020',extensionId:employee==='A'?'12345':'67890'}));
     if(path==='/api/fax-v3/context'){res.statusCode=signedIn?200:401;return res.end(JSON.stringify({state:'connected',context:(employee==='A'?'a':'b').repeat(64)}));}
@@ -43,7 +43,7 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
   const origin='http://127.0.0.1:'+server.address().port;
   const profile=await mkdtemp(join(tmpdir(),'fax-v3-page-'));const files=[join(profile,'Brief.pdf'),join(profile,'Second.pdf')];for(const file of files)await writeFile(file,'%PDF-synthetic');
   const browser=spawn(browserPath,['--headless=new','--disable-gpu','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
-  let socket;t.after(async()=>{releaseSend?.();releaseContacts?.();socket?.close();browser.kill();await pause(500);assert.equal(dirname(resolve(profile)),resolve(tmpdir()));await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});});
+  let socket;t.after(async()=>{releaseSend?.();releaseContacts?.();releaseSession?.();socket?.close();browser.kill();await pause(500);assert.equal(dirname(resolve(profile)),resolve(tmpdir()));await rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:200});});
   let port;for(let i=0;i<100&&!port;i++){port=await readFile(join(profile,'DevToolsActivePort'),'utf8').then(s=>s.split('\n')[0]).catch(()=>null);if(!port)await pause(100);}assert(port);
   const pages=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();socket=new WebSocket(pages.find(p=>p.type==='page').webSocketDebuggerUrl);await new Promise(r=>socket.onopen=r);
   const pending=new Map();let id=0;socket.onmessage=({data})=>{const e=JSON.parse(data);if(!pending.has(e.id))return;const p=pending.get(e.id);pending.delete(e.id);e.error?p.reject(Error('Browser protocol failed')):p.resolve(e.result);};
@@ -58,6 +58,15 @@ test('Fax v3 desktop/mobile: contacts, batches, receipts, history, v2 history pr
     employee='A';signedIn=true;histories.A=[];histories.B=[];
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});await cdp('Page.navigate',{url:origin+'/fax-sender-v3/'});
     await until("document.getElementById('faxWorkspace')&&!document.getElementById('faxWorkspace').hidden");assert(await ev("localStorage.length===1 && localStorage.getItem('packard.faxHistory.v1')==='PRIVATE LEGACY CANARY' && sessionStorage.length===0 && !document.body.textContent.includes('PRIVATE LEGACY')"));
+    if(width===1280){
+      holdSession=true;await ev("window.dispatchEvent(new Event('focus'))");for(let i=0;i<100&&!releaseSession;i++)await pause(20);assert(releaseSession);
+      assert(await ev("document.getElementById('toolkitState').textContent==='Signed in as Employee A' && !document.getElementById('identity').hidden && !document.getElementById('faxWorkspace').hidden"));
+      holdSession=false;const release=releaseSession;releaseSession=null;release();await pause(150);
+      const queued={faxId:randomUUID(),filename:'Existing.pdf',lastFour:'0012',recipientName:'Controlled recipient',faxNumber:'+18015551234',createdAt:new Date().toISOString(),status:'Queued',retryable:false,tracking:true,accessible:true};histories.A=[queued];const beforePoll=sendCount;
+      await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===1");await until("document.getElementById('faxNotice').textContent.includes('Fax status could not be refreshed')");
+      assert.equal(sendCount,beforePoll);assert.equal(histories.A[0].status,'Queued');assert.equal(histories.A[0].retryable,false);
+      histories.A=[];await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===0 && !document.getElementById('faxWorkspace').hidden");
+    }
     await ev("document.getElementById('loadContacts').click()");await pause(200);assert.equal(await ev("document.getElementById('contactNotice').textContent"),'1 fax contacts loaded.');await until("document.querySelector('#contactResults button')");await ev("document.querySelector('#contactResults button').click()");
     assert.equal(await ev("document.getElementById('destination').value"),'+18015551234');
     await ev("document.getElementById('clearDestination').click()");assert(await ev("document.getElementById('destination').value==='' && document.activeElement.id==='destination'"));

@@ -60,7 +60,7 @@ export class Batch {
   }
 }
 export class Poller {
-  constructor(scope,update,clock=()=>Date.now()) {this.scope=scope;this.update=update;this.clock=clock;this.pending=new Map();this.busy=false;this.next=0;}
+  constructor(scope,update,clock=()=>Date.now(),onError=()=>{}) {this.scope=scope;this.update=update;this.clock=clock;this.onError=onError;this.pending=new Map();this.busy=false;this.next=0;}
   clear() {this.pending.clear();this.next=0;}
   track(entry) {if(entry.tracking && !this.pending.has(entry.faxId))this.pending.set(entry.faxId,{due:this.clock()+10000,deadline:new Date(entry.createdAt).getTime()+900000});if(!entry.tracking)this.pending.delete(entry.faxId);}
   async tick() {
@@ -69,7 +69,7 @@ export class Poller {
     const candidate=[...this.pending].sort((a,b)=>a[1].due-b[1].due).find(([,p])=>p.due<=now);if(!candidate)return;
     const [id,p]=candidate;this.busy=true;
     try {const entry=await this.scope.api('status?faxId='+encodeURIComponent(id));if(epoch!==this.scope.epoch || this.pending.get(id)!==p)return;this.update(entry);if(!entry.tracking)this.pending.delete(id);}
-    catch{}finally {p.due=this.clock()+30000;this.next=this.clock()+5000;this.busy=false;}
+    catch{if(epoch===this.scope.epoch && this.pending.get(id)===p)this.onError();}finally {p.due=this.clock()+30000;this.next=this.clock()+5000;this.busy=false;}
   }
 }
 // Stored ZIP entries: no library, PDF recompression, path input or browser storage.

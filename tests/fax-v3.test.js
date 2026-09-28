@@ -8,6 +8,7 @@ import {config} from './rc-v3-fixtures.js';
 import {validateSubmission,receiptFilename,contextFor,checkContext,metadataContext,safeStatus} from '../server/fax-v3/safety.js';
 import {encrypt,decrypt} from '../server/ringcentral-v3/crypto.js';
 import {FaxProvider} from '../server/fax-v3/provider.js';
+import {FaxService} from '../server/fax-v3/service.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
 import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,number} from '../development/fax-sender-v3/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
@@ -106,6 +107,26 @@ test('polling intervals and terminal/expired rules prevent aggressive or indefin
   const scope=new Scope(contextual(async()=>{calls++;return response(entry);}));scope.set('c');const poller=new Poller(scope,()=>{},()=>now);poller.track(entry);
   now+=10000;await poller.tick();assert.equal(calls,1);now+=29999;await poller.tick();assert.equal(calls,1);now++;await poller.tick();assert.equal(calls,2);
   now=new Date(entry.createdAt).getTime()+900001;await poller.tick();assert.equal(calls,2);assert.equal(poller.pending.size,0);
+});
+test('polling failures are reported without changing state or enabling submission retry',async()=>{
+  let now=Date.now(),fail=true,updates=0,errors=0,calls=0;
+  const entry={faxId:randomUUID(),tracking:true,status:'Queued',retryable:false,createdAt:new Date(now).toISOString()};
+  const scope=new Scope(contextual(async()=>{calls++;return fail?new Response('',{status:503}):response({...entry,status:'Sent',tracking:false});}));scope.set('c');
+  const poller=new Poller(scope,()=>updates++,()=>now,()=>errors++);poller.track(entry);
+  now+=10000;await poller.tick();assert.equal(calls,1);assert.equal(errors,1);assert.equal(updates,0);assert.equal(entry.status,'Queued');assert.equal(entry.retryable,false);assert.equal(poller.pending.size,1);
+  fail=false;now+=30000;await poller.tick();assert.equal(calls,2);assert.equal(errors,1);assert.equal(updates,1);assert.equal(poller.pending.size,0);
+});
+test('explicit owned status reconciliation may verify an expired attempt without extending automatic polling',async()=>{
+  const id=randomUUID(),connection={id:randomUUID(),generation:'1'},row={id,message_id:'123456',state:'accepted',tracking_deadline:new Date(Date.now()-1000),connection_generation:'1'};
+  let providerCalls=0;
+  const store={
+    locked:async(ctx,fn)=>fn({query:async()=>({rows:[{...row,state:'sent',provider_status:'Sent'}]})},connection),
+    owned:async()=>row,
+    public:value=>({faxId:value.id,status:value.state==='sent'?'Sent':'Unknown',tracking:false})
+  };
+  const service=new FaxService({},store,{accessToken:async()=> 'synthetic-token'},{message:async()=>{providerCalls++;return {messageStatus:'Sent'};}});
+  assert.equal((await service.fax({},id)).status,'Unknown');assert.equal(providerCalls,0);
+  assert.equal((await service.fax({},id,false,true)).status,'Sent');assert.equal(providerCalls,1);
 });
 test('legacy history is untouched; v3 never reads and no client persistence; safe filenames and valid duplicate-name ZIP',async()=>{
   for(const name of ['Brief - SSA.pdf','bad<>:"/\\|?*.pdf','double.pdf.pdf'])assert.equal(browserFilename(name,'0012'),receiptFilename(name,'0012'));

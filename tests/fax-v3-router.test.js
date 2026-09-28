@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { readdir, readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
@@ -111,6 +112,59 @@ test('routers preserve each existing handler method contract', async () => {
     assert.equal(res.code, 405, `${method} ${url}`);
     assert.equal(res.headers.Allow, allow);
   }
+});
+
+test('fax detail routes accept only their matching Vercel-injected action parameter', async () => {
+  const config = developmentConfig();
+  const faxId = randomUUID();
+  const calls = [];
+  const dependencies = {
+    config,
+    authConfig: { origin: config.origin, sessionCookie: 'toolkit_session' },
+    requireUser: async () => ({ id: randomUUID() }),
+    store: { locked: async (_ctx, fn) => fn?.({}, {}) },
+    service: { fax: async (_ctx, id, receipt, reconcile) => {
+      calls.push({ id, receipt, reconcile });
+      return receipt ? { bytes: Buffer.from('%PDF-synthetic'), entry: { filename: 'Brief.pdf', lastFour: '0012' } } : { faxId: id, status: 'Sent', tracking: false };
+    } }
+  };
+  const router = createFaxV3Router(action => createFaxHandler(action, dependencies));
+  const headers = { cookie: `toolkit_session=${'a'.repeat(43)}`, 'x-toolkit-fax-context': 'b'.repeat(64) };
+  for (const action of ['status', 'message', 'receipt']) {
+    for (const injected of ['', `&action=${action}`]) {
+      const res = response();
+      await router({ method: 'GET', url: `/api/fax-v3/${action}?faxId=${faxId}${injected}`, headers }, res);
+      assert.equal(res.code, 200, `${action}${injected}`);
+      assert.deepEqual(calls.at(-1), { id: faxId, receipt: action === 'receipt', reconcile: action === 'status' });
+    }
+  }
+});
+
+test('fax detail routes reject mismatched, duplicate, extra, and malformed parameters before provider work', async () => {
+  const config = developmentConfig();
+  const faxId = randomUUID();
+  let calls = 0;
+  const dependencies = {
+    config,
+    authConfig: { origin: config.origin, sessionCookie: 'toolkit_session' },
+    requireUser: async () => ({ id: randomUUID() }),
+    store: { locked: async (_ctx, fn) => fn?.({}, {}) },
+    service: { fax: async () => { calls++; return {}; } }
+  };
+  const router = createFaxV3Router(action => createFaxHandler(action, dependencies));
+  const headers = { cookie: `toolkit_session=${'a'.repeat(43)}`, 'x-toolkit-fax-context': 'b'.repeat(64) };
+  for (const [query, expected] of [
+    [`faxId=${faxId}&action=message`, 400],
+    [`faxId=${faxId}&action=status&action=status`, 400],
+    [`faxId=${faxId}&action=status&extra=1`, 400],
+    [`faxId=${faxId}&faxId=${faxId}&action=status`, 400],
+    ['faxId=not-a-uuid&action=status', 404]
+  ]) {
+    const res = response();
+    await router({ method: 'GET', url: `/api/fax-v3/status?${query}`, headers }, res);
+    assert.equal(res.code, expected, query);
+  }
+  assert.equal(calls, 0);
 });
 
 test('RingCentral callback router preserves the complete original request URL', async () => {

@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id);
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
 const note=message=>{$('faxNotice').textContent=message;};
+const pollingNotice='Fax status could not be refreshed. The fax outcome is unchanged. Review RingCentral and do not resend it.';
 const scope=new Scope(fetch,()=>{
   historySequence++;entries=[];contacts=[];selectedName='';receiptBusy=false;contactBusy=false;poller?.clear();batch?.clear();
   for(const url of objectUrls)URL.revokeObjectURL(url);objectUrls.clear();
@@ -51,9 +52,10 @@ async function historyRefresh() {
   }catch{if(epoch===scope.epoch)note('History unavailable. Do not resend an unconfirmed fax.');}
 }
 poller=new Poller(scope,entry=>{
+  if($('faxNotice').textContent===pollingNotice)note('');
   for(const doc of batch.documents)if(doc.entry?.faxId===entry.faxId){doc.entry=entry;doc.state=entry.status;}
   entries=entries.map(e=>e.faxId===entry.faxId?{...e,...entry}:e);render();renderHistory();
-});
+},undefined,()=>note(pollingNotice));
 async function sync() {
   if(syncing||!signedIn)return;syncing=true;const epoch=scope.epoch;
   try {

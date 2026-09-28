@@ -17,14 +17,15 @@ const url=new URL(location.href);
 if(url.searchParams.get('connection')==='failed')notice('RingCentral connection could not be completed. Confirm Toolkit sign-in and try again.');
 // Success is established only by the authenticated status response, never a URL flag.
 if(url.search)history.replaceState(null,'','/fax-sender-v3/');
-async function refresh(){
+async function refresh({background=false}={}){
   const current=++sequence;
-  signedIn=false;clearConnection();$('signOut').hidden=true;$('signIn').hidden=true;
+  if(!background){signedIn=false;clearConnection();$('signOut').hidden=true;$('signIn').hidden=true;
   $('toolkitState').textContent='Checking Toolkit sign-in…';$('connectionState').textContent='Waiting for Toolkit authentication…';
+  }
   try{
     const r=await fetch('/api/auth/session',{cache:'no-store',credentials:'same-origin'});
     const data=await r.json();if(current!==sequence)return;
-    if(r.status===401||r.status===403){window.dispatchEvent(new Event('toolkit-rc-reset'));$('toolkitState').textContent=r.status===403?'Toolkit access is unavailable for this account.':'Signed out of the Toolkit.';$('signIn').hidden=false;$('returnNote').hidden=false;$('connectionState').textContent='Sign into the Toolkit to connect RingCentral.';return;}
+    if(r.status===401||r.status===403){signedIn=false;window.dispatchEvent(new Event('toolkit-rc-reset'));clearConnection();$('signOut').hidden=true;$('toolkitState').textContent=r.status===403?'Toolkit access is unavailable for this account.':'Signed out of the Toolkit.';$('signIn').hidden=false;$('returnNote').hidden=false;$('connectionState').textContent='Sign into the Toolkit to connect RingCentral.';return;}
     if(!r.ok||data.authenticated!==true||typeof data.user?.displayName!=='string')throw Error();
     signedIn=true;$('toolkitState').textContent='Signed in as '+data.user.displayName;$('signOut').hidden=false;$('returnNote').hidden=true;
     const rc=await fetch('/api/ringcentral/connection',{cache:'no-store',credentials:'same-origin'});
@@ -35,13 +36,13 @@ async function refresh(){
     if(connection.state==='connected'){
       if(typeof connection.displayName!=='string'||![connection.accountId,connection.extensionId].every(x=>typeof x==='string'&&/^[1-9]\d{0,29}$/.test(x)))throw Error();
       $('rcName').textContent=connection.displayName;$('accountId').textContent=connection.accountId;$('extensionId').textContent=connection.extensionId;$('identity').hidden=false;
-    }
+    } else clearIdentity();
     $('connectionState').textContent=states[connection.state];
     window.dispatchEvent(new CustomEvent('toolkit-rc-state',{detail:connection.state}));
     $('connectForm').hidden=!['disconnected','connecting'].includes(connection.state);
     $('disconnect').hidden=connection.state==='disconnected';
     $('disconnect').textContent=connection.state==='disconnecting'?'Retry Disconnect':'Disconnect RingCentral';
-  }catch{if(current!==sequence)return;window.dispatchEvent(new Event('toolkit-rc-reset'));clearConnection();$('connectionState').textContent='Connection status unavailable. Refresh status to try again.';if(!signedIn){$('toolkitState').textContent='Toolkit sign-in is unavailable or has changed.';$('signIn').hidden=false;$('returnNote').hidden=false;}}
+  }catch{if(current!==sequence)return;signedIn=false;window.dispatchEvent(new Event('toolkit-rc-reset'));clearConnection();$('signOut').hidden=true;$('connectionState').textContent='Connection status unavailable. Refresh status to try again.';$('toolkitState').textContent='Toolkit sign-in is unavailable or has changed.';$('signIn').hidden=false;$('returnNote').hidden=false;}
 }
 $('connectForm').addEventListener('submit',event=>{
   if(busy||!signedIn){event.preventDefault();return;}
@@ -57,8 +58,8 @@ async function mutate(path,message){
 $('disconnect').addEventListener('click',()=>mutate('/api/ringcentral/disconnect','RingCentral disconnected.'));
 $('signOut').addEventListener('click',()=>mutate('/api/auth/logout','Signed out of the Toolkit.'));
 $('refresh').addEventListener('click',()=>{if(!busy)refresh();});
-window.addEventListener('focus',()=>{if(!busy)refresh();});
+window.addEventListener('focus',()=>{if(!busy)refresh({background:true});});
 window.addEventListener('pageshow',()=>{busy=false;controls();refresh();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){++sequence;clearConnection();}else if(!busy)refresh();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){++sequence;clearConnection();}else if(!busy)refresh({background:true});});
 refresh();
-setInterval(()=>{if(!busy&&!document.hidden)void refresh();},5000);
+setInterval(()=>{if(!busy&&!document.hidden)void refresh({background:true});},5000);
