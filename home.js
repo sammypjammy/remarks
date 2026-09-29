@@ -6,7 +6,9 @@ function renderHomepageTools() {
   const preferences = window.PackardSettings?.getHomepagePreferences();
   if (!preferences) return;
   const grid = document.querySelector(".tool-grid");
-  for (const id of preferences.order) {
+  const orderHomepageToolIds = window.PackardSettings?.orderHomepageToolIds
+    || (ids => [...preferences.order.filter(id => ids.includes(id)), ...ids.filter(id => !preferences.order.includes(id))]);
+  for (const id of orderHomepageToolIds([...homeCards.keys()])) {
     const card = homeCards.get(id);
     if (!card) continue;
     card.hidden = preferences.hidden.includes(id);

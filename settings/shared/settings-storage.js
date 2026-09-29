@@ -24,11 +24,11 @@
     emailResourcesUrl: ""
   });
   const HOMEPAGE_TOOLS = Object.freeze([
-    Object.freeze({ id: "remarks", label: "Canned Remarks" }),
-    Object.freeze({ id: "med-tabs", label: "Med Tabs" }),
-    Object.freeze({ id: "email", label: "Welcome Emails" }),
-    Object.freeze({ id: "fax", label: "Fax Sender" }),
-    Object.freeze({ id: "intake", label: "Intake Checker" })
+    Object.freeze({ id: "remarks", label: "Canned Remarks", path: "canned-remarks/" }),
+    Object.freeze({ id: "med-tabs", label: "Med Tabs", path: "med-tabs-generator/" }),
+    Object.freeze({ id: "email", label: "Welcome Emails", path: "welcome-email-sender/" }),
+    Object.freeze({ id: "fax", label: "Fax Sender", path: "fax-sender/" }),
+    Object.freeze({ id: "intake", label: "Intake Checker", path: "intake-checker/" })
   ]);
   const HOMEPAGE_VERSION = 1;
   const DEFAULT_HOMEPAGE_PREFERENCES = Object.freeze({
@@ -74,6 +74,15 @@
 
   function getHomepagePreferences() {
     return normalizeHomepagePreferences(readJson(HOMEPAGE_STORAGE_KEY, null));
+  }
+
+  function orderHomepageToolIds(toolIds) {
+    const available = [...new Set((Array.isArray(toolIds) ? toolIds : [])
+      .filter(id => typeof id === "string" && id.length > 0))];
+    const availableSet = new Set(available);
+    const preferenceOrder = getHomepagePreferences().order;
+    const ordered = preferenceOrder.filter(id => availableSet.delete(id));
+    return [...ordered, ...available.filter(id => availableSet.has(id))];
   }
 
   function saveHomepagePreferences(preferences) {
@@ -325,10 +334,19 @@
   });
 
   global.addEventListener("storage", (event) => {
-    if (event.key !== SETTINGS_STORAGE_KEY) return;
-    applyPreferences();
-    announceChange("storage", null);
+    if (event.key === SETTINGS_STORAGE_KEY) {
+      applyPreferences();
+      announceChange("storage", null);
+    } else if (event.key === HOMEPAGE_STORAGE_KEY) {
+      announceHomepageChange();
+    }
   });
+
+  function announceHomepageChange() {
+    global.dispatchEvent(new CustomEvent("packardsettingschange", {
+      detail: { name: "homepage", value: getHomepagePreferences(), settings: getSettings() }
+    }));
+  }
 
   migrateSettings();
   applyPreferences();
@@ -355,6 +373,7 @@
     saveCustomCaseManagers,
     homepageTools: HOMEPAGE_TOOLS,
     getHomepagePreferences,
+    orderHomepageToolIds,
     saveHomepagePreferences,
     resetHomepagePreferences
   });

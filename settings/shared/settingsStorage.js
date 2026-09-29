@@ -15,4 +15,9 @@ export const {
   saveEmailTemplates,
   getCustomCaseManagers,
   saveCustomCaseManagers,
+  getHomepagePreferences,
+  orderHomepageToolIds,
+  saveHomepagePreferences,
+  resetHomepagePreferences,
+  homepageTools,
 } = settingsStorage;

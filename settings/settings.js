@@ -64,7 +64,8 @@ function homepageToolMap() {
 }
 
 function saveHomepageOrder(order, hidden, message = "Homepage saved.") {
-  if (!settings.saveHomepagePreferences({ version: 1, order, hidden })) {
+  const current = settings.getHomepagePreferences();
+  if (!settings.saveHomepagePreferences({ version: 1, order, hidden, name: current.name })) {
     setStatus(homepageStatus, "Homepage preferences could not be saved.", true);
     return false;
   }

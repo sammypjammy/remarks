@@ -1,6 +1,7 @@
 // Click through the production build in real Chromium. No external APIs or sends.
 // Run after npm.cmd run build: node tests/navigation-browser-check.mjs "C:\path\to\chrome.exe"
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,11 +14,17 @@ assert(browser, "Provide a Chromium executable path");
 const root = resolve("dist");
 const failures = [];
 const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".pdf": "application/pdf" };
+let authenticated = false;
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
   if (pathname === '/api/auth/session') {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ authenticated: false }));
+    const session = authenticated ? { authenticated: true, user: { displayName: "Authenticated Test User" } } : { authenticated: false };
+    res.writeHead(authenticated ? 200 : 401, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(session));
+  }
+  if (pathname === "/__homepage-reopen-check") {
+    res.writeHead(302, { Location: "/" });
+    return res.end();
   }
   if (pathname === '/favicon.ico') return res.writeHead(204).end();
   // This server has no credentials or API handlers; any accidental API use fails.
@@ -103,11 +110,12 @@ try {
   await cdp("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
   const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/settings/", "/version-history/"];
+  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "Settings"];
   for (const width of [1280, 390]) {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.10.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.7.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.2.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.10.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.7.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert.equal(await evaluate("document.getElementById('toolkitState').textContent"), "Signed out of the Toolkit.", "Canonical Fax Sender requires Toolkit authentication");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -128,6 +136,7 @@ try {
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), defaultMenuOrder, `Default tool order on ${page}`);
       const expectedLinks = page === "/version-history/" ? 7 : 6;
       assert.equal(links.length, expectedLinks, `Toolkit links on ${page}`);
       assert(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)).length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(item => /Fax Sender|Intake Checker/.test(item.textContent)).length) === 2`), `Fax Sender and Intake Checker appear once on ${page}`);
@@ -167,8 +176,20 @@ try {
     await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] [data-homepage-move=\\\"down\\\"]').click()");
     await visit("/");
     assert.equal(await evaluate("document.querySelector('.tool-card:not([hidden]) strong').textContent"), "Med Tabs", "Homepage reorder applies");
+    assert.equal(await evaluate("PackardSettings.getHomepagePreferences().name"), "Sam", "Reordering preserves the Homepage name");
+    await evaluate("location.reload()");
+    await loaded("/");
+    assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Homepage name survives refresh after reorder");
     await visit("/settings/");
     assert.equal(await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] .homepage-move-button[data-homepage-move=\\\"up\\\"]').disabled"), false, "Homepage order persists after navigation");
+    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "Settings"];
+    for (const path of pages) {
+      await visit(path);
+      await evaluate("document.querySelector('.app-menu-toggle').click()");
+      await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "reordered menu open");
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), reorderedMenuOrder, `Saved order on ${path}`);
+    }
+    await visit("/settings/");
     for (const id of ["remarks", "med-tabs", "email", "fax", "intake"]) {
       await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
       await visit("/");
@@ -181,15 +202,33 @@ try {
     await evaluate("location.reload()");
     await loaded("/");
     assert.equal(await evaluate("document.querySelector('[data-home-tool=\\\"fax\\\"]').hidden"), true, "Homepage visibility applies");
+    for (const path of pages) {
+      await visit(path);
+      await evaluate("document.querySelector('.app-menu-toggle').click()");
+      await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu with hidden Homepage tool open");
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), reorderedMenuOrder, `Hidden Homepage tools remain in navigation on ${path}`);
+    }
+    await visit("/");
     await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:999, order:['fax'], hidden:['remarks']})); location.reload()");
     await loaded("/");
     assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Invalid homepage preferences fall back safely");
     await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:1, order:['remarks'], hidden:['unknown']})); location.reload()");
     await loaded("/");
     assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Missing and unknown homepage tools use defaults");
+    assert.deepEqual(await evaluate("PackardSettings.getHomepagePreferences().order"), ["remarks", "med-tabs", "email", "fax", "intake"], "Older partial preferences append missing current tools");
+    assert.deepEqual(await evaluate("PackardSettings.orderHomepageToolIds(['remarks', 'med-tabs', 'email', 'fax', 'intake', 'future-tool'])"), ["remarks", "med-tabs", "email", "fax", "intake", "future-tool"], "Tools missing from a saved preference append safely");
     await visit("/settings/");
     await evaluate("document.getElementById('resetHomepage').click()");
     assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage reset restores visibility");
+    await visit("/");
+    assert.equal(await evaluate("document.querySelector('.tool-card:not([hidden]) strong').textContent"), "Canned Remarks", "Reset restores default Home order");
+    for (const path of pages) {
+      await visit(path);
+      await evaluate("document.querySelector('.app-menu-toggle').click()");
+      await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "reset menu open");
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), defaultMenuOrder, `Reset order on ${path}`);
+    }
+    await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 0, "History sections start collapsed");
@@ -199,7 +238,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 36, "All historical entries plus Intake Checker v1.5.0 preserved");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 37, "Home Page v1.2.0 and all existing history entries preserved");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -221,6 +260,32 @@ try {
     console.log(`Fax v3.3.1 release screenshot: ${faxPath}`);
     console.log(`PASS (${width}px): Settings/history, footer links on all 8 pages, one canonical Fax Sender navigation entry, and no overflow.`);
   }
+  authenticated = true;
+  await visit("/settings/");
+  await evaluate("PackardSettings.saveHomepagePreferences({...PackardSettings.getHomepagePreferences(), name: 'Sam'})");
+  await visit("/");
+  await until(() => evaluate("document.querySelector('.toolkit-auth-name')?.textContent === 'Authenticated Test User'"), "authenticated Toolkit session");
+  assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Authenticated Homepage usage keeps its saved personalized name");
+  assert.equal(await evaluate("PackardSettings.getEmailSignatureText().startsWith('Email Name')"), true, "Homepage name remains separate from Email Sender signature");
+  await visit("/welcome-email-sender/");
+  await evaluate("document.querySelector('.app-menu-toggle').click()");
+  await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "authenticated Welcome Email menu open");
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), defaultMenuOrder, "Welcome Email's own navigation uses the saved default order");
+  await visit("/");
+  assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Authenticated name survives page switching");
+  const originalBrowserExit = once(child, "exit");
+  await cdp("Browser.close").catch(() => {});
+  await originalBrowserExit;
+  socket.close();
+  const reopenedBrowser = spawn(browser, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", `--user-data-dir=${profile}`, "--dump-dom", "--virtual-time-budget=3000", `${origin}/__homepage-reopen-check`], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  let reopenedDom = "";
+  reopenedBrowser.stdout.setEncoding("utf8");
+  reopenedBrowser.stdout.on("data", chunk => { reopenedDom += chunk; });
+  const [reopenedExitCode] = await once(reopenedBrowser, "exit");
+  assert.equal(reopenedExitCode, 0, "Browser reopens successfully using the same profile");
+  assert.match(reopenedDom, /id="homeGreeting">Welcome, Sam\./, "Homepage name persists after closing and reopening the Toolkit");
+  assert.match(reopenedDom, /Authenticated Test User/, "Authenticated session remains available to reopened Toolkit");
+  console.log("PASS: authenticated Homepage name survives page changes and browser close/reopen in the same profile.");
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");
   console.log("PASS: no broken resources, console/runtime errors, or API calls.");
 } finally {

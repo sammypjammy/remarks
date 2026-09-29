@@ -78,17 +78,13 @@ function renderAppShell() {
 renderAppShell();
 import('./toolkit-auth.js').then(({ mountToolkitAuth }) => mountToolkitAuth(document.querySelector('[data-toolkit-auth]')));
 
+const toolkitHomeItem = { id: "home", label: "Home", url: routes.home };
+const toolkitNavigationTools = (window.PackardSettings?.homepageTools || [])
+  .map(tool => ({ id: tool.id, label: tool.label, url: `${routePrefix}${tool.path}` }));
 const toolkitNavigationConfig = [
   {
     label: "Packard Toolkit",
-    items: [
-      { id: "home", label: "Home", url: routes.home },
-      { id: "med-tabs", label: "Med Tabs", url: routes.medTabs },
-      { id: "remarks", label: "Canned Remarks", url: routes.remarks },
-      { id: "email", label: "Welcome Emails", url: routes.email },
-      { id: "fax", label: "Fax Sender", url: routes.fax },
-      { id: "intake", label: "Intake Checker", url: routes.intake }
-    ]
+    items: [toolkitHomeItem]
   },
   {
     label: "Other",
@@ -100,7 +96,13 @@ const appNavigation = {
   render() {
     const navigation = document.getElementById("toolkitNavigation");
     if (!navigation) return;
-    navigation.innerHTML = toolkitNavigationConfig.map((section) => `
+    const orderedIds = window.PackardSettings?.orderHomepageToolIds?.(toolkitNavigationTools.map(item => item.id))
+      || toolkitNavigationTools.map(item => item.id);
+    const sections = [
+      { ...toolkitNavigationConfig[0], items: [toolkitHomeItem, ...orderedIds.map(id => toolkitNavigationTools.find(item => item.id === id)).filter(Boolean)] },
+      toolkitNavigationConfig[1]
+    ];
+    navigation.innerHTML = sections.map((section) => `
       <section class="toolkit-nav-section" aria-labelledby="nav-${section.label.toLowerCase().replaceAll(" ", "-")}">
         <h3 id="nav-${section.label.toLowerCase().replaceAll(" ", "-")}" class="toolkit-nav-label">${section.label}</h3>
         ${section.items.map((item) => {
@@ -182,3 +184,4 @@ const appNavigation = {
 
 appNavigation.render();
 appNavigation.bind();
+window.addEventListener("packardsettingschange", () => appNavigation.render());

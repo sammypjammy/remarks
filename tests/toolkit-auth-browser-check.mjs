@@ -28,8 +28,12 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': 'toolkit_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
     return res.end(JSON.stringify({ authenticated: false }));
   }
+  if (path === '/api/ringcentral/connection') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ state: 'disconnected' }));
+  }
   if (path.startsWith('/api/')) {
-    failures.push('Unexpected API request');
+    failures.push(`Unexpected API request: ${req.method} ${path}`);
     res.writeHead(500).end(); return;
   }
   try {

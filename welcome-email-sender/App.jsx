@@ -6,7 +6,7 @@ import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, homepageTools, orderHomepageToolIds } from "../settings/shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
@@ -17,16 +17,19 @@ const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.cloud.microsoft",
 ]);
 function getToolkitNavigation(isSettingsPage) {
+  const tools = homepageTools.map(tool => ({
+    id: tool.id,
+    label: tool.label,
+    href: `/${tool.path}`,
+    ...(tool.id === "email" && !isSettingsPage ? { current: true } : {}),
+  }));
+  const orderedIds = orderHomepageToolIds(tools.map(tool => tool.id));
   return [
   {
     label: "Packard Toolkit",
     items: [
       { id: "home", label: "Home", href: "/" },
-      { id: "med-tabs", label: "Med Tabs", href: "/med-tabs-generator/" },
-      { id: "remarks", label: "Canned Remarks", href: "/canned-remarks/" },
-      { id: "email", label: "Welcome Emails", href: "/welcome-email-sender/", current: !isSettingsPage },
-      { id: "fax", label: "Fax Sender", href: "/fax-sender/" },
-      { id: "intake", label: "Intake Checker", href: "/intake-checker/" },
+      ...orderedIds.map(id => tools.find(tool => tool.id === id)).filter(Boolean),
     ],
   },
   {
@@ -139,6 +142,7 @@ export default function App() {
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
   const [emailSignature, setEmailSignature] = useState(getEmailSignature);
+  const [, setHomepageOrderRevision] = useState(0);
   const [emailHistory, setEmailHistory] = useState(() => loadEmailHistory(browserEmailHistoryStorage()));
   const emailHistoryRef = useRef(emailHistory);
   const draftRequestInProgressRef = useRef(false);
@@ -190,8 +194,11 @@ export default function App() {
   }, [selectedManager]);
 
   useEffect(() => {
-    const syncSettings = () => {
+    const syncSettings = event => {
       setEmailSignature(getEmailSignature());
+      if (event?.detail?.name === "homepage" || event?.detail?.name === "storage") {
+        setHomepageOrderRevision(revision => revision + 1);
+      }
     };
     window.addEventListener("packardsettingschange", syncSettings);
     return () => window.removeEventListener("packardsettingschange", syncSettings);
