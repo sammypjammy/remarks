@@ -265,6 +265,7 @@ function renderSettings(forceFormValues = false) {
   updateChoiceGroups();
   updateToggle(document.getElementById("openDraftsToggle"), "openDraftsInNewTab");
   updateToggle(document.getElementById("confirmMedTabsToggle"), "confirmBeforeClearingMedTabs");
+  updateToggle(document.getElementById("autoClearRemarksToggle"), "autoClearRemarksAfterCopy");
   hydrateFormValues(forceFormValues);
   updateCustomRemarkSummary();
   renderHomepageSettings();
@@ -338,6 +339,10 @@ document.getElementById("openDraftsToggle").addEventListener("click", (event) =>
 
 document.getElementById("confirmMedTabsToggle").addEventListener("click", (event) => {
   settings.setSetting("confirmBeforeClearingMedTabs", event.currentTarget.getAttribute("aria-checked") !== "true");
+});
+
+document.getElementById("autoClearRemarksToggle").addEventListener("click", (event) => {
+  settings.setSetting("autoClearRemarksAfterCopy", event.currentTarget.getAttribute("aria-checked") !== "true");
 });
 
 homepageToolList.addEventListener("click", (event) => {

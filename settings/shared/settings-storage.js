@@ -19,6 +19,7 @@
     density: "comfortable",
     openDraftsInNewTab: true,
     confirmBeforeClearingMedTabs: true,
+    autoClearRemarksAfterCopy: false,
     emailSignature: "",
     emailResourcesUrl: ""
   });
@@ -133,6 +134,9 @@
       confirmBeforeClearingMedTabs: typeof settings.confirmBeforeClearingMedTabs === "boolean"
         ? settings.confirmBeforeClearingMedTabs
         : DEFAULT_SETTINGS.confirmBeforeClearingMedTabs,
+      autoClearRemarksAfterCopy: typeof settings.autoClearRemarksAfterCopy === "boolean"
+        ? settings.autoClearRemarksAfterCopy
+        : DEFAULT_SETTINGS.autoClearRemarksAfterCopy,
       emailSignature,
       emailResourcesUrl: typeof settings.emailResourcesUrl === "string" ? settings.emailResourcesUrl.trim() : ""
     };
@@ -149,7 +153,7 @@
   function normalizeSetting(name, value) {
     if (name === "theme") return THEMES.includes(value) ? value : DEFAULT_SETTINGS.theme;
     if (name === "density") return DENSITIES.includes(value) ? value : DEFAULT_SETTINGS.density;
-    if (name === "openDraftsInNewTab" || name === "confirmBeforeClearingMedTabs") return Boolean(value);
+    if (name === "openDraftsInNewTab" || name === "confirmBeforeClearingMedTabs" || name === "autoClearRemarksAfterCopy") return Boolean(value);
     if (name === "emailSignature" || name === "emailResourcesUrl") return typeof value === "string" ? value.trim() : "";
     return value;
   }

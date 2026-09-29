@@ -23,6 +23,10 @@ async function copyTextToClipboard(text) {
   }
 }
 
+function autoClearAfterCopy() {
+  return Boolean(window.PackardSettings?.getSetting("autoClearRemarksAfterCopy"));
+}
+
 function fallbackCopyText(text) {
   const tempTextArea = document.createElement("textarea");
   tempTextArea.value = text;
@@ -91,6 +95,11 @@ if (shortTermInput) {
     if (!shortTermInput.value.trim()) return;
     const copied = await copyTextToClipboard(shortTermInput.value);
     showToastMessage(shortTermToast, copied ? "Short-term remark copied." : "Copy failed. Please try again.");
+    if (copied && autoClearAfterCopy()) {
+      shortTermInput.value = "";
+      try { window.sessionStorage.removeItem(storageKey); } catch { /* Keep the clear action available without session storage. */ }
+      updateShortTermState();
+    }
   });
 
   clearButton.addEventListener("click", () => {
@@ -111,12 +120,24 @@ function partTimeRemark(amount) {
 }
 
 if (document.getElementById("remarkList")) {
+const BENEFIT_SOURCES = Object.freeze([
+  "Part-Time Work",
+  "Short Term Disability Benefits",
+  "Long Term Disability Benefits",
+  "Workers' Compensation",
+  "VA Disability Benefits",
+  "Early Retirement Benefits",
+  "Widow's Pension",
+  "Unemployment",
+  "Other"
+]);
+const benefitSourceOptions = BENEFIT_SOURCES.map((label) => ({ value: label, label }));
 const vaFields = [
-  { key: "vaBenefits", label: "Does the claimant receive VA benefits?", type: "select", required: true,
-    options: [{value: "yes", label: "Yes"}, {value: "no", label: "No"}] },
+  { key: "vaBenefits", label: "Does the claimant receive VA benefits?", type: "yesNo", required: true },
   { key: "vaAmount", label: "Monthly VA benefit amount", type: "text", placeholder: "e.g. 1,000", required: true,
     when: {key: "vaBenefits", value: "yes"} }
 ];
+const dav795Fields = [...vaFields, { key: "conditions", label: "Claimant's conditions", type: "textarea", placeholder: "Enter the claimant's conditions", required: true }];
 // Filing Application options
 const filingRemarks = [
   {
@@ -187,6 +208,16 @@ My doctors also prescribed medications I am currently taking.`,
     fields: vaFields
   },
   {
+    id: "filing-critical-claim",
+    group: "795 Remarks",
+    title: "Critical Claim",
+    text: "The claimant has been diagnosed with {{conditionDetails}} and {{criticalTreatmentStatus}}. This meets a listing. We respectfully request that this claim be expedited and given Critical Claim status.",
+    fields: [
+      { key: "conditionDetails", label: "Condition / diagnosis details", type: "textarea", placeholder: "Enter the diagnosis and related details", required: true },
+      { key: "criticalTreatmentStatus", label: "Critical treatment / status details", type: "textarea", placeholder: "Enter critical treatment or status details", required: true }
+    ]
+  },
+  {
     id: "filing-795-teri",
     group: "795 Remarks",
     title: "795 Terminal Illness (TERI)",
@@ -247,7 +278,7 @@ My doctors also prescribed medications I am currently taking.`,
   {
     id: "filing-prior-claim",
     group: "Things to Notate in Remarks",
-    title: "Reopening a Prior Claim",
+    title: "Reopen Prior Claim",
     text: "The claimant has a prior claim. We have sent in a 795 and are respectfully requesting that this claim be reopened.",
     fields: []
   },
@@ -273,15 +304,7 @@ My doctors also prescribed medications I am currently taking.`,
     fields: [
       {
         key: "source", label: "Where did the money come from?", type: "select", placeholder: "Choose a money source", required: true,
-        options: [
-          "Part-time Income",
-          "Short Term Disability Benefits",
-          "Long Term Disability Benefits",
-          "Workers' Compensation",
-          "VA Disability Benefits",
-          "Early Retirement Benefits",
-          "Other"
-        ].map((label) => ({ value: label, label })),
+        options: benefitSourceOptions,
         otherOption: "Other"
       },
       { key: "amount", label: "How much money was received?", type: "text", placeholder: "e.g. $1,000", required: true }
@@ -321,8 +344,8 @@ const application795Remarks = [
   {
     id: "795-disabled-veteran",
     title: "795 Disabled Veteran (DAV)",
-    text: "The claimant is a 100% Disabled Veteran. {{vaBenefitsText}} We are respectfully requesting Critical Claim status and Expedited Processing.",
-    fields: vaFields
+    text: "The claimant is a 100% Disabled Veteran. The claimant has the following conditions: {{conditions}}. {{vaBenefitsText}} We are respectfully requesting Critical Claim status and Expedited Processing.",
+    fields: dav795Fields
   },
   {
     id: "795-teri",
@@ -364,8 +387,6 @@ const application795Remarks = [
 
 // Edit these entries to change the SSI questions and their generated text.
 const ssiRemarks = [
-  { id: "part-time-work", label: "Works part time", yesText: "part-time", noAddsText: false,
-    prompt: {answer: "yes", key: "amount", title: "Part-time monthly earnings", label: "Monthly earnings", placeholder: "e.g. 1,000"} },
   {
     id: "food-stamps",
     label: "Receives food stamps",
@@ -410,13 +431,19 @@ const ssiRemarks = [
     id: "receives-money",
     label: "Receives money",
     text: "At no point does the claimant ever receive any money from anyone.",
-    yesText: "The claimant currently receives money from {{moneySource}}.",
+    yesText: "The claimant currently receives money from {{moneySource}} in the amount of ${{amount}} per month.",
     prompt: {
       answer: "yes",
       key: "moneySource",
-      title: "Where does the claimant receive money from?",
-      label: "The claimant receives money from",
-      placeholder: "e.g. part-time work"
+      amountKey: "amount",
+      otherKey: "otherMoneySource",
+      otherOption: "Other",
+      title: "SSI income or benefit",
+      label: "Income or benefit source",
+      placeholder: "Choose a source",
+      amountLabel: "Monthly amount",
+      amountPlaceholder: "e.g. $1,000",
+      options: benefitSourceOptions
     }
   },
   {
@@ -552,9 +579,12 @@ function getSsiBlurb() {
       if (item.id === "marriage-status" && answer === "yes" && ssiDetails[item.id]?.separated) {
         return "The claimant is married but separated and does not share assets with their spouse.";
       }
-      if (item.id === "part-time-work" && answer === "yes") {
-        const amount = ssiDetails[item.id]?.amount;
-        return amount ? partTimeRemark(amount) : "";
+      if (item.id === "receives-money" && answer === "yes") {
+        const details = ssiDetails[item.id] || {};
+        if (!details.moneySource || !details.amount) return "";
+        if (details.moneySource === "Part-Time Work") return partTimeRemark(details.amount);
+        const source = details.moneySource === "Other" ? details.otherMoneySource : details.moneySource;
+        return source ? replacePlaceholders(item.yesText, {...details, moneySource: source}) : "";
       }
       if (answer === "yes" && item.yesText) {
         if (item.prompt?.answer === "yes") {
@@ -585,6 +615,40 @@ function updateSsiPreview() {
   previewText.classList.toggle("is-empty", !blurb);
 }
 
+function createYesNoChoices(name, idPrefix, selectedValue, onChange, onRepeat, labelId) {
+  const choices = document.createElement("div");
+  choices.className = "ssi-choice-group";
+  let currentSelection = selectedValue;
+  if (labelId) {
+    choices.setAttribute("role", "radiogroup");
+    choices.setAttribute("aria-labelledby", labelId);
+  }
+
+  ["yes", "no"].forEach((answer) => {
+    const choice = document.createElement("label");
+    choice.className = "ssi-choice";
+    const input = document.createElement("input");
+    input.type = "radio";
+    input.id = `${idPrefix}-${answer}`;
+    input.name = name;
+    input.value = answer;
+    input.checked = selectedValue === answer;
+    input.addEventListener("click", () => {
+      if (currentSelection === answer) onRepeat?.(answer);
+    });
+    input.addEventListener("change", () => {
+      currentSelection = answer;
+      onChange(answer);
+    });
+    const text = document.createElement("span");
+    text.textContent = answer === "yes" ? "Yes" : "No";
+    choice.append(input, text);
+    choices.appendChild(choice);
+  });
+
+  return choices;
+}
+
 function renderSsiApplication() {
   remarkList.innerHTML = "";
 
@@ -607,7 +671,7 @@ function renderSsiApplication() {
   ssiRemarks.forEach((item, index) => {
     const row = document.createElement("div");
     row.className = "ssi-question-row";
-    row.setAttribute("role", "radiogroup");
+    row.setAttribute("role", "group");
     row.setAttribute("aria-labelledby", `ssi-question-${index + 1}`);
 
     const legend = document.createElement("span");
@@ -615,42 +679,20 @@ function renderSsiApplication() {
     legend.className = "ssi-question-label";
     legend.textContent = item.label;
 
-    const choices = document.createElement("div");
-    choices.className = "ssi-choice-group";
-
-    ["yes", "no"].forEach((answer) => {
-      const choice = document.createElement("label");
-      choice.className = "ssi-choice";
-
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = `ssi-${item.id}`;
-      input.value = answer;
-      input.checked = ssiSelections[item.id] === answer;
-      input.addEventListener("click", () => {
-        if (item.prompt?.answer === answer && ssiSelections[item.id] === answer) {
-          openSsiDetailModal(item);
-        }
-      });
-      input.addEventListener("change", () => {
-        ssiSelections[item.id] = answer;
-        if (item.prompt?.answer === answer) {
-          openSsiDetailModal(item);
-          return;
-        }
-        if (item.id === "marriage-status") {
-          if (answer !== "yes") delete ssiDetails[item.id];
-          renderSsiApplication();
-        }
-        updateSsiPreview();
-      });
-
-      const choiceText = document.createElement("span");
-      choiceText.textContent = answer === "yes" ? "Yes" : "No";
-
-      choice.append(input, choiceText);
-      choices.appendChild(choice);
-    });
+    const choices = createYesNoChoices(`ssi-${item.id}`, `ssi-${item.id}`, ssiSelections[item.id], (answer) => {
+      ssiSelections[item.id] = answer;
+      if (item.prompt?.answer === answer) {
+        openSsiDetailModal(item);
+        return;
+      }
+      if (item.id === "marriage-status") {
+        if (answer !== "yes") delete ssiDetails[item.id];
+        renderSsiApplication();
+      }
+      updateSsiPreview();
+    }, (answer) => {
+      if (item.prompt?.answer === answer) openSsiDetailModal(item);
+    }, legend.id);
 
     row.append(legend, choices);
     if (item.id === "marriage-status" && ssiSelections[item.id] === "yes") {
@@ -689,7 +731,11 @@ function renderSsiApplication() {
       showToast("Choose an answer that adds an SSI remark.");
       return;
     }
-    copyRemarkText(blurb, "SSI Remark");
+    copyRemarkText(blurb, "SSI Remark", () => {
+      Object.keys(ssiSelections).forEach((key) => delete ssiSelections[key]);
+      Object.keys(ssiDetails).forEach((key) => delete ssiDetails[key]);
+      renderSsiApplication();
+    });
   });
 
   const clearButton = document.createElement("button");
@@ -735,18 +781,85 @@ function openSsiDetailModal(item) {
 
   const field = document.createElement("div");
   field.className = "field";
-
   const label = document.createElement("label");
   label.setAttribute("for", "ssiDetailInput");
   label.textContent = prompt.label;
 
-  const input = document.createElement("input");
-  input.id = "ssiDetailInput";
-  input.name = prompt.key;
-  input.type = "text";
-  input.required = true;
-  input.placeholder = prompt.placeholder;
-  input.value = ssiDetails[item.id]?.[prompt.key] || "";
+  let input;
+  if (prompt.options) {
+    input = document.createElement("select");
+    input.id = "ssiDetailInput";
+    input.name = prompt.key;
+    input.required = true;
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "";
+    placeholderOption.disabled = true;
+    placeholderOption.textContent = prompt.placeholder || "Choose an option";
+    input.appendChild(placeholderOption);
+    prompt.options.forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.label;
+      input.appendChild(optionElement);
+    });
+    input.value = ssiDetails[item.id]?.[prompt.key] || "";
+  } else {
+    input = document.createElement("input");
+    input.id = "ssiDetailInput";
+    input.name = prompt.key;
+    input.type = "text";
+    input.required = true;
+    input.placeholder = prompt.placeholder;
+    input.value = ssiDetails[item.id]?.[prompt.key] || "";
+  }
+  field.append(label, input);
+
+  let otherInput;
+  if (prompt.otherOption) {
+    const otherField = document.createElement("div");
+    otherField.className = "field";
+    otherField.hidden = input.value !== prompt.otherOption;
+    const otherLabel = document.createElement("label");
+    otherLabel.setAttribute("for", "ssiDetailOther");
+    otherLabel.textContent = "Other income or benefit source";
+    otherInput = document.createElement("input");
+    otherInput.id = "ssiDetailOther";
+    otherInput.name = prompt.otherKey;
+    otherInput.type = "text";
+    otherInput.required = input.value === prompt.otherOption;
+    otherInput.disabled = input.value !== prompt.otherOption;
+    otherInput.placeholder = "Enter the source";
+    otherInput.value = ssiDetails[item.id]?.[prompt.otherKey] || "";
+    otherField.append(otherLabel, otherInput);
+    form.append(field, otherField);
+    input.addEventListener("change", () => {
+      const showOther = input.value === prompt.otherOption;
+      otherField.hidden = !showOther;
+      otherInput.disabled = !showOther;
+      otherInput.required = showOther;
+      if (showOther) otherInput.focus();
+    });
+  } else {
+    form.appendChild(field);
+  }
+
+  let amountInput;
+  if (prompt.amountKey) {
+    const amountField = document.createElement("div");
+    amountField.className = "field";
+    const amountLabel = document.createElement("label");
+    amountLabel.setAttribute("for", "ssiDetailAmount");
+    amountLabel.textContent = prompt.amountLabel || "Monthly amount";
+    amountInput = document.createElement("input");
+    amountInput.id = "ssiDetailAmount";
+    amountInput.name = prompt.amountKey;
+    amountInput.type = "text";
+    amountInput.required = true;
+    amountInput.placeholder = prompt.amountPlaceholder || "Enter the amount";
+    amountInput.value = ssiDetails[item.id]?.[prompt.amountKey] || "";
+    amountField.append(amountLabel, amountInput);
+    form.appendChild(amountField);
+  }
 
   if (prompt.reuseFrom) {
     const reuseValue = ssiDetails[prompt.reuseFrom.itemId]?.[prompt.reuseFrom.key] || "";
@@ -761,9 +874,7 @@ function openSsiDetailModal(item) {
       input.value = reuseValue;
       input.focus();
     });
-    field.append(label, input, reuseButton);
-  } else {
-    field.append(label, input);
+    field.appendChild(reuseButton);
   }
 
   const saveButton = document.createElement("button");
@@ -775,7 +886,7 @@ function openSsiDetailModal(item) {
   actions.className = "modal-actions";
   actions.appendChild(saveButton);
 
-  form.append(field, actions);
+  form.appendChild(actions);
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const detailValue = input.value.trim().replace(/[.!?]+$/, "");
@@ -784,10 +895,19 @@ function openSsiDetailModal(item) {
       return;
     }
 
-    ssiDetails[item.id] = {
-      ...ssiDetails[item.id],
-      [prompt.key]: detailValue
-    };
+    const amountValue = amountInput?.value.trim().replace(/^\$\s*/, "");
+    if (amountInput && !amountValue) {
+      amountInput.focus();
+      return;
+    }
+    const otherValue = otherInput?.value.trim();
+    if (otherInput?.required && !otherValue) {
+      otherInput.focus();
+      return;
+    }
+    ssiDetails[item.id] = {...ssiDetails[item.id], [prompt.key]: detailValue};
+    if (prompt.amountKey) ssiDetails[item.id][prompt.amountKey] = amountValue;
+    if (prompt.otherKey && otherValue) ssiDetails[item.id][prompt.otherKey] = otherValue;
     activeSsiPrompt = null;
     closeModal();
     updateSsiPreview();
@@ -842,7 +962,9 @@ function openRemarkModal(remark) {
     for (const field of remark.fields.filter(field => field.when)) {
       const input = form.querySelector(`#field-${field.key}`);
       if (!input) continue;
-      const visible = modalValues[field.when.key] === field.when.value;
+      const selected = form.querySelector(`[name="${field.when.key}"]:checked`);
+      const controller = selected || form.querySelector(`#field-${field.when.key}`);
+      const visible = (controller?.value || modalValues[field.when.key]) === field.when.value;
       input.parentElement.hidden = !visible;
       input.disabled = !visible;
       input.required = visible && Boolean(field.required);
@@ -853,45 +975,53 @@ function openRemarkModal(remark) {
     wrapper.className = "field";
 
     const label = document.createElement("label");
-    label.setAttribute("for", `field-${field.key}`);
+    label.id = `field-${field.key}-label`;
+    if (field.type !== "yesNo") label.setAttribute("for", `field-${field.key}`);
     label.textContent = isDateField(field) ? `${field.label} (optional)` : field.label;
 
-    const input = document.createElement(
-      field.type === "textarea" ? "textarea" : field.type === "select" ? "select" : "input"
-    );
-    input.id = `field-${field.key}`;
-    input.name = field.key;
-    input.required = Boolean(field.required) && !isDateField(field);
-
-    if (field.type === "select") {
-      const placeholderOption = document.createElement("option");
-      placeholderOption.value = "";
-      placeholderOption.textContent = field.placeholder || "Choose an option";
-      placeholderOption.disabled = true;
-      placeholderOption.selected = true;
-      input.appendChild(placeholderOption);
-
-      field.options.forEach((option) => {
-        const optionElement = document.createElement("option");
-        optionElement.value = option.value;
-        optionElement.textContent = option.label;
-        input.appendChild(optionElement);
-      });
+    let input;
+    if (field.type === "yesNo") {
+      input = createYesNoChoices(field.key, `field-${field.key}`, modalValues[field.key], (value) => {
+        modalValues[field.key] = value;
+        refreshConditionalFields();
+        updatePreview();
+      }, null, label.id);
+      input.id = `field-${field.key}`;
+      input.querySelectorAll("input").forEach((choice) => { choice.required = Boolean(field.required); });
     } else {
-      input.type = ["number", "date", "month"].includes(field.type) ? field.type : "text";
-      input.placeholder = field.placeholder || "";
-      if (field.inputMode) input.inputMode = field.inputMode;
-      if (field.maxLength) input.maxLength = field.maxLength;
-      if (field.pattern) input.pattern = field.pattern;
-    }
+      input = document.createElement(field.type === "textarea" ? "textarea" : field.type === "select" ? "select" : "input");
+      input.id = `field-${field.key}`;
+      input.name = field.key;
+      input.required = Boolean(field.required) && !isDateField(field);
 
-    if (field.type === "textarea") {
-      input.rows = 4;
+      if (field.type === "select") {
+        const placeholderOption = document.createElement("option");
+        placeholderOption.value = "";
+        placeholderOption.textContent = field.placeholder || "Choose an option";
+        placeholderOption.disabled = true;
+        placeholderOption.selected = true;
+        input.appendChild(placeholderOption);
+
+        field.options.forEach((option) => {
+          const optionElement = document.createElement("option");
+          optionElement.value = option.value;
+          optionElement.textContent = option.label;
+          input.appendChild(optionElement);
+        });
+      } else {
+        input.type = ["number", "date", "month"].includes(field.type) ? field.type : "text";
+        input.placeholder = field.placeholder || "";
+        if (field.inputMode) input.inputMode = field.inputMode;
+        if (field.maxLength) input.maxLength = field.maxLength;
+        if (field.pattern) input.pattern = field.pattern;
+      }
+
+      if (field.type === "textarea") input.rows = 4;
     }
 
     const dataKey = field.key;
     let otherInput;
-    input.addEventListener("input", () => {
+    if (field.type !== "yesNo") input.addEventListener("input", () => {
       if (otherInput) {
         const isOther = input.value === field.otherOption;
         otherInput.parentElement.hidden = !isOther;
@@ -908,7 +1038,7 @@ function openRemarkModal(remark) {
       updatePreview();
     });
 
-    input.addEventListener("keydown", (event) => {
+    if (field.type !== "yesNo") input.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && field.type !== "textarea" && !event.shiftKey) {
         event.preventDefault();
         copyFromModal();
@@ -1014,8 +1144,8 @@ function isDateField(field) {
 }
 
 function generateRemarkText(remark, values) {
-  if (remark.id === "filing-money-after-onset" && values.source === "Part-time Income") return partTimeRemark(values.amount);
-  if (remark.fields === vaFields) {
+  if (remark.id === "filing-money-after-onset" && values.source === "Part-Time Work") return partTimeRemark(values.amount);
+  if (remark.id === "filing-795-disabled-veteran" || remark.id === "795-disabled-veteran") {
     values = {...values, vaBenefitsText: values.vaBenefits === "yes"
       ? `The claimant receives $${String(values.vaAmount || "").trim().replace(/^\$\s*/, "")} per month in VA benefits.`
       : values.vaBenefits === "no" ? "The claimant does not receive VA benefits." : ""};
@@ -1091,11 +1221,12 @@ function copyFromModal() {
 }
 
 // Copying uses the navigator clipboard when available and falls back to a textarea approach.
-async function copyRemarkText(text, remarkTitle) {
+async function copyRemarkText(text, remarkTitle, clearAfterCopy) {
   const copied = await copyTextToClipboard(text);
 
   if (copied) {
     showToast(`Copied: ${remarkTitle}`);
+    if (autoClearAfterCopy()) clearAfterCopy?.();
   } else {
     showToast("Copy failed. Please try again.");
   }
