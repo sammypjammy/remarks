@@ -107,7 +107,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.10.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.10.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.7.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert.equal(await evaluate("document.getElementById('toolkitState').textContent"), "Signed out of the Toolkit.", "Canonical Fax Sender requires Toolkit authentication");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {

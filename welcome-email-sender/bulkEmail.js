@@ -37,7 +37,7 @@ export function parseBulkRecipients(text) {
 
 // Reserve every tab before the first await, while the button click still has activation.
 export async function openBulkDrafts({ text, content, createDraft, composeUrl, authorize,
-  openWindow = () => window.open("about:blank", "_blank") }) {
+  openWindow = () => window.open("about:blank", "_blank"), onDraftOpened = () => {} }) {
   const { recipients } = parseBulkRecipients(text);
   if (!recipients.length) return 0;
   const snapshot = structuredClone(content);
@@ -63,6 +63,7 @@ export async function openBulkDrafts({ text, content, createDraft, composeUrl, a
       const draft = await createDraft({ ...snapshot, recipient });
       if (tab.closed) throw new Error("Draft tab was closed.");
       tab.location.href = composeUrl(draft);
+      onDraftOpened(recipient, snapshot);
     } catch (error) {
       try { tab.close(); } catch {}
       throw error;

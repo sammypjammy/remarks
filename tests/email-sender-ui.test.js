@@ -15,7 +15,7 @@ const browserPath = process.env.CHROME_BIN || [
 
 // Real browser and React state, with only the Outlook boundary replaced.
 // No authentication or real email is performed by this test.
-test("Email Sender manual draft tabs, Single isolation, popup feedback and footer version", { skip: !browserPath, timeout: 60000 }, async t => {
+test("Email Sender persistent Single/Bulk history, popup feedback and footer version", { skip: !browserPath, timeout: 60000 }, async t => {
   const server = await createServer({
     configFile: false,
     server: { host: "127.0.0.1", port: 0 },
@@ -36,7 +36,7 @@ test("Email Sender manual draft tabs, Single isolation, popup feedback and foote
         export const getOutlookErrorMessage = () => "Test draft kept in this page";
         export async function getGraphAccessToken() {
           window.mailTest.preparations++;
-          if(window.mailTest.tabs.length !== 2) throw Error('Tabs must open before sign-in');
+          if(!window.mailTest.tabs.some(tab => tab.location.href === 'about:blank')) throw Error('Tabs must open before sign-in');
           return 'mock';
         }
         export async function createOutlookDraft(content) {
@@ -105,6 +105,7 @@ test("Email Sender manual draft tabs, Single isolation, popup feedback and foote
     })()`);
     await pause(30);
   };
+  await command("Emulation.setDeviceMetricsOverride",{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   await command("Page.navigate", { url: `${origin}/welcome-email-sender/` });
   await waitFor("Boolean(document.querySelector('#client-email'))");
   await evaluate("window.PackardSettings.saveEmailSignature('Test User\\nCase Manager\\n555-0100'); window.PackardSettings.setSetting('openDraftsInNewTab', false); window.dispatchEvent(new Event('packardsettingschange'))");
@@ -119,24 +120,39 @@ test("Email Sender manual draft tabs, Single isolation, popup feedback and foote
   assert.equal(await evaluate("document.querySelector('#client-email').value"),"single@example.com");
   await click("Open Outlook Draft");await waitFor("window.mailTest.drafts.length === 1");
   assert.equal(await evaluate("window.mailTest.tabs.length"),0);
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('packard-welcome-email-history') || '[]').length"),0);
+  await evaluate("window.PackardSettings.setSetting('openDraftsInNewTab', true); window.dispatchEvent(new Event('packardsettingschange'))");
+  await input("#client-email", "success@example.com");
+  await input("#case-manager", "Amanda Zuscar");
+  await click("Open Outlook Draft");
+  await waitFor("JSON.parse(localStorage.getItem('packard-welcome-email-history') || '[]').length === 1");
+  assert.equal(await evaluate("document.querySelector('.email-history-item strong').textContent"),"success@example.com");
+  assert.match(await evaluate("document.querySelector('.email-history-item').textContent"),/Amanda Zuscar/);
+  await command("Page.reload");
+  await waitFor("Boolean(document.querySelector('#client-email')) && document.querySelectorAll('.email-history-item').length === 1");
+  assert.equal(await evaluate("document.querySelector('.email-history-item strong').textContent"),"success@example.com");
   await input("#case-manager","Amanda Zuscar");await click("Bulk");
+  await input("#bulk-recipients","a@example.com; A@EXAMPLE.COM\nb@example.com\tbad");
   await evaluate("window.mailTest.blocked=true");await click("Open 2 Drafts");
   await waitFor("document.querySelector('[role=alert]')?.textContent.includes('Allow pop-ups and redirects')");
-  assert.equal(await evaluate("window.mailTest.drafts.length"),1);
+  assert.equal(await evaluate("window.mailTest.drafts.length"),0);
   assert.equal(await evaluate("window.mailTest.preparations"),0);
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('packard-welcome-email-history')).length"),1);
   await evaluate("window.mailTest.blocked=false");await click("Open 2 Drafts");
-  await waitFor("window.mailTest.drafts.length === 3");
+  await waitFor("window.mailTest.drafts.length === 2");
   assert.equal(await evaluate("document.querySelector('#bulk-recipients').matches(':disabled')"),true);
   await waitFor("window.mailTest.tabs.every(tab=>tab.location.href !== 'about:blank')");
-  const drafts=await evaluate("window.mailTest.drafts.slice(1)");
+  const drafts=await evaluate("window.mailTest.drafts");
   assert.deepEqual(drafts.map(d=>d.recipient),['a@example.com','b@example.com']);
   assert.ok(drafts.every(d=>d.subject===drafts[0].subject&&d.body===drafts[0].body&&d.managerName==='Amanda Zuscar'));
   assert.equal(await evaluate("window.mailTest.tabs.length"),2);
   assert.equal(await evaluate("document.querySelectorAll('dialog,.bulk-results,.bulk-confirmation').length"),0);
   assert.equal(await evaluate("document.body.textContent.includes('Retry Failed')"),false);
+  await waitFor("document.querySelectorAll('.email-history-item').length === 3");
+  assert.deepEqual(await evaluate("[...document.querySelectorAll('.email-history-item strong')].map(node=>node.textContent)"),['b@example.com','a@example.com','success@example.com']);
   await input('#bulk-recipients','one@example.com');
   assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"),'Open 1 Draft');
-  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.6.0/);
+  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.7.0/);
   await evaluate("document.querySelector('.app-footer-links a[href=\"#email-version-history\"]').click()");
   assert.equal(await evaluate("document.querySelector('#email-version-history').open"),true);
   await command("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});

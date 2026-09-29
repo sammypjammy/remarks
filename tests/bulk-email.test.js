@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { openBulkDrafts, isValidBulkEmail, parseBulkRecipients } from "../welcome-email-sender/bulkEmail.js";
 import { createOutlookDraft } from "../welcome-email-sender/outlookGraph.js";
+import { addEmailHistory, createEmailHistoryEntry } from "../welcome-email-sender/emailHistory.js";
 
 for (const [name, separator] of [["newlines", "\n"], ["commas", ","], ["semicolons", ";"], ["spaces", " "], ["tabs", "\t"]]) {
   test(`parses ${name}`, () => {
@@ -29,18 +30,21 @@ test("obviously invalid entries are never silently repaired or queued", () => {
 const tab = () => ({closed:false,location:{href:"about:blank"},close(){this.closed=true;}});
 
 test("all tabs open synchronously before authorization; unique recipients share Single draft logic", async () => {
-  const tabs=[],calls=[]; let release;
+  const tabs=[],calls=[],opened=[]; let release;
   const authorized=new Promise(resolve=>{release=resolve;});
   const content={subject:"Welcome",body:"Template and signature",managerName:"Amanda Zuscar",language:"english"};
   const work=openBulkDrafts({text:"A@example.com, a@EXAMPLE.com; b@example.com\nbad\tc@example.com",content,
     openWindow:()=>{const t=tab();tabs.push(t);return t;},authorize:()=>{assert.equal(tabs.length,3);return authorized;},
-    createDraft:async c=>{calls.push(c);return {webLink:"https://outlook.office.com/"+c.recipient};},composeUrl:d=>d.webLink});
+    createDraft:async c=>{calls.push(c);return {webLink:"https://outlook.office.com/"+c.recipient};},composeUrl:d=>d.webLink,
+    onDraftOpened:(recipient,snapshot)=>opened.push({recipient,snapshot})});
   assert.equal(tabs.length,3);assert.equal(calls.length,0);
   content.body="changed after click"; release();
   assert.equal(await work,3);
   assert.deepEqual(calls.map(c=>c.recipient),["a@example.com","b@example.com","c@example.com"]);
   assert.ok(calls.every(c=>c.subject==="Welcome"&&c.body==="Template and signature"&&c.managerName==="Amanda Zuscar"));
   assert.deepEqual(tabs.map(t=>t.location.href),calls.map(c=>"https://outlook.office.com/"+c.recipient));
+  assert.deepEqual(opened.map(item=>item.recipient),["a@example.com","b@example.com","c@example.com"]);
+  assert.ok(opened.every(item=>item.snapshot.body==="Template and signature"));
   assert.ok(tabs.every(t=>t.opener===null));
 });
 
@@ -50,11 +54,12 @@ test("zero valid recipients open no tabs and make no Graph requests", async () =
 
 test("blocked or throwing popup calls close reserved tabs before any draft is created", async () => {
   for(const throws of [false,true]) {
-    const first=tab();let opened=0;
+    const first=tab();let opened=0,recorded=0;
     await assert.rejects(openBulkDrafts({text:"a@example.com b@example.com",content:{},
       openWindow:()=>{if(++opened===1)return first;if(throws)throw Error();return null;},
-      authorize:()=>assert.fail("must not authenticate"),createDraft:()=>assert.fail("must not create drafts")}),/Allow pop-ups and redirects.*No drafts were created/);
+      authorize:()=>assert.fail("must not authenticate"),createDraft:()=>assert.fail("must not create drafts"),onDraftOpened:()=>recorded++}),/Allow pop-ups and redirects.*No drafts were created/);
     assert.equal(first.closed,true);
+    assert.equal(recorded,0);
   }
 });
 
@@ -62,10 +67,12 @@ test("sign-in and draft failures are reported without retries or stranded blank 
   const first=tab();
   await assert.rejects(openBulkDrafts({text:"a@example.com",content:{},openWindow:()=>first,authorize:async()=>{throw Error();}}),/sign-in/);
   assert.equal(first.closed,true);
-  const tabs=[];let calls=0;
+  const tabs=[],opened=[];let calls=0;
   await assert.rejects(openBulkDrafts({text:"a@example.com b@example.com",content:{},openWindow:()=>{const t=tab();tabs.push(t);return t;},authorize:async()=>{},
-    createDraft:async c=>{calls++;if(c.recipient.startsWith('b'))throw Error();return {webLink:'https://outlook.office.com/draft'};},composeUrl:d=>d.webLink}),/Check the opened tabs and Outlook Drafts/);
+    createDraft:async c=>{calls++;if(c.recipient.startsWith('b'))throw Error();return {webLink:'https://outlook.office.com/draft'};},composeUrl:d=>d.webLink,
+    onDraftOpened:recipient=>opened.push(recipient)}),/Check the opened tabs and Outlook Drafts/);
   assert.equal(calls,2);assert.equal(tabs[0].closed,false);assert.equal(tabs[1].closed,true);
+  assert.deepEqual(opened,["a@example.com"]);
 });
 
 test("Single draft builder creates one-recipient messages with identical attachments and never sends", async t => {
@@ -87,4 +94,24 @@ test("Single draft builder creates one-recipient messages with identical attachm
   requests.length=0;
   await createOutlookDraft({recipient:"single@example.com",subject:"Subject",body:"Body"},{accessToken:"test",attachments:[]});
   assert.equal(requests.length,1);assert.deepEqual(requests[0].body.toRecipients,[{emailAddress:{address:"single@example.com"}}]);
+});
+
+test("Bulk history records each successfully opened unique recipient and remains limited to 20", async () => {
+  let history = [];
+  const recipients = Array.from({ length: 22 }, (_, index) => `person${index}@example.com`);
+  const opened = await openBulkDrafts({
+    text: `${recipients.join("\n")}\nPERSON21@example.com\ninvalid`,
+    content: { subject: "Welcome", body: "Body", managerName: "Amanda Zuscar", language: "english" },
+    openWindow: () => tab(),
+    authorize: async () => {},
+    createDraft: async content => ({ webLink: `https://outlook.office.com/${content.recipient}` }),
+    composeUrl: draft => draft.webLink,
+    onDraftOpened: (recipient, content) => {
+      history = addEmailHistory(history, createEmailHistoryEntry({ ...content, recipient }));
+    },
+  });
+  assert.equal(opened, 22);
+  assert.equal(history.length, 20);
+  assert.equal(history[0].recipient, "person21@example.com");
+  assert.equal(history.at(-1).recipient, "person2@example.com");
 });

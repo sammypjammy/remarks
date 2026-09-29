@@ -5,12 +5,11 @@ import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./e
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
+import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
 import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
-const EMAIL_HISTORY_STORAGE_KEY = "packard-welcome-email-history";
-const EMAIL_HISTORY_LIMIT = 8;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office.com",
@@ -109,23 +108,6 @@ function getInitialClientEmail() {
   }
 }
 
-function getSavedEmailHistory() {
-  try {
-    const history = JSON.parse(localStorage.getItem(EMAIL_HISTORY_STORAGE_KEY) || "[]");
-    if (!Array.isArray(history)) return [];
-    return history.filter((entry) =>
-      entry &&
-      typeof entry.id === "string" &&
-      typeof entry.recipient === "string" &&
-      typeof entry.subject === "string" &&
-      typeof entry.managerName === "string" &&
-      typeof entry.createdAt === "string"
-    ).slice(0, EMAIL_HISTORY_LIMIT);
-  } catch {
-    return [];
-  }
-}
-
 function formatHistoryTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -157,7 +139,8 @@ export default function App() {
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
   const [emailSignature, setEmailSignature] = useState(getEmailSignature);
-  const [emailHistory, setEmailHistory] = useState(getSavedEmailHistory);
+  const [emailHistory, setEmailHistory] = useState(() => loadEmailHistory(browserEmailHistoryStorage()));
+  const emailHistoryRef = useRef(emailHistory);
   const draftRequestInProgressRef = useRef(false);
   const emailInputRef = useRef(null);
   const appMenuToggleRef = useRef(null);
@@ -287,22 +270,11 @@ export default function App() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function addEmailToHistory() {
-    const entry = {
-      id: globalThis.crypto?.randomUUID?.() || `email-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      recipient: clientEmail.trim(),
-      subject: emailSubject,
-      managerName: selectedManager,
-      language,
-      createdAt: new Date().toISOString(),
-    };
-    const nextHistory = [entry, ...emailHistory].slice(0, EMAIL_HISTORY_LIMIT);
+  function recordOpenedEmail(content) {
+    const nextHistory = addEmailHistory(emailHistoryRef.current, createEmailHistoryEntry(content));
+    emailHistoryRef.current = nextHistory;
     setEmailHistory(nextHistory);
-    try {
-      localStorage.setItem(EMAIL_HISTORY_STORAGE_KEY, JSON.stringify(nextHistory));
-    } catch {
-      // History remains available for this page view if browser storage is unavailable.
-    }
+    saveEmailHistory(browserEmailHistoryStorage(), nextHistory);
   }
 
   function resetSenderForm({ focus = false, clearStatus = false } = {}) {
@@ -331,6 +303,7 @@ export default function App() {
         text: bulkText,
         content: { subject: emailSubject, body: emailBody, managerName: selectedManager, language },
         createDraft: createOutlookDraft, composeUrl: getOutlookComposeUrl, authorize: getGraphAccessToken,
+        onDraftOpened: (recipient, content) => recordOpenedEmail({ ...content, recipient }),
       });
       setCopyStatus(`Opened ${count} Outlook draft${count === 1 ? "" : "s"}. Review and send each draft in Outlook.`);
     } catch (error) {
@@ -352,7 +325,13 @@ export default function App() {
       return;
     }
 
-    addEmailToHistory();
+    const draftContent = {
+      recipient: clientEmail.trim(),
+      subject: emailSubject,
+      body: emailBody,
+      managerName: selectedManager,
+      language,
+    };
     resetSenderForm();
 
     if (isOutlookGraphConfigured) {
@@ -380,18 +359,14 @@ export default function App() {
       setCopyStatus("Signing in and creating your Outlook draft…");
 
       try {
-        const draft = await createOutlookDraft({
-          recipient: clientEmail.trim(),
-          subject: emailSubject,
-          body: emailBody,
-          managerName: selectedManager,
-          language,
-        });
+        const draft = await createOutlookDraft(draftContent);
         setCopyStatus("Draft created with its PDF attachments. Opening Outlook…");
         const composeUrl = getOutlookComposeUrl(draft);
         if (outlookTab) {
           outlookTab.location.href = composeUrl;
+          recordOpenedEmail(draftContent);
         } else {
+          recordOpenedEmail(draftContent);
           window.location.assign(composeUrl);
         }
       } catch (error) {
@@ -407,11 +382,12 @@ export default function App() {
 
     const composeUrl =
       "https://outlook.office.com/mail/deeplink/compose" +
-      `?to=${encodeURIComponent(clientEmail.trim())}` +
-      `&subject=${encodeURIComponent(emailSubject)}`;
+      `?to=${encodeURIComponent(draftContent.recipient)}` +
+      `&subject=${encodeURIComponent(draftContent.subject)}`;
 
     const openInNewTab = getSetting("openDraftsInNewTab");
-    if (openInNewTab) window.open(composeUrl, "_blank", "noopener,noreferrer");
+    const outlookTab = openInNewTab ? window.open(composeUrl, "_blank", "noopener,noreferrer") : null;
+    if (!openInNewTab || outlookTab) recordOpenedEmail(draftContent);
 
     try {
       await copyToClipboard(emailBody);
@@ -687,7 +663,7 @@ export default function App() {
               </div>
               <span>{emailHistory.length}/{EMAIL_HISTORY_LIMIT}</span>
             </div>
-            <p className="email-history-description">Marked as sent when Open Outlook Draft is clicked.</p>
+            <p className="email-history-description">Marked as sent when its prepared Outlook draft opens.</p>
             {emailHistory.length ? (
               <ol className="email-history-list" aria-live="polite">
                 {emailHistory.map((entry) => (
@@ -716,7 +692,8 @@ export default function App() {
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <details id="email-version-history" className="email-version-history">
-            <summary>Email Sender v2.6.0</summary>
+            <summary>Email Sender v2.7.0</summary>
+            <p><strong>v2.7.0</strong> - Added persistent recent-email history for successfully opened Single and Bulk Outlook drafts, limited to the newest 20 recipients.</p>
             <p><strong>v2.6.0</strong> - Bulk Outlook Drafts opens one individual Outlook tab per valid unique recipient, preserving manual review and sending.</p>
           </details>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
