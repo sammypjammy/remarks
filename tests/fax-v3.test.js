@@ -11,7 +11,7 @@ import {FaxProvider} from '../server/fax-v3/provider.js';
 import {FaxService} from '../server/fax-v3/service.js';
 import {FaxStore} from '../server/fax-v3/store.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
-import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,latestBatchReceipts,number} from '../fax-sender/client.js';
+import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,latestBatchReceipts,documentTitle,number} from '../fax-sender/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
 const pdf=Buffer.from('%PDF-1.4\nsynthetic only');
 const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  PRIVATE COMMENT  ',idempotencyKey:randomUUID()});
@@ -19,7 +19,7 @@ const row=()=>({id:randomUUID(),user_id:randomUUID(),environment:'development',a
 const response=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 const contextual=fn=>(path,options)=>path==='/api/fax-v3/context'?response({state:'connected',context:'c'}):fn(path,options);
 const file=()=>new File([pdf],'Brief.pdf',{type:'application/pdf',lastModified:1});
-const settings=()=>({faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  comment  '});
+const settings=()=>({faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true});
 test('submission validation, immutable cover payload and metadata privacy',()=>{
   const f=fields(),batchId=randomUUID(),input=validateSubmission({...f,batchId},pdf);assert.equal(input.payload.coverIndex,5);assert.equal(input.payload.coverPageText,'PRIVATE COMMENT');assert.equal(input.payload.to[0].name,'Recipient');assert.equal(input.metadata.batchId,batchId);assert(!JSON.stringify(input.payload).includes('0012'));assert(!JSON.stringify(input.metadata).includes('COMMENT'));
   const off=validateSubmission({...f,includeCoverSheet:false},pdf);assert.equal(off.payload.coverIndex,0);assert(!Object.hasOwn(off.payload,'coverPageText'));
@@ -92,11 +92,14 @@ test('every operational handler requires Toolkit session and context in Developm
 });
 test('batch validates Last 4 before submission; snapshot, sequential spacing and one PDF per call',async()=>{
   const inputs=[],delays=[];const scope=new Scope(contextual(async(_path,options)=>{const f=options.body;inputs.push(Object.fromEntries([...f].filter(([k])=>k!=='file')));assert.equal(f.getAll('file').length,1);return response({faxId:randomUUID(),status:'Queued',retryable:false});}));scope.set('c');
-  const batch=new Batch(scope,()=>{},async ms=>delays.push(ms));await batch.add([file(),new File([pdf],'Second.pdf',{type:'application/pdf'})]);
+  const batch=new Batch(scope,()=>{},async ms=>delays.push(ms));await batch.add([file(),new File([pdf],'Second.pdf',{type:'application/pdf'})]);assert.deepEqual(batch.documents.map(doc=>doc.coverPageText),['Brief','Second']);batch.documents[0].coverPageText='First note';batch.documents[1].coverPageText='Second note';
   await assert.rejects(batch.run({...settings(),lastFour:'123'}));assert.equal(inputs.length,0);
   const s=settings();const run=batch.run(s);s.lastFour='9999';s.faxNumber='+442079460000';await run;
-  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.lastFour==='0012'&&i.faxNumber==='+18015551234'));assert.equal(new Set(inputs.map(i=>i.batchId)).size,1);assert.match(inputs[0].batchId,/^[0-9a-f-]{36}$/);await batch.run(settings());assert.equal(inputs.length,2);
+  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.lastFour==='0012'&&i.faxNumber==='+18015551234'));assert.deepEqual(inputs.map(i=>i.coverPageText),['First note','Second note']);assert.equal(new Set(inputs.map(i=>i.batchId)).size,1);assert.match(inputs[0].batchId,/^[0-9a-f-]{36}$/);await batch.run(settings());assert.equal(inputs.length,2);
   const firstBatch=inputs[0].batchId;batch.clear();await batch.add([file()]);await batch.run(settings());assert.equal(inputs.length,3);assert.notEqual(inputs[2].batchId,firstBatch);
+});
+test('document titles remove repeated PDF suffixes and retain a safe fallback',()=>{
+  assert.equal(documentTitle('Case Summary.pdf'),'Case Summary');assert.equal(documentTitle('Case Summary.PDF.pdf'),'Case Summary');assert.equal(documentTitle('.pdf'),'Document');
 });
 test('recent-batch receipt selection handles mixed outcomes, older batches and legacy history safely',()=>{
   const id=()=>randomUUID(),batchA=randomUUID(),batchB=randomUUID(),entry=(status,batchId,accessible=true)=>({faxId:id(),status,batchId,accessible});

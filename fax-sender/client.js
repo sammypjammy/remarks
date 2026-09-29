@@ -1,5 +1,6 @@
 export const wait=ms=>new Promise(r=>setTimeout(r,ms));
 export const validLastFour=value=>/^\d{4}$/.test(value);
+export const documentTitle=filename=>filename.replace(/(?:\.pdf)+$/i,'').trim()||'Document';
 export function number(value) { let s=value.replace(/[\s().-]/g,'');if(/^\d{10}$/.test(s))s='+1'+s;else if(/^1\d{10}$/.test(s))s='+'+s;return /^\+[1-9]\d{6,14}$/.test(s)?s:''; }
 export function formatNumber(value) { return /^\+1\d{10}$/.test(value)?`(${value.slice(2,5)}) ${value.slice(5,8)}-${value.slice(8)}`:value; }
 export function receiptFilename(filename,lastFour) { if(!validLastFour(lastFour))throw Error();return `Fax Receipt - ${filename.replace(/(?:\.pdf)+$/i,'').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().slice(0,180)||'Document'} ${lastFour}.pdf`; }
@@ -38,19 +39,20 @@ export class Batch {
     try {for(const file of files) {
       if(!/\.pdf$/i.test(file.name) || (file.type && file.type!=='application/pdf') || file.size>4000000 || file.size<5 || await file.slice(0,5).text()!=='%PDF-')throw Error('Choose valid PDFs, up to 4 MB each.');
       if(epoch!==this.scope.epoch)throw Error();
-      if(!this.documents.some(d=>d.file.name===file.name && d.file.size===file.size && d.file.lastModified===file.lastModified))this.documents.push({file,state:'Ready',entry:null,idempotencyKey:crypto.randomUUID()});
+      if(!this.documents.some(d=>d.file.name===file.name && d.file.size===file.size && d.file.lastModified===file.lastModified))this.documents.push({file,coverPageText:documentTitle(file.name),state:'Ready',entry:null,idempotencyKey:crypto.randomUUID()});
     }} finally {if(epoch===this.scope.epoch){this.adding=false;this.onChange();}}
   }
   async run(settings,retry=false) {
     if(this.running || this.adding || !this.scope.context)return;
-    if(!validLastFour(settings.lastFour) || !number(settings.faxNumber) || settings.coverPageText.trim().length>1024)throw Error('Enter the destination, exactly four Last 4 digits, and a comment of at most 1024 characters.');
+    if(!validLastFour(settings.lastFour) || !number(settings.faxNumber) || this.documents.some(doc=>doc.coverPageText.trim().length>1024))throw Error('Enter the destination, exactly four Last 4 digits, and comments of at most 1024 characters.');
     const queue=this.documents.filter(d=>retry?d.entry?.retryable===true:d.state==='Ready');if(!queue.length)return;
-    const epoch=this.scope.epoch,batchId=crypto.randomUUID();this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber),coverPageText:settings.coverPageText.trim()});
+    const epoch=this.scope.epoch,batchId=crypto.randomUUID();this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber)});
     this.locked=true;this.running=true;this.onChange();
     try { for(let i=0;i<queue.length;i++) {
       if(epoch!==this.scope.epoch)break;
       const doc=queue[i],form=new FormData();
       for(const [key,value] of Object.entries(this.snapshot))form.append(key,String(value));
+      form.append('coverPageText',doc.coverPageText.trim());
       form.append('file',doc.file,doc.file.name);form.append('batchId',batchId);
       if(retry){form.append('retryOf',doc.entry.faxId);doc.idempotencyKey=crypto.randomUUID();}
       form.append('idempotencyKey',doc.idempotencyKey);doc.state='Submitting';doc.entry=null;this.onChange();

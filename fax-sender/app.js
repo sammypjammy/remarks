@@ -21,12 +21,15 @@ function action(label,fn) {const b=element('button',label);b.type='button';b.add
 function render() {
   if(!batch)return;
   const busy=batch.running||batch.adding,locked=batch.locked;
-  for(const id of ['destination','clearDestination','lastFour','cover','comment','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
-  $('coverOptions').hidden=!$('cover').checked;$('commentField').hidden=!$('cover').checked;$('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('comment').disabled ||= !$('cover').checked;$('pdfFiles').disabled=busy;
+  for(const id of ['destination','clearDestination','lastFour','cover','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
+  $('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('pdfFiles').disabled=busy;
   $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
   $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
   $('documents').replaceChildren(...batch.documents.map((doc,index)=>{
     const li=element('li'),title=element('strong',doc.file.name),state=element('p',doc.state);li.tabIndex=-1;li.dataset.state=doc.state;state.className='document-state';li.append(title,state);
+    if($('cover').checked) {
+      const field=element('div'),label=element('label','Cover-sheet comment'),comment=element('textarea');field.className='document-comment';comment.id='documentComment'+index;label.htmlFor=comment.id;comment.maxLength=1024;comment.rows=2;comment.autocomplete='off';comment.spellcheck=false;comment.value=doc.coverPageText;comment.disabled=locked||busy;comment.addEventListener('input',()=>{doc.coverPageText=comment.value;});field.append(label,comment);li.append(field);
+    }
     if(doc.state==='Ready'&&!busy) {
       li.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
       if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
@@ -105,8 +108,8 @@ $('createContact').addEventListener('click',async()=>{
 });
 $('cover').addEventListener('change',render);
 $('pdfFiles').addEventListener('change',async()=>{const files=[...$('pdfFiles').files];$('pdfFiles').value='';try{await batch.add(files);note('');}catch{note('Choose valid PDF files no larger than 4 MB.');}});
-const settings=()=>({faxNumber:number($('destination').value),lastFour:$('lastFour').value,recipientName:selectedName,includeCoverSheet:$('cover').checked,coverPageText:$('comment').value});
-async function send(retry) {note('');try{await batch.run(settings(),retry);}catch{note('Check destination, exactly four Last 4 digits, and the cover comment before sending.');}}
+const settings=()=>({faxNumber:number($('destination').value),lastFour:$('lastFour').value,recipientName:selectedName,includeCoverSheet:$('cover').checked});
+async function send(retry) {note('');try{await batch.run(settings(),retry);}catch{note('Check destination, exactly four Last 4 digits, and cover comments before sending.');}}
 $('faxForm').addEventListener('submit',e=>{e.preventDefault();void send(false);});$('retry').addEventListener('click',()=>void send(true));
 $('clear').addEventListener('click',()=>{if(batch.running)return;batch.clear();$('faxForm').reset();selectedName='';$('contactResults').replaceChildren();note('');render();});
 function save(blob,filename) {const url=URL.createObjectURL(blob),a=element('a');objectUrls.add(url);a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>{URL.revokeObjectURL(url);objectUrls.delete(url);},60000);}

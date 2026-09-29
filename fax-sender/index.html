@@ -55,9 +55,6 @@
           <p id="contactNotice" role="status"></p>
           <details id="saveContact" class="save-contact"><summary>Save as a new RingCentral contact</summary><div class="save-contact-fields"><label for="contactName">Contact name</label><input id="contactName" maxlength="60"><button id="createContact" class="secondary-btn" type="button">Save current fax number</button></div></details>
         </div>
-        <div id="coverOptions" class="form-section cover-options">
-          <div id="commentField"><label for="comment">Optional cover-sheet comment</label><textarea id="comment" maxlength="1024" rows="2" aria-describedby="commentHelp" autocomplete="off" spellcheck="false" placeholder="Add a short note for the recipient"></textarea><p id="commentHelp" class="note">Applied to every fax in this batch and not saved in history.</p></div>
-        </div>
         <div class="form-section documents-section">
           <div class="field-heading"><h3 id="documentCount">PDF documents</h3><span>Up to 4 MB each</span></div>
           <label class="file-picker" for="pdfFiles"><strong>Choose PDF files</strong><span>Add one or more documents to this batch</span></label><input id="pdfFiles" type="file" accept="application/pdf,.pdf" multiple>
@@ -70,10 +67,10 @@
     </section>
     <section class="panel history-panel">
       <div class="section-heading history-heading"><div><p class="section-eyebrow">Your activity</p><h2>Recent fax activity</h2></div></div>
-      <div class="history-actions"><button id="downloadAll" class="secondary-btn" type="button">Download all receipts</button><button id="downloadZip" class="secondary-btn" type="button">Download ZIP</button></div>
+      <div class="history-actions"><button id="downloadAll" class="secondary-btn" type="button">Download latest batch receipts</button><button id="downloadZip" class="secondary-btn" type="button">Download ZIP</button></div>
       <p id="receiptNotice" role="status"></p><p id="historyEmpty">No fax activity yet.</p><ol id="faxHistory" tabindex="0" aria-label="Your 20 most recent fax attempts"></ol>
     </section>
   </div>
   <div id="accountStatusBottom" class="account-status-bottom" hidden></div>
-</main><div data-app-footer data-app-version="Fax Sender v3.1.0"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
+</main><div data-app-footer data-app-version="Fax Sender v3.2.0"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
 </html>
