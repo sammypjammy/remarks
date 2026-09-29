@@ -19,24 +19,27 @@ const scope=new Scope(fetch,()=>{
 const element=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function action(label,fn) {const b=element('button',label);b.type='button';b.addEventListener('click',fn);return b;}
 function renderDocuments(busy,locked) {
-  const list=$('documents'),cover=$('cover').checked,existing=new Map([...list.children].map(li=>[li.dataset.documentId,li])),wanted=new Set();
+  const list=$('documents'),cover=$('cover').checked,existing=new Map([...list.children].map(li=>[li.dataset.documentId,li])),wanted=new Set();list.classList.toggle('without-cover',!cover);
   batch.documents.forEach((doc,index)=>{
     wanted.add(doc.uiId);let li=existing.get(doc.uiId);
     if(!li) {
       li=element('li');li.tabIndex=-1;li.dataset.documentId=doc.uiId;
-      const title=element('strong'),state=element('p'),field=element('div'),label=element('label','Cover-sheet comment'),comment=element('textarea');
-      title.className='document-title';state.className='document-state';field.className='document-comment';comment.id='documentComment'+doc.uiId;label.htmlFor=comment.id;comment.maxLength=1024;comment.rows=2;comment.autocomplete='off';comment.spellcheck=false;
-      comment.addEventListener('input',()=>{doc.coverPageText=comment.value;});field.append(label,comment);li.append(title,state,field);
+      const info=element('div'),title=element('strong'),state=element('p'),field=element('div'),label=element('label','Cover-sheet comment'),comment=element('textarea'),controls=element('div');
+      info.className='document-info';title.className='document-title';state.className='document-state';field.className='document-comment';controls.className='document-controls';comment.id='documentComment'+doc.uiId;label.htmlFor=comment.id;comment.maxLength=1024;comment.rows=2;comment.autocomplete='off';comment.spellcheck=false;
+      comment.addEventListener('input',()=>{doc.coverPageText=comment.value;});info.append(title,state);field.append(label,comment);li.append(info,field,controls);
     }
     li.dataset.state=doc.state;li.querySelector('.document-title').textContent=doc.file.name;li.querySelector('.document-state').textContent=doc.state;
     const field=li.querySelector('.document-comment'),comment=field.querySelector('textarea');field.hidden=!cover;comment.disabled=locked||busy||!cover;if(document.activeElement!==comment&&comment.value!==doc.coverPageText)comment.value=doc.coverPageText;
-    for(const child of [...li.children])if(child.matches('button,.document-warning'))child.remove();
+    const controls=li.querySelector('.document-controls');controls.replaceChildren();
+    for(const child of [...li.children])if(child.matches('.document-warning'))child.remove();
     if(doc.state==='Ready'&&!busy) {
-      li.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
-      if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
-      if(index<batch.documents.length-1)li.append(action('Move down',()=>{[batch.documents[index+1],batch.documents[index]]=[doc,batch.documents[index+1]];render();$('documents').children[index+1].focus();}));
+      controls.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
+      const reorder=element('div');reorder.className='document-reorder';
+      if(index>0)reorder.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
+      if(index<batch.documents.length-1)reorder.append(action('Move down',()=>{[batch.documents[index+1],batch.documents[index]]=[doc,batch.documents[index+1]];render();$('documents').children[index+1].focus();}));
+      if(reorder.childElementCount)controls.append(reorder);
     }
-    if(doc.entry){poller?.track(doc.entry);if(doc.entry.status==='Sent')li.append(action('Download Fax Receipt',()=>download([doc.entry],false)));}
+    if(doc.entry){poller?.track(doc.entry);if(doc.entry.status==='Sent')controls.append(action('Download Fax Receipt',()=>download([doc.entry],false)));}
     if(doc.state==='Unknown'){const warning=element('p','Outcome unknown. Review RingCentral before taking further action. Automatic retry is disabled.');warning.className='document-warning';li.append(warning);}
     const current=list.children[index];if(current!==li)list.insertBefore(li,current||null);
   });
