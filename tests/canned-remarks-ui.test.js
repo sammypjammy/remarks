@@ -141,10 +141,10 @@ test("Canned Remarks v2.10.0 desktop and mobile workflows", { skip: !browserPath
     await click('#closeModalButton');
     assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Canned Remarks v2.10.0/);
     await click('a[href="../settings/"]');
-    await waitFor("document.getElementById('autoClearRemarksToggle')");
+    await waitFor("document.readyState==='complete' && document.getElementById('autoClearRemarksToggle')");
     assert.equal(await evaluate("document.getElementById('autoClearRemarksToggle').getAttribute('aria-checked')"),'false','Automatic clear defaults off');
     await click('#autoClearRemarksToggle');
-    assert.equal(await evaluate("window.PackardSettings.getSetting('autoClearRemarksAfterCopy')"),true);
+    await waitFor("window.PackardSettings.getSetting('autoClearRemarksAfterCopy')===true");
     await command('Page.reload');
     await waitFor("document.getElementById('autoClearRemarksToggle')?.getAttribute('aria-checked')==='true'");
     await command('Page.navigate',{url:origin+'/canned-remarks/'});

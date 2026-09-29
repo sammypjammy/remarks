@@ -25,11 +25,11 @@ test("missing and duplicate identity fields are safe", () => {
 });
 for (const count of [10, 11]) test(`${count} populated medical problems`, () => {
   const text = "MEDICAL PROBLEMS\n" + Array.from({ length: count }, (_, i) => `Problem ${i + 1}: Synthetic condition`).join("\n") + "\nProblem 20: Not provided\nProblem 21:";
-  assert.equal(messages(text).includes("More than 10 medical conditions"), count > 10);
+  assert.equal(messages(text).includes("More Than 10 Conditions"), count > 10);
 });
 for (const [section, label, message] of [
-  ["EMPLOYMENT INFORMATION", "Currently working", "Currently working"],
-  ["OTHER NAMES", "Used other names in medical records", "Other names used"]
+  ["EMPLOYMENT INFORMATION", "Currently working", "Currently Working"],
+  ["OTHER NAMES", "Used other names in medical records", "Other Names"]
 ]) for (const value of ["Yes", "true", "No", "false", "Not provided", "Yes, previously"]) test(`${label}: ${value}`, () => {
   assert.equal(messages(`${section}\n${label}: ${value}`).includes(message), ["Yes", "true"].includes(value));
 });
@@ -46,42 +46,45 @@ test("conflicting duplicate answers and unrelated sections do not trigger", () =
   assert.deepEqual(messages("REMARKS/COMMENTS\nCurrently working: Yes"), []);
   assert.deepEqual(messages("MARRIAGE INFORMATION\nMarital Status: Married\nCurrent Spouse\nFirst Name: Not provided"), []);
 });
-const work = (start, end, onset = "2025-01-01") => `DISABILITY INFORMATION\nOnset date of disability: ${onset}\nWORK HISTORY\nMost Recent Job\nStart Date: ${start}\nEnd Date: ${end}`;
-for (const [start, end, onset, expected] of [
-  ["2025-01-02", "2025-04-02", "2025-01-01", true],
-  ["2025-01-02", "2025-04-03", "2025-01-01", false],
-  ["2025-01-01", "2025-01-02", "2025-01-01", false],
-  ["2024-12-31", "2025-01-02", "2025-01-01", false],
-  ["2025-01-31", "2025-04-30", "2025-01-01", true],
-  ["2025-01-31", "2025-05-01", "2025-01-01", false],
-  ["2023-11-30", "2024-02-29", "2023-01-01", true],
-  ["2024-11-30", "2025-02-28", "2024-01-01", true],
-  ["2025-02-01", "2025-02-01", "2025-01-01", true],
-  ["2025-02-01", "2025-01-31", "2025-01-01", false],
-  ["2025-02", "2025-03-01", "2025-01-01", false],
-  ["2025-02-01", "2025-03", "2025-01-01", false],
-  ["2025-02-01", "2025-03-01", "2025-01", false],
-  ["bad", "2025-03-01", "2025-01-01", false],
-  ["2025-02-01", "2025-02-30", "2025-01-01", false],
-  ["2025-02-01", "2025-03-01", "bad", false],
-  ["", "2025-03-01", "2025-01-01", false],
-  ["2025-02-01", "", "2025-01-01", false],
-  ["2025-02-01", "2025-03-01", "", false],
-  ["2/1/2025", "May 1, 2025", "January 1, 2025", true]
-]) test(`work ${start} to ${end}, onset ${onset}`, () => {
-  assert.equal(review(work(start, end, onset)).items.length, Number(expected));
+test("Separated is an exact-value Remarks trigger, not a validation error", () => {
+  const text = "MARRIAGE INFORMATION\nMarital Status: Separated";
+  assert.deepEqual(messages(text), ["Separated"]);
+  assert.equal(validateIntake(parseIntake(text)).issues.some(issue => issue.message.includes("Marital Status")), false);
+  assert.deepEqual(messages(text.replace("Separated", "Married")), []);
 });
-test("only the Most Recent Job can create a failed-work-attempt review", () => {
-  const text = work("2025-02-01", "2025-03-01") + "\nPrevious Job\nStart Date: 2025-02-02\nEnd Date: 2025-03-02\nPrevious Job\nStart Date: 2025-02-03\nEnd Date: 2025-03-03";
+const work = (start, end) => `WORK HISTORY\nMost Recent Job\nStart Date: ${start}\nEnd Date: ${end}`;
+for (const [start, end, expected] of [
+  ["2025-01-02", "2025-04-01", true],
+  ["2025-01-02", "2025-04-02", false],
+  ["2025-01-02", "2025-04-03", false],
+  ["2025-01-31", "2025-04-29", true],
+  ["2025-01-31", "2025-04-30", false],
+  ["2023-11-30", "2024-02-28", true],
+  ["2024-11-30", "2025-02-28", false],
+  ["2025-02-01", "2025-02-01", true],
+  ["2025-02-01", "2025-01-31", false],
+  ["2025-02", "2025-03-01", false],
+  ["2025-02-01", "2025-03", false],
+  ["bad", "2025-03-01", false],
+  ["2025-02-01", "2025-02-30", false],
+  ["", "2025-03-01", false],
+  ["2025-02-01", "", false],
+  ["2/1/2025", "April 30, 2025", true],
+  ["2/1/2025", "May 1, 2025", false]
+]) test(`work ${start} to ${end}`, () => {
+  assert.equal(messages(work(start, end)).some(message => message.startsWith("Failed Work Attempt")), expected);
+});
+test("each actual work record is evaluated independently and identified", () => {
+  const text = work("2025-02-01", "2025-03-01") + "\nPrevious Job\nStart Date: 2025-02-02\nEnd Date: 2025-03-02\nPrevious Job\nStart Date: 2025-02-03\nEnd Date: 2025-06-03";
   const items = review(text).items;
-  assert.equal(items.length, 1);
-  assert(items[0].message.endsWith(text.slice(items[0].range.start, items[0].range.end)));
-});
-test("an End Date on or before onset does not create the after-onset review", () => {
-  assert.deepEqual(messages(work("2025-02-01", "2024-12-31", "2025-01-01")), []);
+  assert.deepEqual(items.map(item => item.message), ["Failed Work Attempt — Most Recent Job (record 1)", "Failed Work Attempt — Previous Job (record 2)"]);
+  assert(items.every(item => text.slice(item.range.start, item.range.end).includes("Job")));
 });
 test("ambiguous work dates are skipped", () => {
   assert.deepEqual(messages(work("2025-02-01", "2025-03-01") + "\nStart Date: 2025-01-01"), []);
+});
+test("multiple work dates outside records do not create a failed-work-attempt item", () => {
+  assert.deepEqual(messages("WORK HISTORY\nStart Date: 2025-01-01\nEnd Date: 2025-02-01\nStart Date: 2025-03-01\nEnd Date: 2025-04-01"), []);
 });
 test("plain and Markdown use the same parser metadata; review leaves validation/input untouched", () => {
   const plain = work("2025-02-01", "2025-03-01") + "\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nOTHER NAMES\nUsed other names in medical records: Yes";
@@ -91,7 +94,7 @@ test("plain and Markdown use the same parser metadata; review leaves validation/
     const before = validateIntake(parsed);
     const result = reviewIntake(parsed);
     assert.equal(result.items.length, 3);
-    for (const item of result.items) assert(text.slice(item.range.start, item.range.end).includes(item.message.includes("failed") ? "Most Recent Job" : item.message === "Currently working" ? "Currently working" : "Used other names in medical records"));
+    for (const item of result.items) assert(text.slice(item.range.start, item.range.end).includes(item.message.startsWith("Failed Work Attempt") ? "Most Recent Job" : item.message === "Currently Working" ? "Currently working" : "Used other names in medical records"));
     assert.equal(JSON.stringify(parsed), snapshot);
     assert.deepEqual(validateIntake(parsed), before);
   }

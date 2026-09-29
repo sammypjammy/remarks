@@ -12,13 +12,14 @@
 #intakeResults h2 { color: var(--text); font-size: 1.25rem; }
 #validationReport { margin-top: 16px; }
 #validationSummary { font-weight: 700; margin: 12px 0; color: var(--text); }
-#validationSummary[data-success="true"] { padding: 12px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 8px; }
+#validationSummary[data-success="true"] { padding: 22px 18px; background: var(--accent-soft); border: 2px solid var(--accent); border-radius: 12px; font-size: clamp(1.25rem, 2.5vw, 1.65rem); text-align: center; }
 #validationIssues { padding: 0; list-style: none; display: grid; gap: 12px; margin-top: 16px; }
 #validationIssues li { border: 1px solid var(--border); border-left: 3px solid var(--accent); padding: 12px; border-radius: 8px; overflow-wrap: anywhere; }
 #validationIssues li[data-severity="error"] { border-left-color: var(--danger); }
 #validationIssues p { margin-top: 6px; }
 .issue-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .issue-actions button { font-size: 0.8rem; padding: 6px 10px; }
+.issue-actions .intake-canned-remarks { display: inline-flex; align-items: center; font-size: 0.8rem; padding: 6px 10px; text-decoration: none; }
 #validationIssues small { display: block; margin-top: 6px; color: var(--muted); }
 @media (max-width: 1080px) {
   .intake-workspace { grid-template-columns: minmax(0, 1fr); }

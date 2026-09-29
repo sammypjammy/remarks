@@ -69,7 +69,14 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     // School fields can be directly under EDUCATION INFORMATION or its named subsection.
     if (!entries.length && config.parent) entries = sections(config.parent);
     if (!entries.length) requiredSection(null, config.required, { section: title, location: null }, title);
-    for (const entry of entries) requiredSection(entry.node, config.required, contextFor(title, entry), title);
+    for (const entry of entries) {
+      let requiredFields = config.required;
+      if (title === "EMPLOYMENT INFORMATION") {
+        const workedValues = [...new Set(values(entry.node, "Have you ever worked").map(value => value.trim().toLowerCase()))];
+        if (workedValues.length === 1 && workedValues[0] === "no") requiredFields = requiredFields.filter(field => field !== "When did you last work");
+      }
+      requiredSection(entry.node, requiredFields, contextFor(title, entry), title);
+    }
   }
 
   function records(config, root) {
@@ -99,7 +106,6 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     }
   }
 
-  checkRecords("vehicles", (node, context) => single(node, "Own any vehicles", context) === "Yes");
   checkRecords("medications");
   checkRecords("children");
   checkRecords("jobs", undefined, (node, context, config) => {
@@ -163,6 +169,23 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
       issue({ ...context, record: "Current Spouse" }, null, "Current Spouse record is required when Marital Status is Married.");
     }
     for (const entry of current) required(entry.node, spouse.required, contextFor("MARRIAGE INFORMATION", entry, true));
+  }
+
+  for (const [title, labels] of Object.entries(rules.personNameFields || {})) {
+    let entries = sections(title);
+    const parent = rules.sections[title]?.parent;
+    if (!entries.length && parent) entries = sections(parent);
+    const labelSet = new Set(labels);
+    for (const entry of entries) {
+      const candidates = [{ node: entry.node, location: entry.location }, ...flatten(entry.node.subsections, entry.location)];
+      for (const candidate of candidates) {
+        for (const personName of candidate.node.fields.filter(field => labelSet.has(field.label) && !isMissing(field.value))) {
+          if (personName.value.includes(".")) {
+            issue({ section: title, ...(candidate.node === entry.node ? {} : { record: candidate.node.title }), location: candidate.location }, personName.label, "Periods are not allowed in person names.");
+          }
+        }
+      }
+    }
   }
   return { issues, deferred: [...rules.deferred] };
 }

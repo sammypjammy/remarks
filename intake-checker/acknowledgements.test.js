@@ -23,7 +23,7 @@ test("visible counts track remaining error and warning severities", () => {
 });
 test("all reviewed differs from genuine validation success", () => {
   assert.deepEqual(validationSummary([{ severity: "error" }], [], false), { text: "All validation issues reviewed", success: false });
-  assert.deepEqual(validationSummary([], [], false), { text: "No issues found under the active V1 rules.", success: true });
+  assert.deepEqual(validationSummary([], [], false), { text: "You're all good!", success: true });
 });
 test("partial parsing never shows genuine success even after acknowledgement", () => {
   assert.deepEqual(validationSummary([], [], true), { text: "No issues found in the recognized data. Parsing needs review.", success: false });

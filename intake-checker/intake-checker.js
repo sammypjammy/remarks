@@ -151,6 +151,12 @@ function renderReview(review) {
     const actions = document.createElement("div");
     actions.className = "issue-actions";
     if (item.range) actions.append(locateButton(item.range, item.message));
+    const cannedRemarks = document.createElement("a");
+    cannedRemarks.className = "secondary-btn intake-canned-remarks";
+    cannedRemarks.href = "../canned-remarks/#things-to-notate-in-remarks";
+    cannedRemarks.textContent = "Canned Remarks";
+    cannedRemarks.setAttribute("aria-label", `Open Canned Remarks for ${item.message}`);
+    actions.append(cannedRemarks);
     actions.append(reviewedButton(row, item.message, () => {
       state.review(item);
     }, client.querySelector("button") || document.getElementById("reviewTitle")));

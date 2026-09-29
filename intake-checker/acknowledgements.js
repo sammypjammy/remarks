@@ -9,7 +9,7 @@ export function createAcknowledgements(items) {
 
 export function validationSummary(issues, remaining, partial) {
   if (!issues.length) return {
-    text: partial ? "No issues found in the recognized data. Parsing needs review." : "No issues found under the active V1 rules.",
+    text: partial ? "No issues found in the recognized data. Parsing needs review." : "You're all good!",
     success: !partial
   };
   if (!remaining.length) return { text: "All validation issues reviewed", success: false };

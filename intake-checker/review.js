@@ -32,26 +32,25 @@ export function reviewIntake(intake) {
   const add = (message, source) => items.push({ message, range: sourceRange(source) });
   const problems = new Set(sections("MEDICAL PROBLEMS").flatMap(node => descendants([node])));
   if ([...problems].flatMap(node => node.fields).filter(item => intakeRules.medicalProblemLabel.test(item.label) && !isMissing(item.value)).length > 10) {
-    add("More than 10 medical conditions");
+    add("More Than 10 Conditions");
   }
   const working = field(sections("EMPLOYMENT INFORMATION"), "Currently working");
-  if (yes(working)) add("Currently working", working);
+  if (yes(working)) add("Currently Working", working);
   if (incomeFields.some(label => yes(field(sections("FINANCIAL SUPPORT"), label)))) add("Receiving income");
   const otherNames = field(sections("OTHER NAMES"), "Used other names in medical records");
-  if (yes(otherNames)) add("Other names used", otherNames);
-  // TODO: Separation awaits a confirmed DeLorean field/value. Incomplete spouse data is not evidence.
+  if (yes(otherNames)) add("Other Names", otherNames);
+  const maritalStatus = field(sections("MARRIAGE INFORMATION"), "Marital Status");
+  if (/^separated$/i.test(maritalStatus?.value?.trim() || "")) add("Separated", maritalStatus);
   // Amounts alone, housing/family support, part-time work and unspecified support are ambiguous.
-  const onset = date(field(sections("DISABILITY INFORMATION"), "Onset date of disability"));
-  const jobs = new Set(sections("WORK HISTORY").flatMap(node => descendants(node.subsections)));
-  for (const job of jobs) {
-    if (job.title !== "Most Recent Job") continue;
+  const jobs = [...new Set(sections("WORK HISTORY").flatMap(node => descendants(node.subsections)))].filter(job => intakeRules.records.jobs.heading.test(job.title));
+  jobs.forEach((job, index) => {
     const start = date(field([job], "Start Date"));
     const end = date(field([job], "End Date"));
-    if (!onset || !start || !end || start <= onset || end <= onset || end < start) continue;
-    // Clamp the anniversary to the last day of its month (Jan 31 → Apr 30).
+    if (!start || !end || end < start) return;
+    // Add three calendar months, clamping to the target month's last day.
     const lastDay = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 4, 0)).getUTCDate();
     const boundary = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, Math.min(start.getUTCDate(), lastDay)));
-    if (end <= boundary) add(`Possible failed work attempt — ${job.title}`, job);
-  }
+    if (end < boundary) add(`Failed Work Attempt — ${job.title}${jobs.length > 1 ? ` (record ${index + 1})` : ""}`, job);
+  });
   return { identifier, email, items };
 }

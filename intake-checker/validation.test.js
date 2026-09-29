@@ -56,18 +56,21 @@ test("each repeating record is independent and missing entire optional record gr
   for (const title of ["MEDICAL PROVIDERS", "MEDICATIONS", "WORK HISTORY"]) assert.equal(scoped(`**${title}**`, title).length, 0);
 });
 
-test("vehicles only validate existing records when answer is Yes; No creates no contradiction", () => {
+test("vehicles and their fields are entirely optional", () => {
   const text = "**VEHICLES**\n**Own any vehicles:**Yes\n#### Vehicle 1\n**Year:**0\n#### Vehicle 2\n**Make:**Example";
-  const issues = scoped(text, "VEHICLES");
-  assert.equal(issues.length, 6);
+  assert.equal(scoped(text, "VEHICLES").length, 0);
   assert.equal(scoped(text.replace(":**Yes", ":**No"), "VEHICLES").length, 0);
+  assert.equal(scoped("", "VEHICLES").length, 0);
+  assert.equal(scoped("**VEHICLES**", "VEHICLES").length, 0);
   assert.equal(scoped("**VEHICLES**\n**Own any vehicles:**Yes", "VEHICLES").length, 0);
 });
 
-test("height inches accepts zero and rejects blank", () => {
+test("height inches is optional while feet and weight remain required", () => {
   const complete = "**VITALS**\n**Height (feet):**5\n**Height (inches):**0\n**Weight (pounds):**150";
   assert.equal(scoped(complete, "VITALS").length, 0);
-  assert.deepEqual(scoped(complete.replace("**Height (inches):**0", "**Height (inches):**"), "VITALS").map(issue => issue.field), ["Height (inches)"]);
+  assert.equal(scoped(complete.replace("**Height (inches):**0", "**Height (inches):**"), "VITALS").length, 0);
+  assert.deepEqual(scoped(complete.replace("**Height (feet):**5", "**Height (feet):**"), "VITALS").map(issue => issue.field), ["Height (feet)"]);
+  assert.deepEqual(scoped(complete.replace("**Weight (pounds):**150", "**Weight (pounds):**"), "VITALS").map(issue => issue.field), ["Weight (pounds)"]);
 });
 
 test("medical problems require one nonmissing numbered field, not every field or arbitrary notes", () => {
@@ -120,7 +123,23 @@ test("work addresses only apply in current local calendar year, not a rolling 12
   assert.equal(job("2032-01-01").length, 0);
   assert.equal(job("invalid").length, 0);
   assert.deepEqual(job("").map(issue => issue.field), ["End Date"]);
-  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No", "EMPLOYMENT INFORMATION").length, 1);
+  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No\n**Currently working:**No", "EMPLOYMENT INFORMATION").length, 0);
+});
+
+test("when last worked is required unless the claimant explicitly never worked", () => {
+  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No\n**Currently working:**No", "EMPLOYMENT INFORMATION").some(issue => issue.field === "When did you last work"), false);
+  for (const worked of ["Yes", "", "Not provided"]) {
+    const issues = scoped(`**EMPLOYMENT INFORMATION**\n**Have you ever worked:**${worked}\n**Currently working:**No`, "EMPLOYMENT INFORMATION");
+    assert.equal(issues.some(issue => issue.field === "When did you last work"), true, worked || "blank");
+  }
+});
+
+test("Business Type is required by each applicable work-history record", () => {
+  const complete = record("jobs");
+  assert.equal(scoped(complete, "WORK HISTORY").length, 0);
+  const issues = scoped(complete.replace("**Business Type:**No", "**Business Type:**"), "WORK HISTORY");
+  assert.deepEqual(issues.map(issue => [issue.record, issue.field]), [["Most Recent Job", "Business Type"]]);
+  assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Business Type:**Retail\n**Have you ever worked:**No\n**Currently working:**No", "WORK HISTORY").length, 0);
 });
 
 test("Married requires current spouse details, with optional identity fields", () => {
@@ -131,14 +150,46 @@ test("Married requires current spouse details, with optional identity fields", (
   assert.equal(scoped(prefix + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required) + "\n**Maiden Name:**\n**Social Security Number:**", "MARRIAGE INFORMATION").length, 0);
   assert.equal(scoped(prefix.replace("Married", "Single") + "\n#### Current Spouse\n" + fields(intakeRules.records.spouse.required), "MARRIAGE INFORMATION").length, 0);
   assert.equal(scoped(prefix.replace("Married", "Single") + "\n#### Prior Marriage 1\n**First Name:**Alex\n**Type of Marriage:**", "MARRIAGE INFORMATION").length, 1);
-  assert.equal(validateIntake(parseIntake(prefix)).deferred.length, 1);
+  assert.equal(validateIntake(parseIntake(prefix)).deferred.length, 2);
+});
+
+test("blank marital status alone is optional", () => {
+  assert.equal(scoped("**MARRIAGE INFORMATION**\n**Marital Status:**", "MARRIAGE INFORMATION").length, 0);
 });
 
 test("nested school fields validate, training stays optional, labels match exactly", () => {
   const text = "**EDUCATION INFORMATION**\n#### SCHOOL INFORMATION\n" + fields(intakeRules.sections["SCHOOL INFORMATION"].required) + "\n#### SPECIALIZED TRAINING INFORMATION\n**Anything:**";
   assert.equal(scoped(text, "SCHOOL INFORMATION").length, 0);
-  assert.equal(scoped(text.replace("Highest Grade Completed", "highest grade completed"), "SCHOOL INFORMATION").length, 1);
+  assert.deepEqual(scoped(text.replace("**School City:**No", "**School City:**"), "SCHOOL INFORMATION").map(issue => issue.field), ["School City"]);
+  assert.deepEqual(scoped(text.replace("**School State:**No", "**School State:**"), "SCHOOL INFORMATION").map(issue => issue.field), ["School State"]);
+  const optionalBlank = intakeRules.sections["SCHOOL INFORMATION"].optional.map(label => `**${label}:**`).join("\n");
+  assert.equal(scoped(`**SCHOOL INFORMATION**\n**School City:**Example\n**School State:**UT\n${optionalBlank}`, "SCHOOL INFORMATION").length, 0);
   assert.equal(scoped(text.replace("#### SCHOOL INFORMATION\n", ""), "SCHOOL INFORMATION").length, 0);
+});
+
+test("security-question parent names are optional", () => {
+  assert.equal(scoped("", "SECURITY QUESTIONS").length, 0);
+  assert.equal(scoped("**SECURITY QUESTIONS**\n**Mother - First Name:**\n**Mother - Maiden Name:**\n**Father - First Name:**\n**Father - Last Name:**", "SECURITY QUESTIONS").length, 0);
+});
+
+test("periods are rejected only in exact person-name fields", () => {
+  const cases = [
+    ["PERSONAL INFORMATION", "First Name", "J."],
+    ["MEDICAL PROVIDERS", "Doctor First Name", "Robert Sr."],
+    ["MEDICAL PROVIDERS", "Doctor Last Name", "Smith."],
+    ["MARRIAGE INFORMATION", "First Name", "Alex Jr."],
+    ["OTHER NAMES", "Other last name", "Example."],
+    ["CHILDREN INFORMATION", "First Name", "Child."]
+  ];
+  for (const [section, label, value] of cases) {
+    const recordHeading = section === "MEDICAL PROVIDERS" ? "\n#### Clinic 1" : section === "MARRIAGE INFORMATION" ? "\n#### Current Spouse" : section === "CHILDREN INFORMATION" ? "\n#### Child 1" : "";
+    const issues = scoped(`**${section}**${recordHeading}\n**${label}:**${value}`, section).filter(issue => issue.message === "Periods are not allowed in person names.");
+    assert.deepEqual(issues.map(issue => issue.field), [label], `${section}: ${label}`);
+  }
+  for (const [section, label] of [["MEDICAL PROVIDERS", "Clinic Name"], ["SCHOOL INFORMATION", "School name where highest grade completed"], ["WORK HISTORY", "Business Name"], ["WORK HISTORY", "Employer"], ["PERSONAL INFORMATION", "Email"]]) {
+    const recordHeading = section === "MEDICAL PROVIDERS" ? "\n#### Clinic 1" : section === "WORK HISTORY" ? "\n#### Job 1" : "";
+    assert.equal(scoped(`**${section}**${recordHeading}\n**${label}:**Example.Name`, section).some(issue => issue.message === "Periods are not allowed in person names."), false, `${section}: ${label}`);
+  }
 });
 
 test("unknown child structure is a review warning, not invented child fields", () => {

@@ -44,8 +44,9 @@ export async function checkValidationReviewed({ evaluate, visit, complete, width
   await evaluate("document.querySelector('#validationIssues .intake-reviewed').click()");
   await check(complete);
   assert.equal(await count(), 0);
-  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
+  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "You're all good!");
   assert.equal(await evaluate("document.getElementById('validationSummary').dataset.success"), "true");
+  assert(await evaluate("parseFloat(getComputedStyle(document.getElementById('validationSummary')).fontSize) > parseFloat(getComputedStyle(document.body).fontSize) && parseFloat(getComputedStyle(document.getElementById('validationSummary')).borderTopWidth) >= 2"), "True zero-error success is visually prominent");
   await check(source);
   assert.equal(await count(), originalCount, 'A new intake creates fresh state');
   await evaluate("document.querySelectorAll('#validationIssues .intake-reviewed').forEach(button => button.click())");

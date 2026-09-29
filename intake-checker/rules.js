@@ -14,21 +14,21 @@ export const intakeRules = {
       required: ["Preferred Language", "Can speak and understand English", "Can read simple English messages", "Can write simple English messages"],
       optional: ["Can read simple messages in preferred language", "Can write simple messages in preferred language"]
     },
-    "SECURITY QUESTIONS": { required: ["Mother - First Name", "Mother - Maiden Name", "Father - First Name", "Father - Last Name"], optional: ["Other Legal Representative"] },
-    "VEHICLES": { required: ["Own any vehicles"] },
-    "VITALS": { required: ["Height (feet)", "Height (inches)", "Weight (pounds)"] },
+    "SECURITY QUESTIONS": { required: [], optional: ["Mother - First Name", "Mother - Maiden Name", "Father - First Name", "Father - Last Name", "Other Legal Representative"] },
+    "VEHICLES": { required: [], optional: ["Own any vehicles"] },
+    "VITALS": { required: ["Height (feet)", "Weight (pounds)"], optional: ["Height (inches)"] },
     "EMPLOYMENT INFORMATION": { required: ["When did you last work", "Currently working"], otherFieldsOptional: true },
-    "MARRIAGE INFORMATION": { required: ["Marital Status"] },
+    "MARRIAGE INFORMATION": { required: [], optional: ["Marital Status"] },
     "SCHOOL INFORMATION": {
       parent: "EDUCATION INFORMATION",
-      required: ["Highest Grade Completed", "School name where highest grade completed", "Country where school located", "School City", "School State", "School Zip Code", "School End Date", "School Phone Number", "Teacher Name"],
-      optional: ["School Address Line 1", "School Address Line 2"]
+      required: ["School City", "School State"],
+      optional: ["Highest Grade Completed", "School name where highest grade completed", "Country where school located", "School Address Line 1", "School Address Line 2", "School Zip Code", "School End Date", "School Phone Number", "Teacher Name"]
     },
     "CHILDREN INFORMATION": { required: [] }
   },
   optionalSections: ["DISABILITY INFORMATION", "FIRM ONLY INFORMATION", "SSI INFORMATION", "FINANCIAL SUPPORT", "MEDICAL INFORMATION", "OTHER NAMES", "WAGES AND EARNINGS", "WORKER'S COMPENSATION", "ADDITIONAL EMPLOYMENT QUESTIONS", "CITIZENSHIP INFORMATION", "SPECIALIZED TRAINING INFORMATION", "SPECIAL EDUCATION INFORMATION", "REMARKS/COMMENTS"],
   records: {
-    vehicles: { section: "VEHICLES", heading: /^Vehicle(?: \d+)?$/, required: ["Year", "Make", "Model", "Mileage"] },
+    vehicles: { section: "VEHICLES", heading: /^Vehicle(?: \d+)?$/, required: [], optional: ["Year", "Make", "Model", "Mileage"] },
     providers: {
       section: "MEDICAL PROVIDERS", heading: /^(?:Clinic|Medical Provider|Provider|Hospital|Doctor)(?: \d+)?$/,
       required: ["Phone Number", "Address", "City", "State", "Zipcode"],
@@ -48,7 +48,19 @@ export const intakeRules = {
     // No guessed child heading names: identify field-bearing records in CHILDREN INFORMATION.
     children: { section: "CHILDREN INFORMATION", required: [], recognition: ["First Name", "Last Name"], allowEmptyRecords: true, otherFieldsOptional: true }
   },
+  personNameFields: {
+    "PERSONAL INFORMATION": ["First Name", "Middle Name", "Last Name", "Suffix", "Nickname"],
+    "SECURITY QUESTIONS": ["Mother - First Name", "Mother - Maiden Name", "Father - First Name", "Father - Last Name"],
+    "OTHER NAMES": ["Other first name", "Other last name"],
+    "MARRIAGE INFORMATION": ["First Name", "Last Name", "Maiden Name"],
+    "CHILDREN INFORMATION": ["First Name", "Last Name"],
+    "MEDICAL PROVIDERS": ["Doctor First Name", "Doctor Last Name"],
+    "SCHOOL INFORMATION": ["Teacher Name"]
+  },
   medicalProblemLabel: /^Problem (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|[1-9]\d*)$/,
   // TODO: Activate >10-year prior-marriage rules only after exact DeLorean labels are supplied.
-  deferred: ["Prior-marriage duration and required details are not checked yet: exact DeLorean field labels are needed."]
+  deferred: [
+    "Prior-marriage duration and required details are not checked yet: exact DeLorean field labels are needed.",
+    "Total Earnings is not checked yet: no exact supported Total Earnings field exists in the current DeLorean parser/schema."
+  ]
 };

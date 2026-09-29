@@ -564,11 +564,15 @@ function renderRemarks(filterText = "") {
       const heading = document.createElement("h2");
       heading.className = "remark-group-title";
       heading.textContent = remark.group;
+      if (remark.group === "Things to Notate in Remarks") heading.id = "things-to-notate-in-remarks";
       remarkList.appendChild(heading);
       currentGroup = remark.group;
     }
     remarkList.appendChild(createRemarkCard(remark));
   });
+  if (location.hash === "#things-to-notate-in-remarks") {
+    requestAnimationFrame(() => document.getElementById("things-to-notate-in-remarks")?.scrollIntoView({ block: "start" }));
+  }
 }
 
 function getSsiBlurb() {

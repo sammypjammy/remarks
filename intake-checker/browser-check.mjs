@@ -21,7 +21,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   await evaluate(`window.intakeRequests = 0; window.fetch = () => { window.intakeRequests++; throw new Error('No intake requests allowed'); };
     document.getElementById('intakeText').value = ${JSON.stringify(input)};
     document.querySelector('#intakeForm button[type=submit]').click()`);
-  assert.equal(await evaluate("document.querySelector('#intakeResults h2').textContent"), "Review");
+  assert.equal(await evaluate("document.querySelector('#intakeResults h2').textContent"), "Things to Notate in Remarks");
   assert(await evaluate("!document.getElementById('resultsTitle') && !document.getElementById('intakeSummary') && !document.body.textContent.includes('Review Parsed Intake')"));
   assert(await evaluate("!document.getElementById('intakeDebug') && !document.getElementById('parsedIntake')"), "Debug UI must be removed");
   assert(await evaluate("document.getElementById('validationIssues').textContent.includes('Email is required') && !document.getElementById('validationLimits') && !document.getElementById('validationReport').textContent.includes('Prior-marriage')"), "Validation errors remain visible without developer notes");
@@ -34,7 +34,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   const requiredFields = labels => labels.map(label => `**${label}:**No`).join("\n");
   const complete = Object.entries(intakeRules.sections).map(([title, config]) => `**${title}**\n${requiredFields(config.required)}`).join("\n") + "\n**MEDICAL PROBLEMS**\n**Problem one:**Example condition";
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(complete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
-  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
+  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "You're all good!");
   const incompleteClinic = complete + "\n**MEDICAL PROVIDERS**\n#### Clinic 1\n**Clinic Name:**Example\n" + requiredFields(intakeRules.records.providers.required) + "\n#### Clinic 2\n**Clinic Name:**Example\n**First Visit Date:**2020-01-01";
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(incompleteClinic)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   assert(await evaluate("[...document.querySelectorAll('#validationIssues li')].every(row => row.textContent.includes('Clinic 2'))"), "Clinic 1 cannot satisfy Clinic 2 fields");
@@ -46,7 +46,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   assert(await evaluate("document.getElementById('intakeReview').hidden && document.getElementById('validationReport').hidden && !document.getElementById('validationIssues').children.length && document.getElementById('intakeMessage').textContent.includes('Validation was not run')"), "Zero sections must skip validation and clear stale errors");
   const plainComplete = complete.replace(/\*\*([^*]+):\*\*/g, "$1:\n").replace(/\*\*([^*]+)\*\*/g, "$1");
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(plainComplete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
-  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "No issues found under the active V1 rules.");
+  assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "You're all good!");
   assert(await evaluate("!document.getElementById('validationReport').hidden"), "Recognized plain text must run validation");
   for (const markdown of [false, true]) {
     const source = ["PERSONAL INFORMATION", "First Name:", "Synthetic", "Email:", "Not provided", "Notes:", ...Array(80).fill("Synthetic continuation line"),
@@ -79,6 +79,11 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   assert(await evaluate("document.getElementById('intakeText').selectionStart === 0 && document.getElementById('intakeText').selectionEnd === 0 && !document.querySelector('.intake-locate')"), "Reset clears selections and locate state");
   assert(await evaluate("!document.getElementById('intakeText').value && document.getElementById('intakeResults').hidden"));
   await checkReview({ evaluate, capture, width });
+  await visit("/canned-remarks/");
+  await evaluate("location.hash = '#things-to-notate-in-remarks'");
+  assert(await evaluate("location.pathname === '/canned-remarks/' && location.hash === '#things-to-notate-in-remarks' && document.getElementById('things-to-notate-in-remarks')?.textContent === 'Things to Notate in Remarks'"), "Canned Remarks action resolves to its stable section anchor");
+  await visit("/intake-checker/");
+  await evaluate("window.intakeRequests = 0; window.fetch = () => { window.intakeRequests++; throw new Error('No intake requests allowed'); }");
   await checkValidationReviewed({ evaluate, visit, complete, width });
-  console.log(`PASS (${width}px): Intake direct route, hidden home entry, parsing, summary, locate actions, missing values, safe rendering, no storage/fetch, edit/reset, unsupported input.`);
+  console.log(`PASS (${width}px): Intake direct route, unchanged Toolkit navigation, parsing, summary, locate actions, missing values, safe rendering, no storage/fetch, edit/reset, unsupported input.`);
 }
