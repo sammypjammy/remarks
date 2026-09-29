@@ -22,9 +22,9 @@ export function text(value, limit, optional = false) {
   return value.trim();
 }
 export function validateSubmission(fields, pdf) {
-  const allowed = ['faxNumber','filename','lastFour','recipientName','includeCoverSheet','coverPageText','idempotencyKey','retryOf','batchId'];
+  const allowed = ['faxNumber','filename','fullSsn','recipientName','includeCoverSheet','coverPageText','idempotencyKey','retryOf','batchId'];
   if (Object.keys(fields).some(k=>!allowed.includes(k)) || !uuid(fields.idempotencyKey) ||
-      (fields.retryOf && !uuid(fields.retryOf)) || (fields.batchId!==undefined && !uuid(fields.batchId)) || !e164(fields.faxNumber) || !/^\d{4}$/.test(fields.lastFour || '') ||
+      (fields.retryOf && !uuid(fields.retryOf)) || (fields.batchId!==undefined && !uuid(fields.batchId)) || !e164(fields.faxNumber) || !/^\d{3}-\d{2}-\d{4}$/.test(fields.fullSsn || '') ||
       typeof fields.includeCoverSheet !== 'boolean') fail(400);
   const filename=text(fields.filename,255), recipientName=text(fields.recipientName || '',200,true);
   if (!/\.pdf$/i.test(filename) || !Buffer.isBuffer(pdf) || pdf.length<5 || pdf.length>4000000 || pdf.subarray(0,5).toString()!=='%PDF-') fail(400);
@@ -33,9 +33,12 @@ export function validateSubmission(fields, pdf) {
   if(comment.length>1024 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(comment))fail(400);
   const payload={to:[{phoneNumber:fields.faxNumber,...(recipientName?{name:recipientName}:{})}],faxResolution:'High',coverIndex:fields.includeCoverSheet?5:0};
   if(fields.includeCoverSheet && comment)payload.coverPageText=comment;
-  const requestMetadata={filename,lastFour:fields.lastFour,recipientName,faxNumber:fields.faxNumber};
+  const requestMetadata={filename,lastFour:fields.fullSsn.slice(-4),recipientName,faxNumber:fields.faxNumber};
   const metadata={...requestMetadata,...(fields.batchId?{batchId:fields.batchId}:{})};
-  const requestHash=createHash('sha256').update(JSON.stringify([requestMetadata,payload])).update(pdf).digest('hex');
+  // Comments can contain a Full SSN. Keep them out of the persisted idempotency
+  // hash while retaining the stable fax identity, cover choice and PDF bytes.
+  const hashPayload={to:payload.to,faxResolution:payload.faxResolution,coverIndex:payload.coverIndex};
+  const requestHash=createHash('sha256').update(JSON.stringify([requestMetadata,hashPayload])).update(pdf).digest('hex');
   return {metadata,payload,pdf,requestHash,idempotencyKey:fields.idempotencyKey,retryOf:fields.retryOf || null};
 }
 export function receiptFilename(filename,lastFour) {

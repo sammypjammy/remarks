@@ -11,21 +11,22 @@ import {FaxProvider} from '../server/fax-v3/provider.js';
 import {FaxService} from '../server/fax-v3/service.js';
 import {FaxStore} from '../server/fax-v3/store.js';
 import {createFaxHandler,upload} from '../server/fax-v3/handler.js';
-import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,latestBatchReceipts,documentTitle,number} from '../fax-sender/client.js';
+import {Scope,Batch,Poller,receiptZip,receiptFilename as browserFilename,latestBatchReceipts,documentTitle,formatSsn,validSsn,autofillCoverComment,number} from '../fax-sender/client.js';
 import {migrateFax} from '../scripts/migrate-fax-v3.mjs';
 const pdf=Buffer.from('%PDF-1.4\nsynthetic only');
-const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  PRIVATE COMMENT  ',idempotencyKey:randomUUID()});
+const fields=()=>({filename:'Brief.pdf',faxNumber:'+18015551234',fullSsn:'123-45-6789',recipientName:'Recipient',includeCoverSheet:true,coverPageText:'  Brief for 123-45-6789  ',idempotencyKey:randomUUID()});
 const row=()=>({id:randomUUID(),user_id:randomUUID(),environment:'development',account_id:'827653020',extension_id:'12345',generation:'5',state:'connected'});
 const response=data=>new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 const contextual=fn=>(path,options)=>path==='/api/fax-v3/context'?response({state:'connected',context:'c'}):fn(path,options);
 const file=()=>new File([pdf],'Brief.pdf',{type:'application/pdf',lastModified:1});
-const settings=()=>({faxNumber:'+18015551234',lastFour:'0012',recipientName:'Recipient',includeCoverSheet:true});
+const settings=()=>({faxNumber:'+18015551234',fullSsn:'123-45-6789',recipientName:'Recipient',includeCoverSheet:true});
 test('submission validation, immutable cover payload and metadata privacy',()=>{
-  const f=fields(),batchId=randomUUID(),input=validateSubmission({...f,batchId},pdf);assert.equal(input.payload.coverIndex,5);assert.equal(input.payload.coverPageText,'PRIVATE COMMENT');assert.equal(input.payload.to[0].name,'Recipient');assert.equal(input.metadata.batchId,batchId);assert(!JSON.stringify(input.payload).includes('0012'));assert(!JSON.stringify(input.metadata).includes('COMMENT'));
+  const f=fields(),batchId=randomUUID(),input=validateSubmission({...f,batchId},pdf);assert.equal(input.payload.coverIndex,5);assert.equal(input.payload.coverPageText,'Brief for 123-45-6789');assert.equal(input.payload.to[0].name,'Recipient');assert.equal(input.metadata.batchId,batchId);assert.equal(input.metadata.lastFour,'6789');assert(!JSON.stringify(input.metadata).includes('123-45-6789'));assert(!JSON.stringify(input.metadata).includes('Brief for'));
   const off=validateSubmission({...f,includeCoverSheet:false},pdf);assert.equal(off.payload.coverIndex,0);assert(!Object.hasOwn(off.payload,'coverPageText'));
-  for(const lastFour of ['123','12345','abcd',' 1234',''])assert.throws(()=>validateSubmission({...f,lastFour},pdf));
+  for(const fullSsn of ['123-45-678','123456789','123-456-789','123-45-67890','abcd',''])assert.throws(()=>validateSubmission({...f,fullSsn},pdf));
   assert.throws(()=>validateSubmission({...f,coverPageText:'😀'.repeat(513)},pdf));assert.throws(()=>validateSubmission({...f,batchId:'not-a-uuid'},pdf));assert.throws(()=>validateSubmission({...f,batchId:''},pdf));assert.throws(()=>validateSubmission({...f,token:'unexpected'},pdf));assert.throws(()=>validateSubmission(f,Buffer.from('not PDF')));assert.throws(()=>validateSubmission(f,Buffer.alloc(4000001)));
   assert.equal(validateSubmission({...f,retryOf:randomUUID()},pdf).requestHash,input.requestHash);assert.equal(validateSubmission({...f,batchId:randomUUID()},pdf).requestHash,input.requestHash);
+  const differentFullSsn=validateSubmission({...f,fullSsn:'987-65-6789',coverPageText:'Brief for 987-65-6789'},pdf);assert.equal(differentFullSsn.requestHash,input.requestHash);assert.equal(differentFullSsn.metadata.lastFour,'6789');
 });
 test('public history exposes only valid encrypted batch IDs and ignores malformed legacy metadata',()=>{
   const c=config(),attempt={id:randomUUID(),user_id:randomUUID(),connection_id:randomUUID(),environment:'development',account_id:'827653020',extension_id:'12345',created_at:new Date(),state:'sent',message_id:'123',tracking_deadline:new Date(Date.now()+1000)},batchId=randomUUID(),store=new FaxStore(null);
@@ -39,15 +40,15 @@ test('context and encrypted metadata bind owner, session, environment, connectio
   checkContext(r,r.user_id,'session-a',context,c);
   for(const change of [{user_id:randomUUID()},{id:randomUUID()},{generation:'6'},{extension_id:'555'},{environment:'production'},{state:'disconnected'}])assert.throws(()=>checkContext({...r,...change},r.user_id,'session-a',context,c));
   assert.throws(()=>checkContext(r,r.user_id,'session-b',context,c));
-  const attempt={...r,connection_id:r.id,id:randomUUID()},envelope=encrypt(fields(),metadataContext(attempt),c);
+  const attempt={...r,connection_id:r.id,id:randomUUID()},envelope=encrypt({filename:'Brief.pdf',lastFour:'6789',recipientName:'Recipient',faxNumber:'+18015551234'},metadataContext(attempt),c);
   assert(!JSON.stringify(envelope).includes('0012'));assert.throws(()=>decrypt(envelope,metadataContext({...attempt,user_id:randomUUID()}),c));assert.throws(()=>decrypt(envelope,metadataContext({...attempt,id:randomUUID()}),c));
 });
 test('strict multipart input rejects duplicate fields and non-PDFs',async()=>{
-  const make=async duplicate=>{const form=new FormData();for(const [key,value]of Object.entries(fields()))if(key!=='filename')form.append(key,String(value));form.append('file',file());if(duplicate)form.append('lastFour','1234');const r=new Request('http://localhost',{method:'POST',body:form});const req=Readable.from(Buffer.from(await r.arrayBuffer()));req.headers=Object.fromEntries(r.headers);return req;};
-  assert.equal((await upload(await make(false))).metadata.lastFour,'0012');await assert.rejects(upload(await make(true)));
+  const make=async duplicate=>{const form=new FormData();for(const [key,value]of Object.entries(fields()))if(key!=='filename')form.append(key,String(value));form.append('file',file());if(duplicate)form.append('fullSsn','987-65-4321');const r=new Request('http://localhost',{method:'POST',body:form});const req=Readable.from(Buffer.from(await r.arrayBuffer()));req.headers=Object.fromEntries(r.headers);return req;};
+  const uploaded=await upload(await make(false));assert.equal(uploaded.metadata.lastFour,'6789');assert(!JSON.stringify(uploaded.metadata).includes('123-45-6789'));await assert.rejects(upload(await make(true)));
 });
-test('provider sends exactly one PDF with Classic metadata and no Last 4 or source filename',async()=>{
-  let calls=0;const provider=new FaxProvider(async(url,options)=>{calls++;assert(url.endsWith('/account/827653020/extension/12345/fax'));assert.equal(options.redirect,'error');assert.equal(options.method,'POST');assert.equal(options.body.getAll('attachment').length,1);assert.equal(options.body.get('attachment').name,'document.pdf');const data=await options.body.get('json').text();assert(!data.includes('0012'));assert(!data.includes('Brief'));assert.equal(JSON.parse(data).coverIndex,5);return response({id:'123456',messageStatus:'Queued'});});
+test('provider sends exactly one generically named PDF with the intended Classic cover payload',async()=>{
+  let calls=0;const provider=new FaxProvider(async(url,options)=>{calls++;assert(url.endsWith('/account/827653020/extension/12345/fax'));assert.equal(options.redirect,'error');assert.equal(options.method,'POST');assert.equal(options.body.getAll('attachment').length,1);assert.equal(options.body.get('attachment').name,'document.pdf');const data=JSON.parse(await options.body.get('json').text());assert.equal(data.coverIndex,5);assert.equal(data.coverPageText,'Brief for 123-45-6789');return response({id:'123456',messageStatus:'Queued'});});
   assert.deepEqual(await provider.send(row(),'synthetic-token',validateSubmission(fields(),pdf)),{messageId:'123456',status:'Queued'});assert.equal(calls,1);
 });
 test('receipt validates owned outbound Sent message and member PDF; provider URL is never followed',async()=>{
@@ -90,16 +91,16 @@ test('every operational handler requires Toolkit session and context in Developm
     assert.equal((await run({config:{...c,environment:'preview'}})).code,404);
   }
 });
-test('batch validates Last 4 before submission; snapshot, sequential spacing and one PDF per call',async()=>{
+test('batch validates Full SSN before submission; snapshot, sequential spacing and one PDF per call',async()=>{
   const inputs=[],delays=[];const scope=new Scope(contextual(async(_path,options)=>{const f=options.body;inputs.push(Object.fromEntries([...f].filter(([k])=>k!=='file')));assert.equal(f.getAll('file').length,1);return response({faxId:randomUUID(),status:'Queued',retryable:false});}));scope.set('c');
   const batch=new Batch(scope,()=>{},async ms=>delays.push(ms));await batch.add([file(),new File([pdf],'Second.pdf',{type:'application/pdf'})]);assert.deepEqual(batch.documents.map(doc=>doc.coverPageText),['Brief','Second']);batch.documents[0].coverPageText='First note';batch.documents[1].coverPageText='Second note';
-  await assert.rejects(batch.run({...settings(),lastFour:'123'}));assert.equal(inputs.length,0);
-  const s=settings();const run=batch.run(s);s.lastFour='9999';s.faxNumber='+442079460000';await run;
-  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.lastFour==='0012'&&i.faxNumber==='+18015551234'));assert.deepEqual(inputs.map(i=>i.coverPageText),['First note','Second note']);assert.equal(new Set(inputs.map(i=>i.batchId)).size,1);assert.match(inputs[0].batchId,/^[0-9a-f-]{36}$/);await batch.run(settings());assert.equal(inputs.length,2);
+  await assert.rejects(batch.run({...settings(),fullSsn:'123-45-678'}));assert.equal(inputs.length,0);
+  const s=settings();const run=batch.run(s);s.fullSsn='987-65-4321';s.faxNumber='+442079460000';await run;
+  assert.equal(inputs.length,2);assert.deepEqual(delays,[1000]);assert(inputs.every(i=>i.fullSsn==='123-45-6789'&&i.lastFour===undefined&&i.faxNumber==='+18015551234'));assert.deepEqual(inputs.map(i=>i.coverPageText),['First note','Second note']);assert.equal(new Set(inputs.map(i=>i.batchId)).size,1);assert.match(inputs[0].batchId,/^[0-9a-f-]{36}$/);await batch.run(settings());assert.equal(inputs.length,2);
   const firstBatch=inputs[0].batchId;batch.clear();await batch.add([file()]);await batch.run(settings());assert.equal(inputs.length,3);assert.notEqual(inputs[2].batchId,firstBatch);
 });
-test('document titles remove repeated PDF suffixes and retain a safe fallback',()=>{
-  assert.equal(documentTitle('Case Summary.pdf'),'Case Summary');assert.equal(documentTitle('Case Summary.PDF.pdf'),'Case Summary');assert.equal(documentTitle('.pdf'),'Document');
+test('Full SSN formatting and cover autofill remove only the final PDF suffix',()=>{
+  assert.equal(formatSsn('123x4567890'),'123-45-6789');assert(validSsn('123-45-6789'));assert(!validSsn('123456789'));assert.equal(documentTitle('Case Summary.PDF.pdf'),'Case Summary.PDF');assert.equal(documentTitle('.pdf'),'Document');assert.equal(autofillCoverComment('SSI.PDF','123-45-6789'),'SSI for 123-45-6789');
 });
 test('recent-batch receipt selection handles mixed outcomes, older batches and legacy history safely',()=>{
   const id=()=>randomUUID(),batchA=randomUUID(),batchB=randomUUID(),entry=(status,batchId,accessible=true)=>({faxId:id(),status,batchId,accessible});

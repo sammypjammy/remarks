@@ -1,6 +1,10 @@
 export const wait=ms=>new Promise(r=>setTimeout(r,ms));
 export const validLastFour=value=>/^\d{4}$/.test(value);
-export const documentTitle=filename=>filename.replace(/(?:\.pdf)+$/i,'').trim()||'Document';
+export const ssnDigits=value=>String(value).replace(/\D/g,'').slice(0,9);
+export const formatSsn=value=>{const digits=ssnDigits(value);return digits.length>5?digits.slice(0,3)+'-'+digits.slice(3,5)+'-'+digits.slice(5):digits.length>3?digits.slice(0,3)+'-'+digits.slice(3):digits;};
+export const validSsn=value=>/^\d{3}-\d{2}-\d{4}$/.test(value);
+export const documentTitle=filename=>filename.replace(/\.pdf$/i,'').trim()||'Document';
+export const autofillCoverComment=(filename,fullSsn)=>documentTitle(filename)+(fullSsn?' for '+fullSsn:'');
 export function number(value) { let s=value.replace(/[\s().-]/g,'');if(/^\d{10}$/.test(s))s='+1'+s;else if(/^1\d{10}$/.test(s))s='+'+s;return /^\+[1-9]\d{6,14}$/.test(s)?s:''; }
 export function formatNumber(value) { return /^\+1\d{10}$/.test(value)?`(${value.slice(2,5)}) ${value.slice(5,8)}-${value.slice(8)}`:value; }
 export function receiptFilename(filename,lastFour) { if(!validLastFour(lastFour))throw Error();return `Fax Receipt - ${filename.replace(/(?:\.pdf)+$/i,'').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().slice(0,180)||'Document'} ${lastFour}.pdf`; }
@@ -34,17 +38,17 @@ export class Scope {
 export class Batch {
   constructor(scope,onChange=()=>{},pause=wait) {this.scope=scope;this.onChange=onChange;this.pause=pause;this.clear();}
   clear() {this.documents=[];this.running=false;this.adding=false;this.locked=false;this.snapshot=null;this.onChange();}
-  async add(files) {
+  async add(files,commentFor=documentTitle) {
     const epoch=this.scope.epoch;if(this.running||this.adding)return;this.adding=true;this.onChange();
     try {for(const file of files) {
       if(!/\.pdf$/i.test(file.name) || (file.type && file.type!=='application/pdf') || file.size>4000000 || file.size<5 || await file.slice(0,5).text()!=='%PDF-')throw Error('Choose valid PDFs, up to 4 MB each.');
       if(epoch!==this.scope.epoch)throw Error();
-      if(!this.documents.some(d=>d.file.name===file.name && d.file.size===file.size && d.file.lastModified===file.lastModified))this.documents.push({file,coverPageText:documentTitle(file.name),state:'Ready',entry:null,idempotencyKey:crypto.randomUUID()});
+      if(!this.documents.some(d=>d.file.name===file.name && d.file.size===file.size && d.file.lastModified===file.lastModified))this.documents.push({file,coverPageText:String(commentFor(file.name)).slice(0,1024),state:'Ready',entry:null,uiId:crypto.randomUUID(),idempotencyKey:crypto.randomUUID()});
     }} finally {if(epoch===this.scope.epoch){this.adding=false;this.onChange();}}
   }
   async run(settings,retry=false) {
     if(this.running || this.adding || !this.scope.context)return;
-    if(!validLastFour(settings.lastFour) || !number(settings.faxNumber) || this.documents.some(doc=>doc.coverPageText.trim().length>1024))throw Error('Enter the destination, exactly four Last 4 digits, and comments of at most 1024 characters.');
+    if(!validSsn(settings.fullSsn) || !number(settings.faxNumber) || this.documents.some(doc=>doc.coverPageText.trim().length>1024))throw Error('Enter the destination, a complete Full SSN, and comments of at most 1024 characters.');
     const queue=this.documents.filter(d=>retry?d.entry?.retryable===true:d.state==='Ready');if(!queue.length)return;
     const epoch=this.scope.epoch,batchId=crypto.randomUUID();this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber)});
     this.locked=true;this.running=true;this.onChange();

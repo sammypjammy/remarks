@@ -22,7 +22,7 @@ test('Development-only PostgreSQL fax ownership, durable attempts and mocked ope
   const provider={send:async()=>{calls++;if(failure)throw Error('synthetic private diagnostic');return {messageId:String(100000+calls),status};},message:async()=>({messageStatus:status}),receipt:async()=>Buffer.from('%PDF-synthetic'),contacts:async row=>[{id:'1',name:'Synthetic',numbers:[row.extension_id]}],createContact:async row=>({id:'2',name:row.extension_id,numbers:['+18015551234']})};
   const rcProvider={refresh:async()=>{refreshes++;return {...token(),ownerId:null};}};
   const service=new FaxService(c,store,new RcService(c,store,rcProvider),provider),service2=new FaxService(c,store2,new RcService(c,store2,rcProvider),provider);
-  const input=(overrides={})=>validateSubmission({filename:'Synthetic.pdf',lastFour:'0012',faxNumber:'+18015551234',recipientName:'Synthetic',coverPageText:'PRIVATE COVER COMMENT',includeCoverSheet:true,idempotencyKey:randomUUID(),...overrides},Buffer.from('%PDF-synthetic'));
+  const input=(overrides={})=>validateSubmission({filename:'Synthetic.pdf',fullSsn:'123-45-6789',faxNumber:'+18015551234',recipientName:'Synthetic',coverPageText:'Synthetic for 123-45-6789',includeCoverSheet:true,idempotencyKey:randomUUID(),...overrides},Buffer.from('%PDF-synthetic'));
   try {
     for(const name of ['001_toolkit_auth','002_ringcentral_v3','003_fax_v3_operations']){
       const sql=await readFile(new URL('../migrations/'+name+'.sql',import.meta.url),'utf8');
@@ -85,7 +85,7 @@ test('Development-only PostgreSQL fax ownership, durable attempts and mocked ope
     });
     await t.test('latest 20, newest first; encrypted Last 4 survives fresh store; no comments or PDFs retained',async()=>{
       for(let i=0;i<22;i++)await store.reserve(b,input());
-      const history=await store2.history(b);assert.equal(history.length,20);assert(history.every(e=>e.lastFour==='0012'&&e.filename==='Synthetic.pdf'));assert(history.every((e,i)=>i===0||e.createdAt<=history[i-1].createdAt));
+      const history=await store2.history(b);assert.equal(history.length,20);assert(history.every(e=>e.lastFour==='6789'&&e.filename==='Synthetic.pdf'));assert(!JSON.stringify(history).includes('123-45-6789'));assert(history.every((e,i)=>i===0||e.createdAt<=history[i-1].createdAt));
       assert(!JSON.stringify(history).includes('PRIVATE COVER COMMENT'));assert(!JSON.stringify(history).includes('%PDF'));
     });
     await t.test('refresh rotation cancels old context before fax provider; new context is explicit',async()=>{

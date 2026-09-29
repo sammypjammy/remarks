@@ -48,9 +48,9 @@
               <div class="field-heading"><label for="destination">Contact or fax number</label><span>Required</span></div>
               <input id="destination" aria-describedby="contactNotice" autocomplete="off" placeholder="Search contacts or enter a fax number">
             </div>
-            <div class="last-four-field"><label for="lastFour">Last 4 of SSN</label><input id="lastFour" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" placeholder="0000" required></div>
+            <div class="full-ssn-field"><label for="fullSsn">Full SSN</label><input id="fullSsn" inputmode="numeric" pattern="[0-9]{3}-[0-9]{2}-[0-9]{4}" maxlength="11" autocomplete="off" placeholder="000-00-0000" required></div>
           </div>
-          <div class="field-actions"><div class="destination-action-buttons"><button id="loadContacts" class="secondary-btn compact-btn" type="button">Refresh contacts</button><button id="clearDestination" class="text-btn" type="button">Clear destination</button></div><label class="cover-toggle"><input id="cover" type="checkbox" checked><span><strong>Classic cover sheet</strong><small>Include the standard cover page with every fax.</small></span></label></div>
+          <div class="field-actions"><div class="destination-action-buttons"><button id="loadContacts" class="secondary-btn compact-btn" type="button">Refresh contacts</button><button id="clearDestination" class="text-btn" type="button">Clear destination</button></div><label class="cover-toggle"><input id="cover" type="checkbox" checked><span><strong>Classic cover sheet</strong><small>Include the standard cover page with every fax.</small></span></label><label id="autofillControl" class="cover-toggle autofill-toggle"><input id="autofillComments" type="checkbox" checked><span><strong>Autofill comment box</strong></span></label></div>
           <div id="contactResults" role="group" aria-label="Matching fax contacts"></div>
           <p id="contactNotice" role="status"></p>
           <details id="saveContact" class="save-contact"><summary>Save as a new RingCentral contact</summary><div class="save-contact-fields"><label for="contactName">Contact name</label><input id="contactName" maxlength="60"><button id="createContact" class="secondary-btn" type="button">Save current fax number</button></div></details>
@@ -72,5 +72,5 @@
     </section>
   </div>
   <div id="accountStatusBottom" class="account-status-bottom" hidden></div>
-</main><div data-app-footer data-app-version="Fax Sender v3.2.0"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
+</main><div data-app-footer data-app-version="Fax Sender v3.3.0"></div><script src="/settings/shared/settings-storage.js"></script><script src="/settings/shared/app-shell.js"></script></body>
 </html>

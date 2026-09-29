@@ -1,4 +1,4 @@
-import {Scope,Batch,Poller,number,formatNumber,receiptFilename,receiptZip,latestBatchReceipts,wait} from './client.js';
+import {Scope,Batch,Poller,number,formatNumber,formatSsn,autofillCoverComment,receiptFilename,receiptZip,latestBatchReceipts,wait} from './client.js';
 const $=id=>document.getElementById(id);
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
@@ -18,27 +18,40 @@ const scope=new Scope(fetch,()=>{
 });
 const element=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
 function action(label,fn) {const b=element('button',label);b.type='button';b.addEventListener('click',fn);return b;}
-function render() {
-  if(!batch)return;
-  const busy=batch.running||batch.adding,locked=batch.locked;
-  for(const id of ['destination','clearDestination','lastFour','cover','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
-  $('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('pdfFiles').disabled=busy;
-  $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
-  $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
-  $('documents').replaceChildren(...batch.documents.map((doc,index)=>{
-    const li=element('li'),title=element('strong',doc.file.name),state=element('p',doc.state);li.tabIndex=-1;li.dataset.state=doc.state;state.className='document-state';li.append(title,state);
-    if($('cover').checked) {
-      const field=element('div'),label=element('label','Cover-sheet comment'),comment=element('textarea');field.className='document-comment';comment.id='documentComment'+index;label.htmlFor=comment.id;comment.maxLength=1024;comment.rows=2;comment.autocomplete='off';comment.spellcheck=false;comment.value=doc.coverPageText;comment.disabled=locked||busy;comment.addEventListener('input',()=>{doc.coverPageText=comment.value;});field.append(label,comment);li.append(field);
+function renderDocuments(busy,locked) {
+  const list=$('documents'),cover=$('cover').checked,existing=new Map([...list.children].map(li=>[li.dataset.documentId,li])),wanted=new Set();
+  batch.documents.forEach((doc,index)=>{
+    wanted.add(doc.uiId);let li=existing.get(doc.uiId);
+    if(!li) {
+      li=element('li');li.tabIndex=-1;li.dataset.documentId=doc.uiId;
+      const title=element('strong'),state=element('p'),field=element('div'),label=element('label','Cover-sheet comment'),comment=element('textarea');
+      title.className='document-title';state.className='document-state';field.className='document-comment';comment.id='documentComment'+doc.uiId;label.htmlFor=comment.id;comment.maxLength=1024;comment.rows=2;comment.autocomplete='off';comment.spellcheck=false;
+      comment.addEventListener('input',()=>{doc.coverPageText=comment.value;});field.append(label,comment);li.append(title,state,field);
     }
+    li.dataset.state=doc.state;li.querySelector('.document-title').textContent=doc.file.name;li.querySelector('.document-state').textContent=doc.state;
+    const field=li.querySelector('.document-comment'),comment=field.querySelector('textarea');field.hidden=!cover;comment.disabled=locked||busy||!cover;if(document.activeElement!==comment&&comment.value!==doc.coverPageText)comment.value=doc.coverPageText;
+    for(const child of [...li.children])if(child.matches('button,.document-warning'))child.remove();
     if(doc.state==='Ready'&&!busy) {
       li.append(action('Remove',()=>{batch.documents.splice(index,1);render();($('documents').children[Math.min(index,batch.documents.length-1)]||$('pdfFiles')).focus();}));
       if(index>0)li.append(action('Move up',()=>{[batch.documents[index-1],batch.documents[index]]=[doc,batch.documents[index-1]];render();$('documents').children[index-1].focus();}));
       if(index<batch.documents.length-1)li.append(action('Move down',()=>{[batch.documents[index+1],batch.documents[index]]=[doc,batch.documents[index+1]];render();$('documents').children[index+1].focus();}));
     }
     if(doc.entry){poller?.track(doc.entry);if(doc.entry.status==='Sent')li.append(action('Download Fax Receipt',()=>download([doc.entry],false)));}
-    if(doc.state==='Unknown')li.append(element('p','Outcome unknown. Review RingCentral before taking further action. Automatic retry is disabled.'));
-    return li;
-  }));
+    if(doc.state==='Unknown'){const warning=element('p','Outcome unknown. Review RingCentral before taking further action. Automatic retry is disabled.');warning.className='document-warning';li.append(warning);}
+    const current=list.children[index];if(current!==li)list.insertBefore(li,current||null);
+  });
+  for(const li of [...list.children])if(!wanted.has(li.dataset.documentId))li.remove();
+}
+function applyAutofill() {if(!$('autofillComments').checked)return;for(const doc of batch.documents)doc.coverPageText=autofillCoverComment(doc.file.name,$('fullSsn').value);}
+function render() {
+  if(!batch)return;
+  const busy=batch.running||batch.adding,locked=batch.locked;
+  for(const id of ['destination','clearDestination','fullSsn','cover','loadContacts','contactName','createContact'])$(id).disabled=locked||busy;
+  $('autofillControl').hidden=!$('cover').checked;$('autofillComments').disabled=locked||busy||!$('cover').checked;
+  $('documentCount').textContent='PDF documents'+(batch.documents.length?' ('+batch.documents.length+')':'');$('pdfFiles').disabled=busy;
+  $('send').disabled=busy||!batch.documents.some(d=>d.state==='Ready');$('retry').disabled=busy||!batch.documents.some(d=>d.entry?.retryable);
+  $('clear').disabled=busy;$('progress').textContent=batch.running?'Sending one PDF at a time. Do not resend an unconfirmed fax.':batch.adding?'Checking PDFs…':'';
+  renderDocuments(busy,locked);
 }
 batch=new Batch(scope,()=>{render();if(scope.context)void historyRefresh();});
 function renderHistory() {
@@ -107,9 +120,11 @@ $('createContact').addEventListener('click',async()=>{
   finally{if(epoch===scope.epoch){contactBusy=false;render();}}
 });
 $('cover').addEventListener('change',render);
-$('pdfFiles').addEventListener('change',async()=>{const files=[...$('pdfFiles').files];$('pdfFiles').value='';try{await batch.add(files);note('');}catch{note('Choose valid PDF files no larger than 4 MB.');}});
-const settings=()=>({faxNumber:number($('destination').value),lastFour:$('lastFour').value,recipientName:selectedName,includeCoverSheet:$('cover').checked});
-async function send(retry) {note('');try{await batch.run(settings(),retry);}catch{note('Check destination, exactly four Last 4 digits, and cover comments before sending.');}}
+$('autofillComments').addEventListener('change',()=>{if($('autofillComments').checked)applyAutofill();render();});
+$('fullSsn').addEventListener('input',()=>{$('fullSsn').value=formatSsn($('fullSsn').value);applyAutofill();render();});
+$('pdfFiles').addEventListener('change',async()=>{const files=[...$('pdfFiles').files];$('pdfFiles').value='';try{await batch.add(files,name=>$('autofillComments').checked?autofillCoverComment(name,$('fullSsn').value):name.replace(/\.pdf$/i,'').trim()||'Document');note('');}catch{note('Choose valid PDF files no larger than 4 MB.');}});
+const settings=()=>({faxNumber:number($('destination').value),fullSsn:$('fullSsn').value,recipientName:selectedName,includeCoverSheet:$('cover').checked});
+async function send(retry) {note('');try{await batch.run(settings(),retry);}catch{note('Check destination, enter a complete Full SSN, and review cover comments before sending.');}}
 $('faxForm').addEventListener('submit',e=>{e.preventDefault();void send(false);});$('retry').addEventListener('click',()=>void send(true));
 $('clear').addEventListener('click',()=>{if(batch.running)return;batch.clear();$('faxForm').reset();selectedName='';$('contactResults').replaceChildren();note('');render();});
 function save(blob,filename) {const url=URL.createObjectURL(blob),a=element('a');objectUrls.add(url);a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>{URL.revokeObjectURL(url);objectUrls.delete(url);},60000);}
