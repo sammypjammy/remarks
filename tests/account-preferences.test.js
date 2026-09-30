@@ -81,13 +81,17 @@ test('preferences persist across pages and clean browsers, with no account prefe
   await a.settings.refreshAccountPreferences();
   a.settings.setSetting('emailSignature', 'Synthetic signature');
   a.settings.setSetting('theme', 'forest');
-  a.settings.saveHomepagePreferences({ ...a.settings.getHomepagePreferences(), name: 'Synthetic name' });
+  a.settings.saveHomepagePreferences({ ...a.settings.getHomepagePreferences(), name: 'Synthetic name',
+    order: ['fax', 'remarks', 'med-tabs', 'email', 'intake'], hidden: ['fax'] });
   await a.settings.flushPreferences();
+  assert.deepEqual(api.rows.get('A').homepage.hidden, ['fax']);
   for (let i = 0; i < 2; i++) {
     const other = browser(api);
     await other.settings.refreshAccountPreferences();
     assert.equal(other.settings.getEmailSignatureText(), 'Synthetic signature');
     assert.equal(other.settings.getHomepagePreferences().name, 'Synthetic name');
+    assert.deepEqual(Array.from(other.settings.getHomepagePreferences().hidden), ['fax']);
+    assert.equal(other.settings.getHomepagePreferences().order[0], 'fax');
     assert.equal(other.settings.getSetting('theme'), 'forest');
     assert.equal(other.values.has('packard-toolkit-settings'), false);
   }
@@ -97,20 +101,24 @@ test('logout clears account state and local history/notes; another user receives
   const api = backend(), b = browser(api);
   await b.settings.refreshAccountPreferences();
   b.settings.setSetting('emailSignature', 'Synthetic A');
+  b.settings.saveHomepagePreferences({ ...b.settings.getHomepagePreferences(), hidden: ['fax'] });
   await b.settings.flushPreferences();
   b.values.set('packard-welcome-email-history', '["synthetic"]');
   b.session.set('packard-short-term-remarks', 'synthetic');
   b.settings.clearAccountPreferences();
   assert.equal(b.settings.getEmailSignatureText(), '');
   assert.equal(b.settings.getSetting('theme'), 'system');
+  assert.deepEqual(Array.from(b.settings.getHomepagePreferences().hidden), []);
   assert.equal(b.values.has('packard-welcome-email-history'), false);
   assert.equal(b.session.size, 0);
   b.window.account = 'B';
   await b.settings.refreshAccountPreferences();
   assert.equal(b.settings.getEmailSignatureText(), '');
+  assert.deepEqual(Array.from(b.settings.getHomepagePreferences().hidden), []);
   b.window.account = 'A';
   await b.settings.refreshAccountPreferences();
   assert.equal(b.settings.getEmailSignatureText(), 'Synthetic A');
+  assert.deepEqual(Array.from(b.settings.getHomepagePreferences().hidden), ['fax']);
 });
 
 test('legacy preferences import once, exclude unknown/auth keys, and cannot leak to the next account', async () => {

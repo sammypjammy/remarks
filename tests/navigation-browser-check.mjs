@@ -126,7 +126,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert(await evaluate("document.getElementById('faxWorkspace').hidden"), "Disconnected users cannot use the fax workspace");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -204,15 +204,18 @@ try {
     for (const id of ["remarks", "med-tabs", "email", "fax", "intake"]) {
       await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
       await visit("/");
-      assert.equal(await evaluate(`document.querySelector('[data-home-tool=${JSON.stringify(id)}]').hidden`), true, `Homepage hides ${id}`);
+      assert.equal(await evaluate(`(() => { const card = document.querySelector('[data-home-tool=${JSON.stringify(id)}]'); return card.hidden && getComputedStyle(card).display === 'none' && card.getClientRects().length === 0; })()`), true, `Homepage visibly hides ${id}`);
       await visit("/settings/");
       await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
+      await visit("/");
+      assert.equal(await evaluate(`(() => { const card = document.querySelector('[data-home-tool=${JSON.stringify(id)}]'); return !card.hidden && card.getClientRects().length > 0; })()`), true, `Homepage shows ${id} again`);
+      await visit("/settings/");
     }
     await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"fax\\\"] .homepage-visibility-toggle').click()");
     await visit("/");
     await evaluate("location.reload()");
     await loaded("/");
-    assert.equal(await evaluate("document.querySelector('[data-home-tool=\\\"fax\\\"]').hidden"), true, "Homepage visibility applies");
+    assert.equal(await evaluate("(() => { const card = document.querySelector('[data-home-tool=\\\"fax\\\"]'); return card.hidden && getComputedStyle(card).display === 'none' && card.getClientRects().length === 0; })()"), true, "Saved Homepage visibility removes the card from layout");
     for (const path of pages) {
       await visit(path);
       await evaluate("document.querySelector('.app-menu-toggle').click()");
@@ -249,7 +252,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 40, "Only the Home, Email, and Canned Remarks account preference releases are versioned");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 41, "Home v1.3.1 adds one release entry");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
