@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { validConnection, validProduction } from '../maintenance/verify-production/validate.mjs';
 
 // Explicit operator action only. Never invoked by build or API handlers.
-export async function runMigration({ args, env, openPool, readSql, log, error, expectedChecksum, assertAuthorized = () => {} }) {
+export async function runMigration({ args, env, openPool, readSql, log, error, expectedChecksum, assertAuthorized = () => {}, migrationName = '001_toolkit_auth' }) {
   let pool, client;
   try {
     const production = args.includes('--production');
@@ -23,12 +23,12 @@ export async function runMigration({ args, env, openPool, readSql, log, error, e
     assertAuthorized();
     await client.query('CREATE SCHEMA IF NOT EXISTS toolkit_auth');
     await client.query('CREATE TABLE IF NOT EXISTS toolkit_auth.migrations (name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
-    const prior = await client.query('SELECT checksum FROM toolkit_auth.migrations WHERE name = $1', ['001_toolkit_auth']);
+    const prior = await client.query('SELECT checksum FROM toolkit_auth.migrations WHERE name = $1', [migrationName]);
     if (prior.rows.length) {
       if (prior.rows[0].checksum !== checksum) throw new Error('Migration mismatch');
     } else {
       await client.query(sql);
-      await client.query('INSERT INTO toolkit_auth.migrations (name, checksum) VALUES ($1,$2)', ['001_toolkit_auth', checksum]);
+      await client.query('INSERT INTO toolkit_auth.migrations (name, checksum) VALUES ($1,$2)', [migrationName, checksum]);
     }
     assertAuthorized();
     await client.query('COMMIT');

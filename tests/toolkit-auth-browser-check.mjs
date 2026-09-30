@@ -10,10 +10,13 @@ const root = resolve('dist');
 const failures = [];
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.pdf': 'application/pdf' };
 let signedIn = false, loginCount = 0, logoutCount = 0;
+const preferences = (await import('./helpers/preference-api.js')).preferenceApi();
+let preferenceAccount = 'synthetic-user';
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname;
   res.setHeader('Cache-Control', 'no-store');
   if (path === '/api/auth/session') {
+    if (await preferences(req, res, signedIn ? preferenceAccount : null)) return;
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify(signedIn ? { authenticated: true, user: { displayName: 'Synthetic Employee With A Long Display Name' } } : { authenticated: false }));
   }
@@ -83,11 +86,19 @@ try {
       signedIn = true;
       await evaluate("window.dispatchEvent(new Event('focus'))");
       await until(() => evaluate("!!document.querySelector('.toolkit-auth button') && !document.querySelector('.toolkit-auth button').hidden"));
+      await until(() => evaluate("PackardSettings.accountPreferencesStatus() === 'saved'"));
+      await evaluate("PackardSettings.setSetting('theme', 'forest'); PackardSettings.setSetting('emailSignature', 'Synthetic signature'); PackardSettings.saveHomepagePreferences({...PackardSettings.getHomepagePreferences(), name:'Synthetic name'}); PackardSettings.flushPreferences()");
+      assert.equal(await evaluate("PackardSettings.getEmailSignatureText()"), 'Synthetic signature');
+      assert(await evaluate("!JSON.stringify(localStorage).includes('Synthetic signature')"), 'Account preferences are not cached in browser storage');
       assert(await evaluate("document.querySelector('.toolkit-auth-name').textContent.startsWith('Synthetic Employee')"));
       assert(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `signed in overflow ${path} ${width}`);
       assert(await evaluate("!JSON.stringify(localStorage).includes('toolkit_session') && !JSON.stringify(sessionStorage).includes('toolkit_session') && !document.cookie.includes('toolkit_session')"));
       await evaluate("document.querySelector('.toolkit-auth button').click()");
       await until(() => evaluate("document.querySelector('.toolkit-auth button').hidden"));
+      assert.equal(await evaluate("PackardSettings.getEmailSignatureText()"), '');
+      assert.equal(await evaluate("PackardSettings.getHomepagePreferences().name"), '');
+      assert.equal(await evaluate("PackardSettings.getSetting('theme')"), 'system');
+      assert(await evaluate("!localStorage.getItem('packard-email-history-owner') && !localStorage.getItem('packard-welcome-email-history')"), 'Logout removes account-specific local state');
       await evaluate("document.querySelector('.app-menu-toggle').click()");
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"));
     }
@@ -100,6 +111,21 @@ try {
     await writeFile(join(profile, `auth-${width}.png`), Buffer.from(shot.data, 'base64'));
     console.log(`PASS auth UI ${width}px: eight pages, signed out/in, logout, login link, navigation, privacy, no overflow.`);
   }
+  signedIn = false;
+  await evaluate("window.dispatchEvent(new Event('focus'))");
+  await until(() => evaluate("PackardSettings.accountPreferenceOwner() === null"));
+  preferenceAccount = 'synthetic-other'; signedIn = true;
+  await evaluate("window.dispatchEvent(new Event('focus'))");
+  await until(() => evaluate("PackardSettings.accountPreferenceOwner() === 'synthetic-other'"));
+  assert.equal(await evaluate("PackardSettings.getHomepagePreferences().name"), '');
+  assert.equal(await evaluate("PackardSettings.getEmailSignatureText()"), '');
+  await evaluate("PackardSettings.setSetting('emailSignature', 'Other account signature'); PackardSettings.flushPreferences()");
+  preferenceAccount = 'synthetic-user';
+  await evaluate("window.dispatchEvent(new Event('focus'))");
+  await until(() => evaluate("PackardSettings.accountPreferenceOwner() === 'synthetic-user'"));
+  assert.equal(await evaluate("PackardSettings.getEmailSignatureText()"), 'Synthetic signature');
+  assert.equal(await evaluate("PackardSettings.getHomepagePreferences().name"), 'Synthetic name');
+  console.log('PASS: two accounts remain isolated in one browser; returning to the first restores its preferences.');
   assert.equal(loginCount, 2); assert.equal(logoutCount, 16); assert.deepEqual(failures, []);
   console.log(`Screenshots: ${profile}`);
-} finally { socket?.close(); browser.kill(); await new Promise(done => server.close(done)); }
+} finally { socket?.close(); browser.kill(); server.closeAllConnections(); await new Promise(done => server.close(done)); }

@@ -16,6 +16,23 @@ export function mountToolkitAuth(host) {
   logout.textContent = 'Sign Out';
   logout.hidden = true;
   host.append(name, login, logout, status);
+  const preferencesStatus = document.createElement('span');
+  preferencesStatus.className = 'toolkit-auth-status';
+  preferencesStatus.setAttribute('role', 'status');
+  host.append(preferencesStatus);
+  const retryPreferences = document.createElement('button');
+  retryPreferences.type = 'button';
+  retryPreferences.textContent = 'Retry preferences';
+  retryPreferences.hidden = true;
+  retryPreferences.addEventListener('click', () => window.PackardSettings?.refreshAccountPreferences());
+  host.append(retryPreferences);
+  function showPreferencesStatus() {
+    const state = window.PackardSettings?.accountPreferencesStatus();
+    retryPreferences.hidden = state !== 'error';
+    preferencesStatus.textContent = state === 'error' ? 'Preferences could not sync. Retry when connected.' :
+      state === 'saving' ? 'Saving preferences…' : '';
+  }
+  window.addEventListener('packardpreferencesstatus', showPreferencesStatus);
   const url = new URL(location.href);
   if (url.searchParams.get('toolkitAuth') === 'failed') {
     status.textContent = 'Sign-in could not be completed. Try again.';
@@ -39,6 +56,8 @@ export function mountToolkitAuth(host) {
       if (signedIn) loginFailed = false;
       if (!loginFailed) status.textContent = '';
       if (response.status === 403) status.textContent = 'Toolkit access is unavailable for this account.';
+      if (signedIn) await window.PackardSettings?.refreshAccountPreferences();
+      else window.PackardSettings?.sessionSignedOut();
     } catch {
       if (sequence !== request) return;
       name.textContent = '';
@@ -54,6 +73,7 @@ export function mountToolkitAuth(host) {
       const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', cache: 'no-store' });
       if (!response.ok) throw new Error();
       ++request; // Discard any session refresh that raced with sign-out.
+      window.PackardSettings?.clearAccountPreferences();
       loginFailed = false;
       name.textContent = '';
       name.title = '';

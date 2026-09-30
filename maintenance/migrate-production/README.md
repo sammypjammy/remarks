@@ -1,17 +1,17 @@
-# One-time authentication migration maintenance build
+# One-time Toolkit database migration maintenance build
 
 Production target verification is complete. This separate package performs the
-reviewed 001_toolkit_auth migration only when an operator explicitly prepares and
+reviewed authentication and account-preferences migrations only when an operator explicitly prepares and
 deploys it. Nothing invokes it from the normal Toolkit build, API, or Git workflow.
 Do not deploy this source subdirectory directly: the preparer assembles its
 reviewed dependencies into an isolated temporary deployment root.
 
 ## Guards
 
-- Preparation requires `--authorize-apply-001`. It writes a non-secret
+- Preparation requires `--authorize-apply-001` or `--authorize-apply-004`. It writes a non-secret
   authorization.json with a specific action, migration name, pinned checksum,
   issuance time and a deadline exactly 30 minutes later. No credential is copied.
-- The build requires `--apply-001` and that authorization file. It rejects missing,
+- The build requires the matching `--apply-001` or `--apply-004` flag and that authorization file. It rejects missing,
   future-dated, expired, mismatched or extended-window authorization. The deadline
   includes upload, queue and dependency-install time. Reprepare explicitly if it
   expires; do not edit the authorization file or extend the window.
@@ -28,6 +28,7 @@ reviewed dependencies into an isolated temporary deployment root.
   SQL is normalized from CRLF to LF before hashing, matching the existing ledger.
   The preparer checks the source and copied SQL; the runner checks again before
   connecting. Changed SQL requires a new review, not automatic checksum updates.
+- Migration 004 is separately pinned to `d115d5b288190517cdf40826f85f29e44bfba42e37fd0d17bbea6ab0a563ae18` and action `APPLY_004_ACCOUNT_PREFERENCES_TO_PRODUCTION_MAIN`. Its isolated stage includes only `migrations/004_account_preferences.sql` and cannot apply 001.
 - The existing transaction, advisory lock, ledger and checksum checks prevent
   concurrent/repeated schema application. A matching ledger entry skips the SQL;
   a mismatched ledger checksum rolls back. Authorization is time-limited operator
@@ -58,7 +59,7 @@ Preparation is local and does not connect to a database. The deploy command belo
 WILL run the migration in the remote Production build. Use it within 30 minutes.
 
 ```powershell
-$migrationStage = node .\scripts\prepare-auth-migration.mjs --authorize-apply-001
+$migrationStage = node .\scripts\prepare-auth-migration.mjs --authorize-apply-004
 if ($LASTEXITCODE -ne 0) { throw 'Migration preparation failed; stopped.' }
 $migrationConfig = Join-Path $migrationStage 'vercel.json'
 Push-Location -LiteralPath $migrationStage

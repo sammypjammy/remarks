@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout as pause } from "node:timers/promises";
 import { createServer } from "vite";
+import { preferenceApi } from './helpers/preference-api.js';
 
 const browserPath = process.env.CHROME_BIN || [
   "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -14,12 +15,14 @@ const browserPath = process.env.CHROME_BIN || [
 ].find(existsSync);
 
 // Exercise the actual Canned Remarks UI at desktop and mobile widths.
-test("Canned Remarks v2.10.0 desktop and mobile workflows", { skip: !browserPath, timeout: 90000 }, async t => {
+test("Canned Remarks v2.11.0 desktop and mobile workflows", { skip: !browserPath, timeout: 90000 }, async t => {
+  const preferences = preferenceApi();
   const server = await createServer({configFile:false, server:{host:"127.0.0.1",port:0},
     plugins: [{ name: 'mock-toolkit-session', configureServer(server) {
-      server.middlewares.use('/api/auth/session', (_req, res) => {
+      server.middlewares.use('/api/auth/session', async (req, res) => {
+        if (await preferences(req, res)) return;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ authenticated: false }));
+        res.end(JSON.stringify({ authenticated: true, user: { displayName: 'Synthetic User' } }));
       });
     } }] });
   await server.listen();
@@ -71,6 +74,7 @@ test("Canned Remarks v2.10.0 desktop and mobile workflows", { skip: !browserPath
     await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:false});
     await command('Page.navigate',{url:origin+'/canned-remarks/'});
     await waitFor("document.querySelector('[data-application=ssi]') && document.querySelector('.remark-card')");
+    await waitFor("PackardSettings.accountPreferencesStatus() === 'saved'");
     await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copiedRemark=text}}})");
     const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
     const fill = (selector,value) => evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});el.value=${JSON.stringify(value)};el.dispatchEvent(new Event('input',{bubbles:true}));})()`);
@@ -139,16 +143,17 @@ test("Canned Remarks v2.10.0 desktop and mobile workflows", { skip: !browserPath
     await fill('#field-source','Early Retirement Benefits');
     assert.match(await evaluate("document.getElementById('remarkPreview').textContent"),/received Early Retirement Benefits after the onset/);
     await click('#closeModalButton');
-    assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Canned Remarks v2.10.0/);
+    assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Canned Remarks v2.11.0/);
     await click('a[href="../settings/"]');
     await waitFor("document.readyState==='complete' && document.getElementById('autoClearRemarksToggle')");
     assert.equal(await evaluate("document.getElementById('autoClearRemarksToggle').getAttribute('aria-checked')"),'false','Automatic clear defaults off');
     await click('#autoClearRemarksToggle');
     await waitFor("window.PackardSettings.getSetting('autoClearRemarksAfterCopy')===true");
+    await evaluate("PackardSettings.flushPreferences()");
     await command('Page.reload');
     await waitFor("document.getElementById('autoClearRemarksToggle')?.getAttribute('aria-checked')==='true'");
     await command('Page.navigate',{url:origin+'/canned-remarks/'});
-    await waitFor("document.getElementById('shortTermInput')");
+    await waitFor("document.getElementById('shortTermInput') && window.PackardSettings?.accountPreferencesStatus() === 'saved'");
     await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copiedRemark=text}}})");
     await fill('#shortTermInput','Temporary claimant details');
     await click('#copyShortTermButton');
@@ -163,10 +168,11 @@ test("Canned Remarks v2.10.0 desktop and mobile workflows", { skip: !browserPath
     await click('a[href="../settings/"]');
     await waitFor("document.getElementById('autoClearRemarksToggle')?.getAttribute('aria-checked')==='true'");
     await click('#autoClearRemarksToggle');
+    await evaluate("PackardSettings.flushPreferences()");
     await command('Page.reload');
     await waitFor("document.getElementById('autoClearRemarksToggle')?.getAttribute('aria-checked')==='false'");
     await command('Page.navigate',{url:origin+'/canned-remarks/'});
-    await waitFor("document.getElementById('shortTermInput')");
+    await waitFor("document.getElementById('shortTermInput') && window.PackardSettings?.accountPreferencesStatus() === 'saved'");
     await evaluate("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.__copiedRemark=text}}})");
     await fill('#shortTermInput','Keep this after copying');
     await click('#copyShortTermButton');

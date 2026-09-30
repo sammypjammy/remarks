@@ -180,7 +180,7 @@ function renderCustomRemarkList() {
       if (!window.confirm(`Delete “${remark.title}”? This cannot be undone.`)) return;
       const saved = settings.saveCustomRemarks(settings.getCustomRemarks().filter((item) => item.id !== remark.id));
       if (!saved) {
-        window.alert("The custom remark could not be deleted from this browser.");
+        window.alert("The custom remark could not be deleted.");
         return;
       }
       openCustomRemarkModalButton.focus();
@@ -325,7 +325,7 @@ customRemarkForm.addEventListener("submit", (event) => {
   const saved = settings.saveCustomRemarks(nextCustomRemarks);
 
   if (!saved) {
-    customRemarkFormStatus.textContent = "The custom remark could not be saved in this browser.";
+    customRemarkFormStatus.textContent = "The custom remark could not be saved.";
     return;
   }
 
@@ -399,4 +399,10 @@ document.getElementById("signatureForm").addEventListener("submit", (event) => {
 });
 
 window.addEventListener("packardsettingschange", () => renderSettings());
+window.addEventListener("packardaccountchange", () => {
+  closeCustomRemarkModal(false);
+  customRemarkForm.reset();
+  renderSettings(true);
+  [signatureStatus, homepageStatus, homepageNameStatus, customRemarkFormStatus].forEach(element => { element.textContent = ""; });
+});
 renderSettings(true);

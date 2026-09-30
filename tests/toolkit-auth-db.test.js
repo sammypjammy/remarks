@@ -19,6 +19,8 @@ test('PostgreSQL: migration, transaction races, session ownership, expiry, revoc
       const migration = await readFile(new URL('../migrations/001_toolkit_auth.sql', import.meta.url), 'utf8');
       await pool.query(migration.replaceAll('toolkit_auth', schema));
       created = true;
+      const preferencesMigration = await readFile(new URL('../migrations/004_account_preferences.sql', import.meta.url), 'utf8');
+      await pool.query(preferencesMigration.replaceAll('toolkit_auth', schema));
       const store = new AuthStore(pool, schema);
       const transaction = () => ({ stateHash: hash(randomToken()), bindingHash: hash(randomToken()), nonceHash: hash(randomToken()), verifier: randomToken(), redirectUri: 'http://localhost:5173/api/auth/callback' });
       const tx = transaction();
@@ -39,6 +41,15 @@ test('PostgreSQL: migration, transaction races, session ownership, expiry, revoc
       const tokenA = randomToken(), tokenB = randomToken(), tokenA2 = randomToken();
       const idA = await store.createSession(a, hash(tokenA));
       const idB = await store.createSession(b, hash(tokenB));
+      assert.equal(await store.getPreferences(idA), null);
+      await Promise.all(['First', 'Second'].map(emailSignature => store.savePreferences(idA, { emailSignature }, true)));
+      const imported = await store.getPreferences(idA);
+      assert.ok(['First', 'Second'].includes(imported.emailSignature));
+      await store.savePreferences(idA, { emailSignature: 'Do not replace' }, true);
+      assert.deepEqual(await store.getPreferences(idA), imported);
+      await Promise.all([store.savePreferences(idA, { theme: 'forest' }), store.savePreferences(idA, { density: 'compact' })]);
+      assert.deepEqual(await store.getPreferences(idA), { ...imported, theme: 'forest', density: 'compact' });
+      assert.equal(await store.getPreferences(idB), null);
       const config = { sessionCookie: 'toolkit_session', tenant: a.tenantId };
       const request = token => ({ headers: { cookie: `toolkit_session=${token}` } });
       assert.equal((await requireToolkitUser(request(tokenA), { config, store })).id, idA);

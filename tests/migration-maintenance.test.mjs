@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { prepareMigration } from '../scripts/prepare-auth-migration.mjs';
-import { CHECKSUM, WINDOW_MS, authorizationValid, checksum } from '../maintenance/migrate-production/policy.mjs';
+import { ACCOUNT_PREFERENCES_MIGRATION, CHECKSUM, WINDOW_MS, authorizationValid, checksum } from '../maintenance/migrate-production/policy.mjs';
 
-let root, repo, stage, sql, authorization, runMaintenance, writeArtifact;
+let root, repo, stage, preferencesStage, sql, authorization, preferencesSql, preferencesAuthorization, runMaintenance, preferencesMaintenance, writeArtifact;
 const issuedAt = 1800000000000;
 const env = { VERCEL: '1', VERCEL_ENV: 'production', TOOLKIT_ORIGIN: 'https://packardtoolkit.vercel.app',
   DATABASE_URL: 'postgresql://synthetic_user:synthetic_password@ep-young-dream-arkoh9e5-pooler.c-2.us-east-1.aws.neon.tech/synthetic?sslmode=require&channel_binding=require' };
@@ -18,7 +18,7 @@ before(async () => {
   await mkdir(join(repo, '.vercel'), { recursive: true });
   await mkdir(join(root, 'staging'));
   await writeFile(join(repo, '.vercel/repo.json'), JSON.stringify({ projects: [{ name: 'packardtoolkit', id: 'prj_synthetic', orgId: 'team_synthetic' }] }));
-  for (const file of ['maintenance/migrate-production', 'maintenance/verify-production/validate.mjs', 'scripts/migrate-auth.mjs', 'server/auth/database.js', 'migrations/001_toolkit_auth.sql']) {
+  for (const file of ['maintenance/migrate-production', 'maintenance/verify-production/validate.mjs', 'scripts/migrate-auth.mjs', 'server/auth/database.js', 'migrations/001_toolkit_auth.sql', 'migrations/004_account_preferences.sql']) {
     await mkdir(join(repo, file, '..'), { recursive: true });
     await cp(file, join(repo, file), { recursive: true, filter: path => !path.includes('node_modules') && !path.includes('.env') });
   }
@@ -27,6 +27,10 @@ before(async () => {
   sql = await readFile(join(stage, 'migrations/001_toolkit_auth.sql'), 'utf8');
   authorization = JSON.parse(await readFile(join(stage, 'authorization.json'), 'utf8'));
   ({ runMaintenance, writeArtifact } = await import(pathToFileURL(join(stage, 'build.mjs')).href));
+  preferencesStage = await prepareMigration(repo, { authorize: true, temporaryRoot: join(root, 'staging'), now: issuedAt, migrationFlag: '--apply-004' });
+  preferencesSql = await readFile(join(preferencesStage, 'migrations/004_account_preferences.sql'), 'utf8');
+  preferencesAuthorization = JSON.parse(await readFile(join(preferencesStage, 'authorization.json'), 'utf8'));
+  ({ runMaintenance: preferencesMaintenance } = await import(pathToFileURL(join(preferencesStage, 'build.mjs')).href));
 });
 after(async () => { if (root) await rm(root, { recursive: true, force: true }); });
 
@@ -66,6 +70,28 @@ test('package pins reviewed normalized SQL and existing locked dependency versio
   const lock = JSON.parse(await readFile(join(stage, 'package-lock.json'), 'utf8'));
   const original = JSON.parse(await readFile('package-lock.json', 'utf8'));
   for (const [name, entry] of Object.entries(lock.packages)) if (name) assert.deepEqual(entry, original.packages[name]);
+});
+test('migration 004 stage pins only the preferences SQL and uses its distinct authorization', async () => {
+  assert.equal(checksum(preferencesSql), ACCOUNT_PREFERENCES_MIGRATION.checksum);
+  assert.equal(preferencesAuthorization.action, ACCOUNT_PREFERENCES_MIGRATION.action);
+  assert.equal(preferencesAuthorization.migration, ACCOUNT_PREFERENCES_MIGRATION.name);
+  assert.equal(preferencesAuthorization.checksum, ACCOUNT_PREFERENCES_MIGRATION.checksum);
+  assert.equal(authorizationValid(preferencesAuthorization, issuedAt + 1), true);
+  const config = JSON.parse(await readFile(join(preferencesStage, 'vercel.json'), 'utf8'));
+  assert.equal(config.buildCommand, 'node build.mjs --apply-004');
+  assert.equal(await readFile(join(preferencesStage, 'migrations/001_toolkit_auth.sql'), 'utf8').then(() => true).catch(() => false), false);
+  assert.equal(await readFile(join(preferencesStage, 'migrations/004_account_preferences.sql'), 'utf8'), preferencesSql);
+  assert.equal(await readFile(join(preferencesStage, '.env.local'), 'utf8').then(() => true).catch(() => false), false);
+});
+test('migration 004 cannot run with 001 authorization, another checksum, or an unverified target', async () => {
+  let connects = 0;
+  const common = { args: ['--apply-004'], env, readAuthorization: async () => preferencesAuthorization,
+    readSql: async name => { assert.equal(name, '004_account_preferences'); return preferencesSql; },
+    openPool: async () => { connects++; throw new Error('Must not connect'); }, writeArtifact: async () => {}, log: () => {} };
+  assert.equal(await preferencesMaintenance({ ...common, readAuthorization: async () => authorization }), 1);
+  assert.equal(await preferencesMaintenance({ ...common, readSql: async () => preferencesSql + '-- changed' }), 1);
+  assert.equal(await preferencesMaintenance({ ...common, env: { ...env, TOOLKIT_ORIGIN: 'https://wrong.test' } }), 1);
+  assert.equal(connects, 0);
 });
 test('explicit apply flag and bounded authorization required before any connection', async () => {
   for (const options of [

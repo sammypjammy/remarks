@@ -2,7 +2,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { runMigration } from './scripts/migrate-auth.mjs';
 import { productionCheck } from './maintenance/verify-production/validate.mjs';
-import { CHECKSUM, authorizationValid } from './policy.mjs';
+import { authorizationValid, migrationForFlag } from './policy.mjs';
 
 export async function writeArtifact(directory = 'public') {
   await mkdir(directory, { recursive: true });
@@ -12,7 +12,8 @@ export async function writeArtifact(directory = 'public') {
 // Tests inject mocks. The staged entry point has no HTTP route.
 export async function runMaintenance({ args, env, readAuthorization, readSql, openPool, writeArtifact, log, now = Date.now }) {
   try {
-    if (args.length !== 1 || args[0] !== '--apply-001') {
+    const migration = args.length === 1 ? migrationForFlag(args[0]) : null;
+    if (!migration) {
       log('FAIL APPLY_AUTHORIZATION_REQUIRED'); return 1;
     }
     const authorization = await readAuthorization();
@@ -25,8 +26,8 @@ export async function runMaintenance({ args, env, readAuthorization, readSql, op
       if (!authorizationValid(authorization, now()) || productionCheck(env) !== 'PASS') throw new Error();
     };
     const result = await runMigration({
-      args: ['--apply', '--production'], env, readSql, openPool,
-      expectedChecksum: CHECKSUM, assertAuthorized,
+      args: ['--apply', '--production'], env, readSql: () => readSql(migration.name), openPool,
+      expectedChecksum: migration.checksum, assertAuthorized, migrationName: migration.name,
       log, error: () => log('FAIL MIGRATION_NOT_CONFIRMED')
     });
     if (result !== 0) return result;
@@ -45,7 +46,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   process.exitCode = await runMaintenance({
     args: process.argv.slice(2), env: process.env,
     readAuthorization: async () => JSON.parse(await readFile('authorization.json', 'utf8')),
-    readSql: () => readFile('migrations/001_toolkit_auth.sql', 'utf8'),
+    readSql: migrationName => readFile(`migrations/${migrationName}.sql`, 'utf8'),
     openPool: async () => (await import('./server/auth/database.js')).getPool(),
     writeArtifact,
     log: message => console.log(message)

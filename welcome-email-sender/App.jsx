@@ -6,10 +6,8 @@ import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, homepageTools, orderHomepageToolIds } from "../settings/shared/settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, homepageTools, orderHomepageToolIds } from "../settings/shared/settingsStorage.js";
 
-const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
-const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office.com",
@@ -87,7 +85,7 @@ function getOutlookComposeUrl(draft) {
 
 function getSavedManager() {
   try {
-    const savedManager = localStorage.getItem(MANAGER_STORAGE_KEY);
+    const savedManager = getSetting("emailManager");
     const customManagerNames = getCustomCaseManagers().map((manager) => manager.fullName);
     return savedManager && (caseManagers[savedManager] || customManagerNames.includes(savedManager)) ? savedManager : "";
   } catch {
@@ -97,7 +95,7 @@ function getSavedManager() {
 
 function getSavedLanguage() {
   try {
-    return localStorage.getItem(LANGUAGE_STORAGE_KEY) === "spanish" ? "spanish" : "english";
+    return getSetting("emailLanguage") === "spanish" ? "spanish" : "english";
   } catch {
     return "english";
   }
@@ -142,7 +140,7 @@ export default function App() {
   const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [isSignaturePromptOpen, setIsSignaturePromptOpen] = useState(false);
   const [emailSignature, setEmailSignature] = useState(getEmailSignature);
-  const [, setHomepageOrderRevision] = useState(0);
+  const [preferencesRevision, setHomepageOrderRevision] = useState(0);
   const [emailHistory, setEmailHistory] = useState(() => loadEmailHistory(browserEmailHistoryStorage()));
   const emailHistoryRef = useRef(emailHistory);
   const draftRequestInProgressRef = useRef(false);
@@ -151,12 +149,12 @@ export default function App() {
   const appDrawerRef = useRef(null);
   const signaturePromptRef = useRef(null);
 
-  const customCaseManagers = useMemo(getCustomCaseManagers, []);
+  const customCaseManagers = useMemo(getCustomCaseManagers, [preferencesRevision]);
   const allCaseManagers = useMemo(() => ({
     ...caseManagers,
     ...Object.fromEntries(customCaseManagers.map((caseManager) => [caseManager.fullName, caseManager])),
   }), [customCaseManagers]);
-  const emailTemplates = useMemo(() => mergeEmailTemplates(getEmailTemplates()), []);
+  const emailTemplates = useMemo(() => mergeEmailTemplates(getEmailTemplates()), [preferencesRevision]);
   const manager = allCaseManagers[selectedManager];
   const selectedTemplate = emailTemplates[language];
   const emailSubject = useMemo(
@@ -185,32 +183,29 @@ export default function App() {
   }, [isBulkCreating]);
 
   useEffect(() => {
-    if (!selectedManager) return;
-    try {
-      localStorage.setItem(MANAGER_STORAGE_KEY, selectedManager);
-    } catch {
-      // The app still works if browser storage is unavailable.
-    }
-  }, [selectedManager]);
-
-  useEffect(() => {
     const syncSettings = event => {
       setEmailSignature(getEmailSignature());
-      if (event?.detail?.name === "homepage" || event?.detail?.name === "storage") {
-        setHomepageOrderRevision(revision => revision + 1);
+      setHomepageOrderRevision(revision => revision + 1);
+      if (event?.detail?.name === "storage") {
+        setSelectedManager(getSavedManager());
+        setLanguage(getSavedLanguage());
+        const history = loadEmailHistory(browserEmailHistoryStorage());
+        emailHistoryRef.current = history;
+        setEmailHistory(history);
       }
     };
+    const clearAccount = () => {
+      setClientEmail(""); setBulkText(""); setCopyStatus(""); setBulkError("");
+      setIsPreviewOpen(false); setErrors({});
+      emailHistoryRef.current = []; setEmailHistory([]);
+    };
     window.addEventListener("packardsettingschange", syncSettings);
-    return () => window.removeEventListener("packardsettingschange", syncSettings);
+    window.addEventListener("packardaccountchange", clearAccount);
+    return () => {
+      window.removeEventListener("packardsettingschange", syncSettings);
+      window.removeEventListener("packardaccountchange", clearAccount);
+    };
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    } catch {
-      // The language selector still works if browser storage is unavailable.
-    }
-  }, [language]);
 
   useEffect(() => {
     if (!isAppMenuOpen) return undefined;
@@ -277,7 +272,8 @@ export default function App() {
     return Object.keys(nextErrors).length === 0;
   }
 
-  function recordOpenedEmail(content) {
+  function recordOpenedEmail(content, owner = window.PackardSettings.accountPreferenceOwner()) {
+    if (owner !== window.PackardSettings.accountPreferenceOwner()) return;
     const nextHistory = addEmailHistory(emailHistoryRef.current, createEmailHistoryEntry(content));
     emailHistoryRef.current = nextHistory;
     setEmailHistory(nextHistory);
@@ -290,15 +286,12 @@ export default function App() {
     setErrors({});
     setIsPreviewOpen(false);
     if (clearStatus) setCopyStatus("");
-    try {
-      localStorage.removeItem(MANAGER_STORAGE_KEY);
-    } catch {
-      // Clearing the visible form still works if browser storage is unavailable.
-    }
+    setSetting("emailManager", "");
     if (focus) requestAnimationFrame(() => emailInputRef.current?.focus());
   }
 
   async function handleBulkDrafts() {
+    const owner = window.PackardSettings.accountPreferenceOwner();
     if (bulkBusyRef.current || draftRequestInProgressRef.current || !bulkRecipients.recipients.length || !selectedManager || !isOutlookGraphConfigured) return;
     if (!emailSignature) { setIsSignaturePromptOpen(true); return; }
     bulkBusyRef.current = true;
@@ -310,7 +303,7 @@ export default function App() {
         text: bulkText,
         content: { subject: emailSubject, body: emailBody, managerName: selectedManager, language },
         createDraft: createOutlookDraft, composeUrl: getOutlookComposeUrl, authorize: getGraphAccessToken,
-        onDraftOpened: (recipient, content) => recordOpenedEmail({ ...content, recipient }),
+        onDraftOpened: (recipient, content) => recordOpenedEmail({ ...content, recipient }, owner),
       });
       setCopyStatus(`Opened ${count} Outlook draft${count === 1 ? "" : "s"}. Review and send each draft in Outlook.`);
     } catch (error) {
@@ -322,6 +315,7 @@ export default function App() {
   }
 
   async function handleSubmit(event) {
+    const owner = window.PackardSettings.accountPreferenceOwner();
     event.preventDefault();
     if (bulkBusyRef.current) return;
     if (isBulk) { handleBulkDrafts(); return; }
@@ -371,9 +365,9 @@ export default function App() {
         const composeUrl = getOutlookComposeUrl(draft);
         if (outlookTab) {
           outlookTab.location.href = composeUrl;
-          recordOpenedEmail(draftContent);
+          recordOpenedEmail(draftContent, owner);
         } else {
-          recordOpenedEmail(draftContent);
+          recordOpenedEmail(draftContent, owner);
           window.location.assign(composeUrl);
         }
       } catch (error) {
@@ -417,6 +411,7 @@ export default function App() {
 
   function handleManagerChange(event) {
     setSelectedManager(event.target.value);
+    setSetting("emailManager", event.target.value);
     setCopyStatus("");
     if (errors.manager) {
       setErrors((current) => ({ ...current, manager: undefined }));
@@ -425,11 +420,13 @@ export default function App() {
 
   function handleLanguageChange(nextLanguage) {
     setLanguage(nextLanguage);
+    setSetting("emailLanguage", nextLanguage);
     setCopyStatus("");
     setIsPreviewOpen(false);
 
     if (selectedManager && !manager?.languages?.includes(nextLanguage)) {
       setSelectedManager("");
+      setSetting("emailManager", "");
       setErrors((current) => ({ ...current, manager: undefined }));
     }
   }
@@ -699,7 +696,8 @@ export default function App() {
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <details id="email-version-history" className="email-version-history">
-            <summary>Email Sender v2.7.0</summary>
+            <summary>Email Sender v2.8.0</summary>
+            <p><a href="/version-history/#email-sender-v2-8-0">v2.8.0 release notes</a></p>
             <p><strong>v2.7.0</strong> - Added persistent recent-email history for successfully opened Single and Bulk Outlook drafts, limited to the newest 20 recipients.</p>
             <p><strong>v2.6.0</strong> - Bulk Outlook Drafts opens one individual Outlook tab per valid unique recipient, preserving manual review and sending.</p>
           </details>

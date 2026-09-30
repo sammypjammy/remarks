@@ -72,11 +72,20 @@ if (shortTermInput) {
   };
 
   try {
-    shortTermInput.value = window.sessionStorage.getItem(storageKey) || "";
+    shortTermInput.value = window.PackardSettings?.accountPreferenceOwner() ? window.sessionStorage.getItem(storageKey) || "" : "";
   } catch (error) {
     showToastMessage(shortTermToast, "Temporary browser storage is unavailable.");
   }
   updateShortTermState();
+  window.addEventListener("packardaccountchange", () => {
+    shortTermInput.value = "";
+    updateShortTermState();
+  });
+  window.addEventListener("packardsettingschange", event => {
+    if (event.detail?.name !== "storage") return;
+    try { shortTermInput.value = window.PackardSettings?.accountPreferenceOwner() ? window.sessionStorage.getItem(storageKey) || "" : ""; } catch { shortTermInput.value = ""; }
+    updateShortTermState();
+  });
 
   shortTermInput.addEventListener("input", () => {
     try {
@@ -1253,6 +1262,7 @@ function closeModal() {
   modalContent.innerHTML = "";
   if (shouldRefreshSsi) renderSsiApplication();
 }
+window.addEventListener("packardaccountchange", closeModal);
 
 closeModalButton.addEventListener("click", closeModal);
 

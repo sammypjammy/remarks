@@ -14,13 +14,19 @@ assert(browser, "Provide a Chromium executable path");
 const root = resolve("dist");
 const failures = [];
 const mime = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".svg": "image/svg+xml", ".pdf": "application/pdf" };
-let authenticated = false;
+let authenticated = true;
+const preferences = (await import('./helpers/preference-api.js')).preferenceApi();
 const server = createServer(async (req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
   if (pathname === '/api/auth/session') {
+    if (await preferences(req, res, authenticated ? 'synthetic-user' : null)) return;
     const session = authenticated ? { authenticated: true, user: { displayName: "Authenticated Test User" } } : { authenticated: false };
     res.writeHead(authenticated ? 200 : 401, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(session));
+  }
+  if (pathname === '/api/ringcentral/connection') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ state: 'disconnected' }));
   }
   if (pathname === "/__homepage-reopen-check") {
     res.writeHead(302, { Location: "/" });
@@ -71,6 +77,7 @@ try {
     if (event.id) {
       const promise = pending.get(event.id);
       pending.delete(event.id);
+      if (!promise) return;
       event.error ? promise.reject(new Error(event.error.message)) : promise.resolve(event.result);
     }
     if (event.method === "Runtime.exceptionThrown") failures.push(event.params.exceptionDetails.exception?.description || event.params.exceptionDetails.text);
@@ -84,7 +91,8 @@ try {
   function cdp(method, params = {}) {
     return new Promise((resolve, reject) => {
       const id = ++nextId;
-      pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timeout: ${method}`)); }, 20000);
+      pending.set(id, { resolve: value => { clearTimeout(timer); resolve(value); }, reject: error => { clearTimeout(timer); reject(error); } });
       socket.send(JSON.stringify({ id, method, params }));
     });
   }
@@ -98,9 +106,11 @@ try {
       try { return await evaluate(`location.pathname === ${JSON.stringify(path)} && document.readyState === 'complete' && !!document.querySelector('.app-footer') && !!document.querySelector('main')`); }
       catch (error) { if (/context/i.test(error.message)) return false; throw error; }
     }, `load ${path}`);
+    if (authenticated) await until(() => evaluate("PackardSettings.accountPreferencesStatus() === 'saved'"), `account preferences loaded on ${path}`);
   }
-  async function visit(path) { await cdp("Page.navigate", { url: origin + path }); await loaded(path); }
+  async function visit(path) { await evaluate("window.PackardSettings?.flushPreferences()"); await cdp("Page.navigate", { url: origin + path }); await loaded(path); }
   async function click(selector, path) {
+    await evaluate("window.PackardSettings?.flushPreferences()");
     assert(await evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el || !el.getClientRects().length) return false; el.click(); return true; })()`), `Visible link: ${selector}`);
     await loaded(path);
   }
@@ -112,11 +122,12 @@ try {
   const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/settings/", "/version-history/"];
   const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "Settings"];
   for (const width of [1280, 390]) {
+    authenticated = true;
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.2.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.10.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.7.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
-      if (page === '/fax-sender/') assert.equal(await evaluate("document.getElementById('toolkitState').textContent"), "Signed out of the Toolkit.", "Canonical Fax Sender requires Toolkit authentication");
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
+      if (page === '/fax-sender/') assert(await evaluate("document.getElementById('faxWorkspace').hidden"), "Disconnected users cannot use the fax workspace");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
         await evaluate(`document.querySelector('a[href="#canned-version-history"]').click()`);
@@ -149,7 +160,7 @@ try {
       }
     }
     await visit("/settings/");
-    await evaluate("localStorage.removeItem('packard-toolkit-homepage'); location.reload()");
+    await evaluate("(async () => { PackardSettings.resetHomepagePreferences(); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/settings/");
     assert.equal(await evaluate("document.querySelectorAll('#homepageToolList [data-tool-id]').length"), 5, "Homepage settings show every tool");
     assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage tools default visible");
@@ -209,10 +220,10 @@ try {
       assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), reorderedMenuOrder, `Hidden Homepage tools remain in navigation on ${path}`);
     }
     await visit("/");
-    await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:999, order:['fax'], hidden:['remarks']})); location.reload()");
+    await evaluate("(async () => { PackardSettings.saveHomepagePreferences({version:999, order:['fax'], hidden:['remarks']}); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/");
     assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Invalid homepage preferences fall back safely");
-    await evaluate("localStorage.setItem('packard-toolkit-homepage', JSON.stringify({version:1, order:['remarks'], hidden:['unknown']})); location.reload()");
+    await evaluate("(async () => { PackardSettings.saveHomepagePreferences({version:1, order:['remarks'], hidden:['unknown']}); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/");
     assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Missing and unknown homepage tools use defaults");
     assert.deepEqual(await evaluate("PackardSettings.getHomepagePreferences().order"), ["remarks", "med-tabs", "email", "fax", "intake"], "Older partial preferences append missing current tools");
@@ -230,7 +241,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections without a global Toolkit version");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 0, "History sections start collapsed");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section expands");
@@ -238,7 +249,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 37, "Home Page v1.2.0 and all existing history entries preserved");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 40, "Only the Home, Email, and Canned Remarks account preference releases are versioned");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -246,6 +257,7 @@ try {
       await writeFile(path, Buffer.from(shot.data, "base64"));
       console.log(`Intake workspace screenshot: ${path}`);
     } });
+    authenticated = false;
     await evaluate("localStorage.setItem('packard.faxHistory.v1','PRIVATE LEGACY CANARY')");
     await visit("/fax-sender/");
     await until(() => evaluate("document.getElementById('toolkitState')?.textContent === 'Signed out of the Toolkit.'"), "canonical Fax Sender authentication gate");
@@ -286,10 +298,20 @@ try {
   assert.match(reopenedDom, /id="homeGreeting">Welcome, Sam\./, "Homepage name persists after closing and reopening the Toolkit");
   assert.match(reopenedDom, /Authenticated Test User/, "Authenticated session remains available to reopened Toolkit");
   console.log("PASS: authenticated Homepage name survives page changes and browser close/reopen in the same profile.");
+  const cleanProfile = await mkdtemp(join(tmpdir(), "toolkit-account-new-device-"));
+  const cleanBrowser = spawn(browser, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", `--user-data-dir=${cleanProfile}`, "--dump-dom", "--virtual-time-budget=3000", `${origin}/__homepage-reopen-check`], { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
+  let cleanDom = '';
+  cleanBrowser.stdout.setEncoding('utf8');
+  cleanBrowser.stdout.on('data', chunk => { cleanDom += chunk; });
+  const [cleanExit] = await once(cleanBrowser, 'exit');
+  assert.equal(cleanExit, 0);
+  assert.match(cleanDom, /id="homeGreeting">Welcome, Sam\./, 'A clean browser profile restores the account Homepage name without local preferences');
+  console.log('PASS: a clean browser profile restores the same account preferences.');
   assert.deepEqual(failures, [], "No missing resources, unexpected API calls, console or runtime errors");
   console.log("PASS: no broken resources, console/runtime errors, or API calls.");
 } finally {
   socket?.close();
   child.kill();
+  server.closeAllConnections();
   server.close();
 }

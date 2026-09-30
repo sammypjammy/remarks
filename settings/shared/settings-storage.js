@@ -7,6 +7,15 @@
   const EMAIL_TEMPLATES_STORAGE_KEY = "packard-toolkit-email-templates";
   const CUSTOM_CASE_MANAGERS_STORAGE_KEY = "packard-toolkit-custom-case-managers";
   const HOMEPAGE_STORAGE_KEY = "packard-toolkit-homepage";
+  const ACCOUNT_EVENT_KEY = "packard-account-change";
+  const preferenceKeys = {
+    [SETTINGS_STORAGE_KEY]: "settings", [HOMEPAGE_STORAGE_KEY]: "homepage",
+    [CUSTOM_REMARKS_STORAGE_KEY]: "customRemarks", [EMAIL_TEMPLATES_STORAGE_KEY]: "emailTemplates",
+    [CUSTOM_CASE_MANAGERS_STORAGE_KEY]: "customCaseManagers"
+  };
+  let accountId = null, generation = 0, refreshSequence = 0, editRevision = 0, loading = true;
+  let memory = {}, pending = {}, saving = null;
+  let syncStatus = "loading";
   const LEGACY_THEME_STORAGE_KEYS = [
     "canned-remarks-theme",
     "med-tabs-theme",
@@ -21,7 +30,9 @@
     confirmBeforeClearingMedTabs: true,
     autoClearRemarksAfterCopy: false,
     emailSignature: "",
-    emailResourcesUrl: ""
+    emailResourcesUrl: "",
+    emailManager: "",
+    emailLanguage: "english"
   });
   const HOMEPAGE_TOOLS = Object.freeze([
     Object.freeze({ id: "remarks", label: "Canned Remarks", path: "canned-remarks/" }),
@@ -39,6 +50,11 @@
   });
 
   function readJson(key, fallback) {
+    if (Object.hasOwn(preferenceKeys, key)) return memory[preferenceKeys[key]] ?? fallback;
+    return readLocalJson(key, fallback);
+  }
+
+  function readLocalJson(key, fallback) {
     try {
       const value = global.localStorage.getItem(key);
       return value === null ? fallback : JSON.parse(value);
@@ -48,12 +64,16 @@
   }
 
   function writeJson(key, value) {
-    try {
-      global.localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch {
-      return false;
-    }
+    if (!Object.hasOwn(preferenceKeys, key) || (loading && !accountId)) return false;
+    ++editRevision;
+    const name = preferenceKeys[key];
+    const patch = name === "settings"
+      ? Object.fromEntries(Object.entries(value).filter(([key, val]) => memory.settings?.[key] !== val))
+      : { [name]: value };
+    memory[name] = value;
+    if (accountId) { Object.assign(pending, patch); void flushPreferences(); }
+    else reportStatus("signed-out");
+    return true;
   }
 
   function normalizeHomepagePreferences(value) {
@@ -134,7 +154,6 @@
         ? readLegacySignatureText()
         : "";
     return {
-      ...settings,
       theme,
       density,
       openDraftsInNewTab: typeof settings.openDraftsInNewTab === "boolean"
@@ -147,12 +166,14 @@
         ? settings.autoClearRemarksAfterCopy
         : DEFAULT_SETTINGS.autoClearRemarksAfterCopy,
       emailSignature,
-      emailResourcesUrl: typeof settings.emailResourcesUrl === "string" ? settings.emailResourcesUrl.trim() : ""
+      emailResourcesUrl: typeof settings.emailResourcesUrl === "string" ? settings.emailResourcesUrl.trim() : "",
+      emailManager: typeof settings.emailManager === "string" ? settings.emailManager : "",
+      emailLanguage: settings.emailLanguage === "spanish" ? "spanish" : "english"
     };
   }
 
   function getSettings() {
-    return normalizeSettings(readJson(SETTINGS_STORAGE_KEY, {}));
+    return normalizeSettings(readJson(SETTINGS_STORAGE_KEY, {}), false);
   }
 
   function getSetting(name) {
@@ -174,15 +195,6 @@
     return THEMES.includes(preference) ? preference : "light";
   }
 
-  function syncLegacyTheme(preference) {
-    const resolvedTheme = getResolvedTheme(preference);
-    try {
-      LEGACY_THEME_STORAGE_KEYS.forEach((key) => global.localStorage.setItem(key, resolvedTheme));
-    } catch {
-      // The global preference remains available even when legacy keys cannot be updated.
-    }
-  }
-
   function signatureTextToObject(text) {
     const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     if (!lines.length) return null;
@@ -192,16 +204,6 @@
       position: lines[1] || "",
       phone: lines.slice(2).join("\n") || ""
     };
-  }
-
-  function syncLegacySignature(text) {
-    const signature = signatureTextToObject(text);
-    if (!signature?.name || !signature.position || !signature.phone) return;
-    writeJson(LEGACY_EMAIL_SIGNATURE_STORAGE_KEY, {
-      name: signature.name,
-      position: signature.position,
-      phone: signature.phone
-    });
   }
 
   function applyPreferences() {
@@ -227,12 +229,11 @@
   }
 
   function setSetting(name, value) {
+    if (!Object.hasOwn(DEFAULT_SETTINGS, name)) return false;
     const normalizedValue = normalizeSetting(name, value);
     const savedSettings = getSettings();
     const succeeded = writeJson(SETTINGS_STORAGE_KEY, { ...savedSettings, [name]: normalizedValue });
     if (!succeeded) return false;
-    if (name === "theme") syncLegacyTheme(normalizedValue);
-    if (name === "emailSignature") syncLegacySignature(normalizedValue);
     applyPreferences();
     announceChange(name, normalizedValue);
     return true;
@@ -290,7 +291,9 @@
   }
 
   function saveEmailTemplates(templates) {
-    return writeJson(EMAIL_TEMPLATES_STORAGE_KEY, normalizeEmailTemplates(templates));
+    const succeeded = writeJson(EMAIL_TEMPLATES_STORAGE_KEY, normalizeEmailTemplates(templates));
+    if (succeeded) announceChange("emailTemplates", getEmailTemplates());
+    return succeeded;
   }
 
   function normalizeCaseManager(manager) {
@@ -314,21 +317,163 @@
 
   function saveCustomCaseManagers(managers) {
     const normalizedManagers = Array.isArray(managers) ? managers.map(normalizeCaseManager).filter(Boolean) : [];
-    return writeJson(CUSTOM_CASE_MANAGERS_STORAGE_KEY, normalizedManagers);
+    const succeeded = writeJson(CUSTOM_CASE_MANAGERS_STORAGE_KEY, normalizedManagers);
+    if (succeeded) announceChange("customCaseManagers", normalizedManagers);
+    return succeeded;
   }
 
-  function migrateSettings() {
-    const savedSettings = readJson(SETTINGS_STORAGE_KEY, {});
-    const normalizedSettings = normalizeSettings(savedSettings);
-    writeJson(SETTINGS_STORAGE_KEY, normalizedSettings);
-    syncLegacyTheme(normalizedSettings.theme);
-    if (normalizedSettings.emailSignature) syncLegacySignature(normalizedSettings.emailSignature);
+  function legacyPreferences() {
+    try {
+      const keys = [...Object.keys(preferenceKeys), LEGACY_EMAIL_SIGNATURE_STORAGE_KEY, ...LEGACY_THEME_STORAGE_KEYS,
+        "packard-selected-case-manager", "packard-welcome-email-language"];
+      if (!keys.some(key => global.localStorage.getItem(key) !== null)) return null;
+    } catch { return null; }
+    const settings = normalizeSettings(readLocalJson(SETTINGS_STORAGE_KEY, {}));
+    try {
+      settings.emailManager = global.localStorage.getItem("packard-selected-case-manager") || "";
+      settings.emailLanguage = global.localStorage.getItem("packard-welcome-email-language") === "spanish" ? "spanish" : "english";
+    } catch { /* Storage can be unavailable. */ }
+    return { ...settings,
+      homepage: normalizeHomepagePreferences(readLocalJson(HOMEPAGE_STORAGE_KEY, null)),
+      customRemarks: (Array.isArray(readLocalJson(CUSTOM_REMARKS_STORAGE_KEY, [])) ? readLocalJson(CUSTOM_REMARKS_STORAGE_KEY, []) : []).map(normalizeRemark).filter(Boolean),
+      emailTemplates: normalizeEmailTemplates(readLocalJson(EMAIL_TEMPLATES_STORAGE_KEY, {})),
+      customCaseManagers: (Array.isArray(readLocalJson(CUSTOM_CASE_MANAGERS_STORAGE_KEY, [])) ? readLocalJson(CUSTOM_CASE_MANAGERS_STORAGE_KEY, []) : []).map(normalizeCaseManager).filter(Boolean)
+    };
+  }
+
+  function clearBrowserState(preserveLocalState = false) {
+    try {
+      [...Object.keys(preferenceKeys), LEGACY_EMAIL_SIGNATURE_STORAGE_KEY, ...LEGACY_THEME_STORAGE_KEYS,
+        "packard-selected-case-manager", "packard-welcome-email-language",
+        ...(preserveLocalState ? [] : ["packard-welcome-email-history", "packard-email-history-owner"])]
+        .forEach(key => global.localStorage.removeItem(key));
+    } catch { /* In-memory account state is always cleared, even without storage. */ }
+    if (!preserveLocalState) { try { global.sessionStorage?.removeItem("packard-short-term-remarks"); } catch { /* Optional storage. */ } }
+  }
+
+  function reportStatus(status) {
+    syncStatus = status;
+    global.dispatchEvent(new CustomEvent("packardpreferencesstatus", { detail: { status } }));
+  }
+
+  function hydrate(values) {
+    memory = { settings: normalizeSettings(values, false) };
+    for (const name of Object.values(preferenceKeys)) if (name !== "settings" && values[name] !== undefined) memory[name] = values[name];
+    applyPreferences();
+    announceChange("storage", null);
+    announceChange("customRemarks", getCustomRemarks());
+  }
+
+  function clearAccountPreferences(broadcast = true, clearStorage = true) {
+    ++generation; ++refreshSequence;
+    accountId = null; pending = {}; saving = null; loading = false;
+    if (clearStorage) clearBrowserState();
+    else { try { global.sessionStorage?.removeItem("packard-short-term-remarks"); } catch { /* Optional storage. */ } }
+    hydrate({});
+    reportStatus("signed-out");
+    global.dispatchEvent(new CustomEvent("packardaccountchange"));
+    if (broadcast) {
+      try { global.localStorage.setItem(ACCOUNT_EVENT_KEY, String(Date.now()) + Math.random()); } catch { /* Optional cross-tab notification. */ }
+    }
+  }
+
+  async function preferenceRequest(options = {}) {
+    const response = await global.fetch("/api/auth/session?preferences=1", {
+      credentials: "same-origin", cache: "no-store", ...options
+    });
+    if (!response.ok) throw Object.assign(new Error("Preferences unavailable"), { status: response.status });
+    const data = await response.json();
+    if (typeof data.accountId !== "string" || !Object.hasOwn(data, "values")) throw new Error("Invalid preferences response");
+    return data;
+  }
+
+  function flushPreferences() {
+    if (saving) return saving;
+    if (!accountId || !Object.keys(pending).length) return Promise.resolve();
+    const owner = accountId, epoch = generation;
+    reportStatus("saving");
+    saving = (async () => {
+      while (epoch === generation && Object.keys(pending).length) {
+        const patch = pending; pending = {};
+        try {
+          await preferenceRequest({ method: "POST", keepalive: true, headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accountId: owner, mode: "patch", values: patch }) });
+        } catch (error) {
+          if (epoch !== generation) return;
+          if ([401, 403, 409].includes(error.status)) clearAccountPreferences();
+          else { pending = { ...patch, ...pending }; reportStatus("error"); }
+          return;
+        }
+      }
+      if (epoch === generation) reportStatus("saved");
+    })().finally(() => { if (epoch === generation) saving = null; });
+    return saving;
+  }
+
+  async function refreshAccountPreferences() {
+    const sequence = ++refreshSequence, epoch = generation;
+    // Never overwrite unsaved edits with an older server snapshot.
+    await flushPreferences();
+    if (epoch !== generation || Object.keys(pending).length) return;
+    loading = true;
+    const revision = editRevision;
+    try {
+      let data = await preferenceRequest();
+      if (sequence !== refreshSequence || epoch !== generation) return;
+      if (accountId === data.accountId && editRevision !== revision) return;
+      let previousOwner = accountId;
+      try { previousOwner ||= global.localStorage.getItem("packard-email-history-owner"); } catch { /* Optional local cache. */ }
+      if (previousOwner && previousOwner !== data.accountId) {
+        try { global.localStorage.setItem(ACCOUNT_EVENT_KEY, String(Date.now()) + Math.random()); } catch { /* Optional cross-tab notification. */ }
+      }
+      if (accountId && accountId !== data.accountId) {
+        clearBrowserState();
+        global.dispatchEvent(new CustomEvent("packardaccountchange"));
+      }
+      if (data.values === null) {
+        const legacy = legacyPreferences();
+        // A clean device must not claim the one-time import with empty defaults:
+        // an older browser may still have preferences worth migrating.
+        if (legacy) data = await preferenceRequest({ method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId: data.accountId, mode: "migrate", values: legacy }) });
+      }
+      if (sequence !== refreshSequence || epoch !== generation) return;
+      accountId = data.accountId;
+      // Delete legacy preferences only after the server has acknowledged them.
+      // History stays local during this login; it is never uploaded as a preference.
+      let sameOwner = false;
+      try {
+        sameOwner = global.localStorage.getItem("packard-email-history-owner") === accountId;
+      } catch { /* Account preferences work without local storage. */ }
+      clearBrowserState(sameOwner);
+      try {
+        global.localStorage.setItem("packard-email-history-owner", accountId);
+      } catch { /* Local history is optional. */ }
+      hydrate(data.values || {});
+      reportStatus("saved");
+    } catch (error) {
+      if (sequence !== refreshSequence || epoch !== generation) return;
+      if ([401, 403].includes(error.status)) clearAccountPreferences();
+      else reportStatus("error");
+    } finally { if (sequence === refreshSequence) loading = false; }
+  }
+
+  global.addEventListener("beforeunload", event => {
+    if (saving || Object.keys(pending).length) { event.preventDefault(); event.returnValue = ""; }
+  });
+  global.addEventListener("storage", event => {
+    if (event.key === ACCOUNT_EVENT_KEY) clearAccountPreferences(false, false);
+  });
+  function accountPreferencesStatus() { return syncStatus; }
+  function accountPreferenceOwner() { return accountId; }
+  function sessionSignedOut() {
+    if (accountId) clearAccountPreferences();
+    else { loading = false; reportStatus("signed-out"); }
   }
 
   const systemThemeQuery = global.matchMedia?.("(prefers-color-scheme: dark)");
   systemThemeQuery?.addEventListener?.("change", () => {
     if (getSetting("theme") !== "system") return;
-    syncLegacyTheme("system");
     applyPreferences();
     announceChange("theme", "system");
   });
@@ -348,7 +493,6 @@
     }));
   }
 
-  migrateSettings();
   applyPreferences();
 
   global.PackardSettings = Object.freeze({
@@ -375,6 +519,8 @@
     getHomepagePreferences,
     orderHomepageToolIds,
     saveHomepagePreferences,
-    resetHomepagePreferences
+    resetHomepagePreferences,
+    refreshAccountPreferences, clearAccountPreferences, flushPreferences, accountPreferencesStatus,
+    accountPreferenceOwner, sessionSignedOut
   });
 })(window);

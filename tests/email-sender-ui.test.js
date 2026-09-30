@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout as pause } from "node:timers/promises";
 import { createServer } from "vite";
+import { preferenceApi } from './helpers/preference-api.js';
 
 const browserPath = process.env.CHROME_BIN || [
   "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -16,13 +17,15 @@ const browserPath = process.env.CHROME_BIN || [
 // Real browser and React state, with only the Outlook boundary replaced.
 // No authentication or real email is performed by this test.
 test("Email Sender persistent Single/Bulk history, popup feedback and footer version", { skip: !browserPath, timeout: 60000 }, async t => {
+  const preferences = preferenceApi();
   const server = await createServer({
     configFile: false,
     server: { host: "127.0.0.1", port: 0 },
     plugins: [{ name: 'mock-toolkit-session', configureServer(server) {
-      server.middlewares.use('/api/auth/session', (_req, res) => {
+      server.middlewares.use('/api/auth/session', async (req, res) => {
+        if (await preferences(req, res)) return;
         res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ authenticated: false }));
+        res.end(JSON.stringify({ authenticated: true, user: { displayName: 'Synthetic User' } }));
       });
     } }, { name: "mock-outlook-for-test", enforce: "pre", load(id) {
       if (!id.replaceAll("\\", "/").endsWith("/welcome-email-sender/outlookGraph.js")) return;
@@ -108,6 +111,7 @@ test("Email Sender persistent Single/Bulk history, popup feedback and footer ver
   await command("Emulation.setDeviceMetricsOverride",{width:1280,height:900,deviceScaleFactor:1,mobile:false});
   await command("Page.navigate", { url: `${origin}/welcome-email-sender/` });
   await waitFor("Boolean(document.querySelector('#client-email'))");
+  await waitFor("PackardSettings.accountPreferencesStatus() === 'saved'");
   await evaluate("window.PackardSettings.saveEmailSignature('Test User\\nCase Manager\\n555-0100'); window.PackardSettings.setSetting('openDraftsInNewTab', false); window.dispatchEvent(new Event('packardsettingschange'))");
   await input("#client-email", "single@example.com");
   await input("#case-manager", "Amanda Zuscar");
@@ -152,7 +156,7 @@ test("Email Sender persistent Single/Bulk history, popup feedback and footer ver
   assert.deepEqual(await evaluate("[...document.querySelectorAll('.email-history-item strong')].map(node=>node.textContent)"),['b@example.com','a@example.com','success@example.com']);
   await input('#bulk-recipients','one@example.com');
   assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"),'Open 1 Draft');
-  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.7.0/);
+  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.8.0/);
   await evaluate("document.querySelector('.app-footer-links a[href=\"#email-version-history\"]').click()");
   assert.equal(await evaluate("document.querySelector('#email-version-history').open"),true);
   await command("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});

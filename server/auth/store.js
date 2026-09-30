@@ -54,4 +54,17 @@ export class AuthStore {
   async revokeSession(tokenHash) {
     await this.pool.query(`UPDATE ${this.schema}.sessions SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL`, [tokenHash]);
   }
+  async getPreferences(userId) {
+    const { rows } = await this.pool.query(`SELECT preferences FROM ${this.schema}.user_preferences WHERE user_id = $1`, [userId]);
+    return rows[0]?.preferences ?? null;
+  }
+  async savePreferences(userId, values, migrate = false) {
+    // The first import wins atomically. Later devices never overwrite an existing
+    // account with legacy browser values. Normal writes merge only changed keys.
+    const { rows } = await this.pool.query(`INSERT INTO ${this.schema}.user_preferences (user_id, preferences)
+      VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO UPDATE SET
+      preferences = ${migrate ? `${this.schema}.user_preferences.preferences` : `${this.schema}.user_preferences.preferences || EXCLUDED.preferences`},
+      updated_at = now() RETURNING preferences`, [userId, JSON.stringify(values)]);
+    return rows[0].preferences;
+  }
 }

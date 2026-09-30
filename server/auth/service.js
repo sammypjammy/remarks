@@ -1,5 +1,6 @@
 import { authConfig, SESSION_SECONDS, TRANSACTION_SECONDS } from './config.js';
 import { AuthStore } from './store.js';
+import { handlePreferences } from './preferences.js';
 import { exchangeCode } from './microsoft.js';
 import { randomToken, hash, challenge, cookie, cookieValue, validToken, authError, sameOrigin } from './security.js';
 
@@ -17,9 +18,10 @@ export function createAuthHandler(action, dependencies = {}) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    const preferences = action === 'session' && new URL(req.url || '/', 'http://localhost').searchParams.get('preferences') === '1';
     const method = action === 'logout' ? 'POST' : 'GET';
-    if (req.method !== method) {
-      res.setHeader('Allow', method);
+    if (req.method !== method && !(preferences && req.method === 'POST')) {
+      res.setHeader('Allow', preferences ? 'GET, POST' : method);
       return res.status(405).json({ error: 'Method not allowed' });
     }
     let config;
@@ -28,6 +30,7 @@ export function createAuthHandler(action, dependencies = {}) {
       const store = dependencies.store || new AuthStore();
       if (action === 'session') {
         const user = await requireToolkitUser(req, { config, store });
+        if (preferences) return await handlePreferences(req, res, user, store, config);
         return res.status(200).json({ authenticated: true, user: { displayName: user.displayName } });
       }
       if (action === 'logout') {
@@ -73,7 +76,7 @@ export function createAuthHandler(action, dependencies = {}) {
         res.setHeader('Location', config.origin + '/?toolkitAuth=failed');
         return res.status(303).end();
       }
-      const status = [400,401,403,404].includes(error.status) ? error.status : 503;
+      const status = [400,401,403,404,409].includes(error.status) ? error.status : 503;
       return res.status(status).json({ authenticated: false,
         error: status === 403 ? 'Toolkit access is unavailable for this account.' : status === 401 ? 'Sign in to the Toolkit.' : 'Toolkit sign-in is temporarily unavailable.' });
     }

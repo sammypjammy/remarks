@@ -43,6 +43,7 @@ export function saveEmailHistory(storage, entries) {
 }
 
 export function browserEmailHistoryStorage() {
+  if (globalThis.PackardSettings && !globalThis.PackardSettings.accountPreferenceOwner()) return null;
   try { return globalThis.localStorage; } catch { return null; }
 }
 
