@@ -1,4 +1,4 @@
-const authStyles = document.createElement('link');
+﻿const authStyles = document.createElement('link');
 authStyles.rel = 'stylesheet';
 authStyles.href = new URL('./toolkit-auth.css', document.currentScript.src).href;
 document.head.append(authStyles);

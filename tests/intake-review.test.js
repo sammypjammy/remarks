@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseIntake } from "./parser.js";
-import { reviewIntake } from "./review.js";
-import { validateIntake } from "./validation.js";
-import { incomeFields } from "./review-fields.js";
+import { parseIntake } from "../intake-checker/parser.js";
+import { reviewIntake } from "../intake-checker/review.js";
+import { validateIntake } from "../intake-checker/validation.js";
+import { incomeFields } from "../intake-checker/review-fields.js";
 
 const review = text => reviewIntake(parseIntake(text));
 const messages = text => review(text).items.map(item => item.message);

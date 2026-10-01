@@ -1,9 +1,9 @@
 import test from "node:test";
 // All fixtures are synthetic and were not copied from real clients or intakes.
 import assert from "node:assert/strict";
-import { parseIntake } from "./parser.js";
-import { intakeRules } from "./rules.js";
-import { isMissing, parseCalendarDate, validateIntake } from "./validation.js";
+import { parseIntake } from "../intake-checker/parser.js";
+import { intakeRules } from "../intake-checker/rules.js";
+import { isMissing, parseCalendarDate, validateIntake } from "../intake-checker/validation.js";
 
 const now = new Date(2031, 8, 16);
 const check = text => validateIntake(parseIntake(text), intakeRules, { now }).issues;

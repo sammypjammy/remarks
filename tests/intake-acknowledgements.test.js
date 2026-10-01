@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createAcknowledgements, validationSummary } from "./acknowledgements.js";
+import { createAcknowledgements, validationSummary } from "../intake-checker/acknowledgements.js";
 
 test("acknowledgement leaves frozen validator output intact and distinguishes repeated fields", () => {
   const issues = Object.freeze([Object.freeze({ field: "Email", severity: "error" }), Object.freeze({ field: "Email", severity: "error" })]);
