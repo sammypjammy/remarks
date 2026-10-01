@@ -54,7 +54,7 @@ test('Fax v3 desktop/mobile: responsive polish, connection placement, contacts, 
   const pending=new Map();let id=0;socket.onmessage=({data})=>{const e=JSON.parse(data);if(!pending.has(e.id))return;const p=pending.get(e.id);pending.delete(e.id);e.error?p.reject(Error('Browser protocol failed')):p.resolve(e.result);};
   const cdp=(method,params={})=>new Promise((resolve,reject)=>{pending.set(++id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
   const ev=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails);return r.result.value;};
-  const until=async expression=>{for(let i=0;i<200;i++){if(await ev(expression))return;await pause(50);}assert.fail('Browser condition: '+expression);};
+  const until=async (expression, attempts=200)=>{for(let i=0;i<attempts;i++){if(await ev(expression))return;await pause(50);}assert.fail('Browser condition: '+expression);};
   await cdp('Page.enable');
   await cdp('Page.setDownloadBehavior',{behavior:'deny'});
   await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"localStorage.setItem('packard.faxHistory.v1','PRIVATE LEGACY CANARY')"});
@@ -74,7 +74,8 @@ test('Fax v3 desktop/mobile: responsive polish, connection placement, contacts, 
       assert(await ev("document.getElementById('toolkitState').textContent==='Signed in as Employee A' && !document.getElementById('identity').hidden && !document.getElementById('faxWorkspace').hidden"));
       holdSession=false;const release=releaseSession;releaseSession=null;release();await pause(150);
       const queued={faxId:randomUUID(),filename:'Existing.pdf',lastFour:'0012',recipientName:'Controlled recipient',faxNumber:'+18015551234',createdAt:new Date().toISOString(),status:'Queued',retryable:false,tracking:true,accessible:true};histories.A=[queued];const beforePoll=sendCount;
-      await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===1");await until("document.getElementById('faxNotice').textContent.includes('Fax status could not be refreshed')");
+      // Polling first becomes eligible after 10 seconds, then waits for the next tick and response.
+      await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===1");await until("document.getElementById('faxNotice').textContent.includes('Fax status could not be refreshed')",400);
       assert.equal(sendCount,beforePoll);assert.equal(histories.A[0].status,'Queued');assert.equal(histories.A[0].retryable,false);
       histories.A=[];await cdp('Page.reload');await until("document.querySelectorAll('#faxHistory li').length===0 && !document.getElementById('faxWorkspace').hidden");
     }

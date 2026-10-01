@@ -10,6 +10,7 @@ import { env,config,token,identity } from './rc-v3-fixtures.js';
 import { assertDevelopment } from '../scripts/rc-v3-development-guard.mjs';
 import { runRcMigration } from '../scripts/migrate-rc-v3.mjs';
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 const context=['tokens','development','user-a','connection-a','827653020','12345'];
 
 test('RC configuration fails closed for Preview, origin, missing values and invalid encryption keys',()=>{
@@ -141,7 +142,7 @@ test('opt-in Development harness serves only authenticated RC routes and preserv
   const before=Object.fromEntries(Object.keys(overrides).map(k=>[k,process.env[k]]));Object.assign(process.env,overrides);
   let server;
   try{
-    server=await createServer({configFile:new URL('../vite.rc-v3.config.js',import.meta.url).pathname.replace(/^\/([A-Za-z]:)/,'$1'),envDir:false,logLevel:'silent',server:{host:'127.0.0.1',port:0,strictPort:false}});
+    server=await createServer({configFile:fileURLToPath(new URL('../vite.rc-v3.config.js',import.meta.url)),envDir:false,logLevel:'silent',server:{host:'127.0.0.1',port:0,strictPort:false}});
     await server.listen();const base='http://127.0.0.1:'+server.httpServer.address().port;
     const page=await fetch(base+'/fax-sender/');assert.equal(page.status,200);assert.equal(page.headers.get('cache-control'),'no-store');assert.equal(page.headers.get('referrer-policy'),'same-origin');assert.match(await page.text(),/Connect RingCentral/);
     const script=await fetch(base+'/fax-sender/test.js');assert.equal(script.status,200);assert.match(await script.text(),/clearIdentity/);

@@ -23,24 +23,12 @@ export const {
 } = settingsStorage;
 
 export function getToolkitNavigation(isSettingsPage = false) {
-  const tools = homepageTools.map((tool) => ({
-    id: tool.id,
-    label: tool.label,
-    href: `/${tool.path}`,
-    ...(tool.id === "email" && !isSettingsPage ? { current: true } : {}),
+  return settingsStorage.getToolkitNavigation().map(section => ({
+    label: section.label,
+    items: section.items.map(tool => ({
+      id: tool.id, label: tool.label, href: `/${tool.path}`,
+      ...(tool.id === "email" && !isSettingsPage ? { current: true } : {}),
+      ...(tool.id === "settings" ? { current: isSettingsPage } : {})
+    }))
   }));
-  const orderedIds = orderHomepageToolIds(tools.map((tool) => tool.id));
-  return [
-    {
-      label: "Packard Toolkit",
-      items: [
-        { id: "home", label: "Home", href: "/" },
-        ...orderedIds.map((id) => tools.find((tool) => tool.id === id)).filter(Boolean),
-      ],
-    },
-    {
-      label: "Other",
-      items: [{ id: "settings", label: "Settings", href: "/settings/", current: isSettingsPage }],
-    },
-  ];
 }

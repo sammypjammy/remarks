@@ -6,12 +6,7 @@ const activePage = document.body.dataset.page || "home";
 const routePrefix = activePage === "home" ? "./" : "../";
 const routes = {
   home: routePrefix,
-  remarks: `${routePrefix}canned-remarks/`,
-  medTabs: `${routePrefix}med-tabs-generator/`,
-  email: `${routePrefix}welcome-email-sender/`,
-  fax: `${routePrefix}fax-sender/`,
-  intake: `${routePrefix}intake-checker/`,
-  settings: `${routePrefix}settings/`,
+  settings: `${routePrefix}${window.PackardSettings.getToolkitNavigation()[1].items[0].path}`,
   versionHistory: `${routePrefix}version-history/`
 };
 
@@ -78,38 +73,18 @@ function renderAppShell() {
 renderAppShell();
 import('./toolkit-auth.js').then(({ mountToolkitAuth }) => mountToolkitAuth(document.querySelector('[data-toolkit-auth]')));
 
-const toolkitHomeItem = { id: "home", label: "Home", url: routes.home };
-const toolkitNavigationTools = (window.PackardSettings?.homepageTools || [])
-  .map(tool => ({ id: tool.id, label: tool.label, url: `${routePrefix}${tool.path}` }));
-const toolkitNavigationConfig = [
-  {
-    label: "Packard Toolkit",
-    items: [toolkitHomeItem]
-  },
-  {
-    label: "Other",
-    items: [{ id: "settings", label: "Settings", url: routes.settings }]
-  }
-];
-
 const appNavigation = {
   render() {
     const navigation = document.getElementById("toolkitNavigation");
     if (!navigation) return;
-    const orderedIds = window.PackardSettings?.orderHomepageToolIds?.(toolkitNavigationTools.map(item => item.id))
-      || toolkitNavigationTools.map(item => item.id);
-    const sections = [
-      { ...toolkitNavigationConfig[0], items: [toolkitHomeItem, ...orderedIds.map(id => toolkitNavigationTools.find(item => item.id === id)).filter(Boolean)] },
-      toolkitNavigationConfig[1]
-    ];
+    const sections = window.PackardSettings.getToolkitNavigation();
     navigation.innerHTML = sections.map((section) => `
       <section class="toolkit-nav-section" aria-labelledby="nav-${section.label.toLowerCase().replaceAll(" ", "-")}">
         <h3 id="nav-${section.label.toLowerCase().replaceAll(" ", "-")}" class="toolkit-nav-label">${section.label}</h3>
         ${section.items.map((item) => {
           const isCurrent = item.id === activePage;
           if (isCurrent) return `<span class="toolkit-nav-item active" aria-current="page"><span>${item.label}</span><span class="toolkit-nav-status">Current</span></span>`;
-          if (!item.url) return `<span class="toolkit-nav-item disabled" aria-disabled="true"><span>${item.label}</span><span class="toolkit-nav-status">${item.disabledLabel}</span></span>`;
-          return `<a class="toolkit-nav-item" href="${item.url}"><span>${item.label}</span></a>`;
+          return `<a class="toolkit-nav-item" href="${routePrefix}${item.path}"><span>${item.label}</span></a>`;
         }).join("")}
       </section>
     `).join("");

@@ -1,4 +1,4 @@
-﻿import { normalizeFaxNumber, validFaxNumber } from "./batch.js";
+﻿import { normalizeFaxNumber, validFaxNumber } from "./fax-number.js";
 
 const fallback = "RingCentral contacts unavailable. You can still enter a fax number.";
 

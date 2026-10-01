@@ -42,6 +42,23 @@
     Object.freeze({ id: "intake", label: "Intake Checker", path: "intake-checker/" })
   ]);
   const HOMEPAGE_VERSION = 1;
+  const NAVIGATION_SECTIONS = Object.freeze([
+    Object.freeze({ label: "Packard Toolkit", items: Object.freeze([
+      Object.freeze({ id: "home", label: "Home", path: "" }), ...HOMEPAGE_TOOLS
+    ]) }),
+    Object.freeze({ label: "Other", items: Object.freeze([
+      Object.freeze({ id: "settings", label: "Settings", path: "settings/" })
+    ]) })
+  ]);
+
+  function getToolkitNavigation() {
+    const orderedIds = orderHomepageToolIds(HOMEPAGE_TOOLS.map(tool => tool.id));
+    return [
+      { ...NAVIGATION_SECTIONS[0], items: [NAVIGATION_SECTIONS[0].items[0],
+        ...orderedIds.map(id => HOMEPAGE_TOOLS.find(tool => tool.id === id)).filter(Boolean)] },
+      NAVIGATION_SECTIONS[1]
+    ];
+  }
   const DEFAULT_HOMEPAGE_PREFERENCES = Object.freeze({
     version: HOMEPAGE_VERSION,
     order: Object.freeze(HOMEPAGE_TOOLS.map(tool => tool.id)),
@@ -516,6 +533,7 @@
     getCustomCaseManagers,
     saveCustomCaseManagers,
     homepageTools: HOMEPAGE_TOOLS,
+    getToolkitNavigation,
     getHomepagePreferences,
     orderHomepageToolIds,
     saveHomepagePreferences,

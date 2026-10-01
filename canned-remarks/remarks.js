@@ -1,10 +1,12 @@
 /*
  * Remarks Builder page logic.
  *
- * App-wide navigation and theme behavior live in ../settings/shared/app-shell.js so
+ * App-wide navigation and theme behavior live in ../shared/app-shell.js so
  * this file can stay focused on the existing Remarks Builder functionality.
  */
 
+
+const [filingSection, form795Section, notateSection] = window.PackardRemarkSections;
 
 function trimRemarkWhitespace(text) {
   return text.replace(/[^\S\r\n]+$/gm, "").trim();
@@ -151,14 +153,14 @@ const dav795Fields = [...vaFields, { key: "conditions", label: "Claimant's condi
 const filingRemarks = [
   {
     id: "filing-dib",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "DIB",
     text: "The claimant only wishes to provide banking information if their disability is approved. All figures and dates are reported to the best of the claimant's memory, and may not be exact.",
     fields: []
   },
   {
     id: "filing-dr",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "DR",
     text: `The claimant has a more complete Work History than what was provided in this report. We will describe the prior work in detail on the Work History Report SSA-3369. The claimant's condition causes them to have "bad days" which makes it difficult for them to do anything for more than 15-30 minutes at a time. Thus, making it difficult for the claimant to keep a job; they would have too many unscheduled absences (minimum once a week).
 
@@ -169,14 +171,14 @@ Should there be any difficulties in obtaining the claimant's complete medical re
   },
   {
     id: "filing-all-appeals",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "All Appeals",
     text: "Because of the severity of my condition, I am unable to maintain Substantial Gainful Activity. My condition continues to deteriorate day by day.",
     fields: []
   },
   {
     id: "filing-medical",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "Medical",
     text: `All the medical doctors and hospitals I have mentioned performed tests, including:
 X-rays
@@ -189,21 +191,21 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-recon",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "Recon",
     text: "The claimant continues to receive medical treatment from all the doctors and treatment facilities listed in the initial claim, from which your office should order updated medical records.",
     fields: []
   },
   {
     id: "filing-rh",
-    group: "Filing Remarks",
+    group: filingSection.value,
     title: "RH",
     text: "The claimant continues to receive medical treatment. In order to expedite the processing of the claimant's hearing, we have filed this appeal before collecting a comprehensive medical history. We will collect and submit all missing medical documentation/records as soon as we are given access to the claimant's electronic file.",
     fields: []
   },
   {
     id: "filing-795-dire-need",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 Dire Need - Homeless or Transient",
     text: "The claimant is currently transient or homeless. They have been transient or homeless since {{date}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
     omitWhenBlank: [{ key: "date", text: " They have been transient or homeless since {{date}}." }],
@@ -211,14 +213,14 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-795-disabled-veteran",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 Disabled Veteran (DAV)",
     text: "The claimant is a 100% Disabled Veteran. {{vaBenefitsText}} We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
     fields: vaFields
   },
   {
     id: "filing-critical-claim",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "Critical Claim",
     text: "The claimant has been diagnosed with {{conditionDetails}} and {{criticalTreatmentStatus}}. This meets a listing. We respectfully request that this claim be expedited and given Critical Claim status.",
     fields: [
@@ -228,21 +230,21 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-795-teri",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 Terminal Illness (TERI)",
     text: "The claimant's medical condition is critical and the claim is based on terminal illness. The claimant was diagnosed with {{condition}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
     fields: [{ key: "condition", label: "Diagnosis / condition", type: "text", placeholder: "Enter the diagnosis", required: true }]
   },
   {
     id: "filing-795-ssr-24-1p",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 SSR 24-1p",
     text: "Because the claimant satisfies all the criteria outlined in SSR 24-1p, we respectfully request that the SSA find that the claimant is disabled under the Social Security Act.",
     fields: []
   },
   {
     id: "filing-795-safety-risk",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 Risk to Personal or Public Safety",
     text: "The claimant poses a risk to {{safetyType}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
     fields: [
@@ -261,21 +263,21 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-cal",
-    group: "795 Remarks",
+    group: form795Section.value,
     title: "795 Compassionate Allowance (CAL)",
     text: "The claimant suffers with a medical condition recognized by the SSA that would qualify for Compassionate Allowance. The claimant suffers with: {{conditions}}. We have sent in a 795 and we are respectfully requesting Critical Claim status and Expedited Processing.",
     fields: [{ key: "conditions", label: "Medical conditions", type: "textarea", placeholder: "Enter the medical conditions", required: true }]
   },
   {
     id: "filing-more-than-10-conditions",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "More Than 10 Conditions",
     text: "The claimant has more than 10 conditions: {{conditions}}.",
     fields: [{ key: "conditions", label: "Conditions", type: "textarea", placeholder: "Enter the claimant's conditions", required: true }]
   },
   {
     id: "filing-separated",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Separated but Still Married",
     text: "The claimant is separated but technically still married to their spouse. They have been separated since {{date}} and have not shared any resources or assets since then.",
     omitWhenBlank: [
@@ -286,14 +288,14 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-prior-claim",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Reopen Prior Claim",
     text: "The claimant has a prior claim. We have sent in a 795 and are respectfully requesting that this claim be reopened.",
     fields: []
   },
   {
     id: "filing-failed-work-attempt",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Failed Work Attempt",
     text: "The claimant has a Failed Work Attempt from {{startDate}} to {{endDate}}.",
     omitWhenBlank: [
@@ -307,7 +309,7 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-money-after-onset",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Money Received after Onset Date",
     text: "The claimant received {{source}} after the onset date in the amount of ${{amount}} per month.",
     fields: [
@@ -321,7 +323,7 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-clerical-error",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Clerical Error Correction",
     text: "Due to clerical error, the original application incorrectly listed {{incorrectInformation}} as {{originalEntry}}. The correct information is {{correctInformation}}. This filing reflects the corrected information.",
     fields: [
@@ -332,7 +334,7 @@ My doctors also prescribed medications I am currently taking.`,
   },
   {
     id: "filing-other-name",
-    group: "Things to Notate in Remarks",
+    group: notateSection.value,
     title: "Other Name",
     text: "The claimant wishes to be called {{otherName}}.",
     fields: [
@@ -573,7 +575,7 @@ function renderRemarks(filterText = "") {
       const heading = document.createElement("h2");
       heading.className = "remark-group-title";
       heading.textContent = remark.group;
-      if (remark.group === "Things to Notate in Remarks") heading.id = "things-to-notate-in-remarks";
+      if (remark.group === notateSection.value) heading.id = "things-to-notate-in-remarks";
       remarkList.appendChild(heading);
       currentGroup = remark.group;
     }

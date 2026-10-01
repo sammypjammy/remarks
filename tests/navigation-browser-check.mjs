@@ -7,7 +7,7 @@ import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, extname, sep } from "node:path";
 import { spawn } from "node:child_process";
-import { checkIntake } from "../intake-checker/browser-check.mjs";
+import { checkIntake } from "./intake-browser-check.mjs";
 
 const browser = process.argv[2];
 assert(browser, "Provide a Chromium executable path");

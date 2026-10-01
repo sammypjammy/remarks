@@ -1,4 +1,5 @@
-﻿import { FaxBatch, validFaxNumber, normalizeFaxNumber } from "./batch.js";
+﻿import { FaxBatch } from "./batch.js";
+import { validFaxNumber, normalizeFaxNumber } from "./fax-number.js";
 
 import { ContactPicker, formatFaxNumber } from "./contacts.js";
 import { faxStatusLabel } from "./tracking.js";
