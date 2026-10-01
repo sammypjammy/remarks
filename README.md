@@ -2,15 +2,21 @@
 
 Run `npm install`, then `npm run dev` to start the toolkit. Use `npm run build` for a production build and `npm run preview` to preview it.
 
-- `index.html` and `home.js`: toolkit homepage.
-- `canned-remarks/`: remarks page and its JavaScript.
+- `index.html` and `home/`: root homepage entry, page behavior and Home styles.
+- `canned-remarks/`: remarks page, JavaScript, tool styles and legacy redirect source.
 - `med-tabs-generator/`: medical tabs page, styles, parser, and JavaScript.
 - `welcome-email-sender/`: email page, React components, Outlook integration, authentication callback, styles, and PDF attachments.
 - `settings/`: settings page, styles, and JavaScript.
-- `settings/shared/`: shared styles, navigation, favicon, and settings storage, including the React settings adapter.
-- `pages/`: compatibility redirect for the old remarks URL.
+- `shared/`: shared styles, navigation, favicon, and settings storage, including the React settings adapter.
+- `tests/`: unit and browser checks; Intake checks use `intake-` prefixes.
 
-The tools use common files from `settings/shared/`. Dependencies and build configuration are managed at the project root. Vite copies the standalone scripts and PDF attachments into `dist/` during builds. The `/auth/callback` URL is preserved by Vite and Vercel routing so the Microsoft redirect registration can remain unchanged.
+Vite serves the legacy `/pages/canned-remarks.html` URL from
+`canned-remarks/legacy-redirect.html` in development and copies it to its original
+URL in production. Existing `/settings/shared/*` and `/home.js` asset URLs remain
+available through development aliases and generated production copies. Shared
+browser source lives only in `shared/`; operational/server folders are unchanged.
+
+The tools use common files from `shared/`. Dependencies and build configuration are managed at the project root. Vite copies the standalone scripts and PDF attachments into `dist/` during builds. The `/auth/callback` URL is preserved by Vite and Vercel routing so the Microsoft redirect registration can remain unchanged.
 
 ## Email Sender
 
@@ -20,7 +26,12 @@ Both modes request only delegated **Mail.ReadWrite**. Bulk has no send endpoint,
 
 Email Sender's independent baseline and release history are displayed in its own footer. Package metadata and centralized Toolkit history are unchanged.
 
-Run `node --test tests/*.test.js intake-checker/*.test.js` for the complete suite. The Email Sender browser test uses mocked Outlook calls and a temporary headless Chrome/Edge profile; set `CHROME_BIN` to a browser executable if it is not installed in a standard Windows location. No test sends real email.
+Run `node --test tests/*.test.js tests/*.test.mjs` for the complete suite. The Email Sender browser test uses mocked Outlook calls and a temporary headless Chrome/Edge profile; set `CHROME_BIN` to a browser executable if it is not installed in a standard Windows location. No test sends real email.
+
+For a structural move, preserve the original `dist/` outside the repository before
+rebuilding, then run `node tests/structure-browser-check.mjs "path/to/chrome.exe" "path/to/original/dist"`.
+This compares computed styles and layout across all eight pages, five themes,
+two densities and desktop/mobile viewports, and checks the legacy redirect.
 
 ## Fax Sender
 

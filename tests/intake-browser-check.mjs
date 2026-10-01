@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { checkReview } from "./review-browser-check.mjs";
-import { checkValidationReviewed } from "./validation-reviewed-browser-check.mjs";
+import { checkReview } from "./intake-review-browser-check.mjs";
+import { checkValidationReviewed } from "./intake-validation-reviewed-browser-check.mjs";
 // All fixtures are synthetic and were not copied from real clients or intakes.
-import { intakeRules } from "./rules.js";
+import { intakeRules } from "../intake-checker/rules.js";
 
 // Reuse the Toolkit's production-build Chromium navigation harness.
 export async function checkIntake({ visit, click, evaluate, width, capture }) {

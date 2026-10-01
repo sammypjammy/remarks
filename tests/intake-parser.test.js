@@ -1,7 +1,7 @@
 import test from "node:test";
 // All fixtures are synthetic and were not copied from real clients or intakes.
 import assert from "node:assert/strict";
-import { parseIntake, summarizeIntake } from "./parser.js";
+import { parseIntake, summarizeIntake } from "../intake-checker/parser.js";
 
 test("plain personal information supports separate lines, same-line values, and missing normalization", () => {
   const parsed = parseIntake("PERSONAL INFORMATION\r\n\r\nFirst Name:\r\nAlex\r\nMiddle Name:\r\nNot provided\r\nLast Name: Rivera\r\nSuffix:\r\n*Not provided*\r\nNickname:\r\n \r\nGender:\r\nNo");

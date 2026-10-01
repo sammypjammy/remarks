@@ -42,7 +42,7 @@ Dates accept YYYY-MM-DD, YYYY-MM, M/D/YYYY, M/YYYY, and English month names (ful
 
 Section and field matching is exact. School fields may be directly under EDUCATION INFORMATION or under SCHOOL INFORMATION. Repeating records are scoped to the rulebook's named section, identified by a configured heading or known required fields. Unknown record structures (including child records with neither known name label) receive a review warning instead of invented missing-field errors. No records from unrelated optional sections are borrowed to satisfy required fields. The validation report does not claim overall intake completeness when parsing or rules are incomplete.
 
-Tests: `node --test --test-isolation=none tests/*.test.js intake-checker/*.test.js`
+Tests: `node --test --test-isolation=none tests/*.test.js tests/*.test.mjs`
 
 Local preview: `npm.cmd run dev`, then open `/intake-checker/`. Production build: `npm.cmd run build`.
 

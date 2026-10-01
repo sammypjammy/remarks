@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseIntake, sourceRange } from "./parser.js";
-import { issueSource } from "./source-location.js";
-import { validateIntake } from "./validation.js";
+import { parseIntake, sourceRange } from "../intake-checker/parser.js";
+import { issueSource } from "../intake-checker/source-location.js";
+import { validateIntake } from "../intake-checker/validation.js";
 
 // Synthetic fixtures only; no real intake data.
 for (const markdown of [false, true]) {

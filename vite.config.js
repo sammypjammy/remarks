@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { cpSync, mkdirSync } from "node:fs";
+import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import sendFax from "./api/send-fax.js";
@@ -53,10 +53,32 @@ function authCallbackRoute(server) {
   });
 }
 
+// Preserve compatibility URLs independently of their source-file locations.
+const legacySharedStyles = '@import "/shared/style.css";\n@import "/home/styles.css";\n@import "/canned-remarks/styles.css";\n';
+
+function compatibilityRoutes(server) {
+  server.middlewares.use((request, response, next) => {
+    const pathname = request.url?.split('?')[0];
+    if (pathname === '/settings/shared/style.css') {
+      response.setHeader('Content-Type', 'text/css');
+      response.end(legacySharedStyles);
+      return;
+    } else if (pathname === '/pages/canned-remarks.html') {
+      request.url = request.url.replace(pathname, '/canned-remarks/legacy-redirect.html');
+    } else if (pathname === '/home.js') {
+      request.url = request.url.replace(pathname, '/home/home.js');
+    } else if (pathname?.startsWith('/settings/shared/')) {
+      request.url = request.url.replace('/settings/shared/', '/shared/');
+    }
+    next();
+  });
+}
+
 export default defineConfig({
   server: { port: 5173, strictPort: true },
   plugins: [
     react(),
+    { name: 'compatibility-routes', configureServer: compatibilityRoutes },
     { name: 'local-toolkit-auth', configureServer: localToolkitAuth },
     { name: "local-fax-api", configureServer: localFaxApi },
     {
@@ -69,16 +91,26 @@ export default defineConfig({
       closeBundle() {
         const outputDirectory = resolve(import.meta.dirname, "dist");
         const staticPaths = [
-          "settings/shared", "settings/settings.js", "home.js",
+          "shared", "settings/settings.js", "home/home.js",
           "canned-remarks/remarks.js", "med-tabs-generator/parser.js",
           "med-tabs-generator/index.js", "welcome-email-sender/attachments",
-          "pages/canned-remarks.html"
+          "home/styles.css", "canned-remarks/styles.css"
         ];
         for (const path of staticPaths) {
           const destination = resolve(outputDirectory, path);
           mkdirSync(resolve(destination, ".."), { recursive: true });
           cpSync(resolve(import.meta.dirname, path), destination, { recursive: true });
         }
+        for (const [source, target] of [
+          ['canned-remarks/legacy-redirect.html', 'pages/canned-remarks.html'],
+          ['home/home.js', 'home.js'],
+          ['shared', 'settings/shared']
+        ]) {
+          const destination = resolve(outputDirectory, target);
+          mkdirSync(resolve(destination, '..'), { recursive: true });
+          cpSync(resolve(import.meta.dirname, source), destination, { recursive: true });
+        }
+        writeFileSync(resolve(outputDirectory, 'settings/shared/style.css'), legacySharedStyles);
       }
     }
   ],
