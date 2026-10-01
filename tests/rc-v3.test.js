@@ -114,7 +114,7 @@ test('Isolation: v2 sources and browser bundles never import new credentials or 
     const source=await readFile(new URL(path,root),'utf8');
     assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3|fax-sender-v3/.test(source));
   }
-  const shell=await readFile(new URL('settings/shared/app-shell.js',root),'utf8');
+  const shell=await readFile(new URL('shared/app-shell.js',root),'utf8');
   assert(!/ringcentral-v3|RC_OAUTH_|RC_TOKEN_ENCRYPTION|migrate-rc-v3/.test(shell));
   assert.doesNotMatch(shell,/faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
   for(const path of ['config','crypto','provider','store','service','handler']){

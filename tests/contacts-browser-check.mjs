@@ -11,7 +11,7 @@ if (!browser) throw new Error("Provide a Chromium browser executable path.");
 const directory = await mkdtemp(join(tmpdir(), "fax-contacts-browser-"));
 let html = await readFile(new URL("../fax-sender/index.html", import.meta.url), "utf8");
 html = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<link[^>]+>/g, "");
-const styles = await Promise.all(["../settings/shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
+const styles = await Promise.all(["../shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
 html = html.replace("</head>", `<style>${styles.join("\n")}</style></head>`);
 const sources = await Promise.all(["tracking.js", "message.js", "receipts-zip.js", "history.js", "batch.js", "contacts.js", "main.js"].map(async file =>
   (await readFile(new URL(`../fax-sender/${file}`, import.meta.url), "utf8")).replace(/^\uFEFF/, "").replace(/^import .*;\r?\n/gm, "")));

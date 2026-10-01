@@ -25,10 +25,10 @@ test('Development OAuth page: signed-out, identity, reconnect, disconnect, error
       try{sameOrigin(req,{origin});}catch{csrfRejected++;res.writeHead(303,{Location:'/fax-sender/?connection=failed'});return res.end();}
       connects++;state='connected';res.writeHead(303,{Location:'/fax-sender/?connection=connected'});return res.end();
     }
-    if(path.startsWith('/settings/shared/')){
-      const shared=path.slice('/settings/shared/'.length);
+    if(path.startsWith('/shared/')){
+      const shared=path.slice('/shared/'.length);
       if(!['favicon.png','style.css','footer.css','settings-storage.js','app-shell.js','toolkit-auth.css','toolkit-auth.js'].includes(shared)){res.statusCode=404;return res.end();}
-      res.setHeader('Content-Type',shared.endsWith('.js')?'text/javascript':shared.endsWith('.css')?'text/css':'image/png');return res.end(await readFile(new URL('../settings/shared/'+shared,import.meta.url)));
+      res.setHeader('Content-Type',shared.endsWith('.js')?'text/javascript':shared.endsWith('.css')?'text/css':'image/png');return res.end(await readFile(new URL('../shared/'+shared,import.meta.url)));
     }
     const file=path==='/fax-sender/'?'index.html':path==='/fax-sender/test.js'?'test.js':null;
     if(!file){res.statusCode=404;return res.end();}

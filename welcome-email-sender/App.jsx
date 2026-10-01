@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import ToolkitAuth from '../settings/shared/ToolkitAuth.jsx';
+import ToolkitAuth from '../shared/ToolkitAuth.jsx';
 import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, homepageTools, orderHomepageToolIds } from "../settings/shared/settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, homepageTools, orderHomepageToolIds } from "../shared/settingsStorage.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([

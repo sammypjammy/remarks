@@ -7,7 +7,7 @@ import { validatePreferences } from '../server/auth/preferences.js';
 import { AuthStore } from '../server/auth/store.js';
 import { hash } from '../server/auth/security.js';
 
-const source = await readFile(new URL('../settings/shared/settings-storage.js', import.meta.url), 'utf8');
+const source = await readFile(new URL('../shared/settings-storage.js', import.meta.url), 'utf8');
 const config = { tenant: 'test-tenant', sessionCookie: 'toolkit_session', origin: 'https://toolkit.example.test' };
 const tokens = { A: 'A'.repeat(43), B: 'B'.repeat(43) };
 function backend() {

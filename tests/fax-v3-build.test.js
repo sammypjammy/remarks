@@ -40,11 +40,11 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     const release = await snapshot();
     assert.deepEqual(release, ordinary);
     const faxHtml = await readFile('dist/fax-sender/index.html', 'utf8');
-    const shell = await readFile('dist/settings/shared/app-shell.js', 'utf8');
+    const shell = await readFile('dist/shared/app-shell.js', 'utf8');
     const welcomeHtml = await readFile('dist/welcome-email-sender/index.html', 'utf8');
     const welcomeScript = `dist${welcomeHtml.match(/<script type="module"[^>]+src="([^"]+)"/)?.[1]}`;
     const welcome = await readFile(welcomeScript, 'utf8');
-    const sharedSettings = await readFile('dist/settings/shared/settings-storage.js', 'utf8');
+    const sharedSettings = await readFile('dist/shared/settings-storage.js', 'utf8');
     assert.match(faxHtml, /Connect RingCentral/);
     assert.match(faxHtml, /Fax Sender v3\.3\.1/);
     assert.match(faxHtml, /id="fullSsn"[^>]*pattern="\[0-9\]\{3\}-\[0-9\]\{2\}-\[0-9\]\{4\}"[^>]*required/);
@@ -55,7 +55,7 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     assert(!Object.keys(release).some(path => path.includes('fax-sender-v3')));
     assert.doesNotMatch(shell, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
     assert.doesNotMatch(welcome, /FAX_V3_PRODUCTION_ACCEPTANCE|faxV3ProductionAcceptance|Fax Sender v3 — Testing|fax-sender-v3/);
-    assert.match(welcomeHtml, /settings\/shared\/settings-storage\.js/);
+    assert.match(welcomeHtml, /shared\/settings-storage\.js/);
     assert.match(sharedSettings, /fax-sender\//);
     const vercel = JSON.parse(await readFile('vercel.json', 'utf8'));
     assert.deepEqual(vercel.redirects, [
