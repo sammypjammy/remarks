@@ -1,16 +1,8 @@
 import { readOutboundFax } from "./fax-status.js";
+import { safeFaxFilename as safeFilename, validFaxMessageId as validId } from "../fax-sender/fax-utils.js";
 
 function fail(status, error) {
   return Object.assign(new Error(error), { status });
-}
-
-function validId(value) {
-  return /^[1-9]\d{0,29}$/.test(value);
-}
-
-function safeFilename(value, messageId) {
-  const base = String(value || `Fax document ${messageId}.pdf`).replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, " ").trim();
-  return (base || `Fax document ${messageId}.pdf`).slice(0, 120);
 }
 
 function attachmentMetadata(messageId, attachment) {

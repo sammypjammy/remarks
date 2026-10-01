@@ -6,7 +6,7 @@ import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, homepageTools, orderHomepageToolIds } from "../shared/settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, getToolkitNavigation } from "../shared/settingsStorage.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
@@ -14,28 +14,6 @@ const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office365.com",
   "outlook.cloud.microsoft",
 ]);
-function getToolkitNavigation(isSettingsPage) {
-  const tools = homepageTools.map(tool => ({
-    id: tool.id,
-    label: tool.label,
-    href: `/${tool.path}`,
-    ...(tool.id === "email" && !isSettingsPage ? { current: true } : {}),
-  }));
-  const orderedIds = orderHomepageToolIds(tools.map(tool => tool.id));
-  return [
-  {
-    label: "Packard Toolkit",
-    items: [
-      { id: "home", label: "Home", href: "/" },
-      ...orderedIds.map(id => tools.find(tool => tool.id === id)).filter(Boolean),
-    ],
-  },
-  {
-    label: "Other",
-    items: [{ id: "settings", label: "Settings", href: "/settings/", current: isSettingsPage }],
-  },
-  ];
-}
 async function copyToClipboard(text) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);

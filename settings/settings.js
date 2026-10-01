@@ -27,12 +27,6 @@ let editingCustomRemarkId = null;
 let customRemarkModalTrigger = openCustomRemarkModalButton;
 let draggedHomepageTool = null;
 
-const BUILT_IN_REMARK_SECTIONS = [
-  { value: "Filing Remarks", label: "Filing Remarks" },
-  { value: "795 Remarks", label: "795 Remarks" },
-  { value: "Things to Notate in Remarks", label: "Things to Notate" }
-];
-
 function setStatus(element, message, isError = false) {
   element.textContent = message;
   element.classList.toggle("error", isError);
@@ -193,7 +187,7 @@ function renderCustomRemarkList() {
 }
 
 function getRemarkSections() {
-  const sections = [...BUILT_IN_REMARK_SECTIONS];
+  const sections = (window.PackardRemarkSections || []).map((section) => ({ ...section }));
   settings.getCustomRemarks().forEach((remark) => {
     if (!remark.group || sections.some((section) => section.value.toLowerCase() === remark.group.toLowerCase())) return;
     sections.push({ value: remark.group, label: remark.group });

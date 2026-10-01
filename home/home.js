@@ -2,6 +2,14 @@ const homeGreeting = document.getElementById("homeGreeting");
 const homeNamePrompt = document.getElementById("homeNamePrompt");
 const homeCards = new Map([...document.querySelectorAll("[data-home-tool]")].map(card => [card.dataset.homeTool, card]));
 
+function applyHomepageToolRoutes() {
+  const tools = new Map((window.PackardSettings?.homepageTools || []).map((tool) => [tool.id, tool]));
+  for (const [id, card] of homeCards) {
+    const tool = tools.get(id);
+    if (tool) card.href = tool.path;
+  }
+}
+
 function renderHomepageTools() {
   const preferences = window.PackardSettings?.getHomepagePreferences();
   if (!preferences) return;
@@ -26,4 +34,5 @@ function renderHomeGreeting() {
 window.addEventListener("packardsettingschange", renderHomeGreeting);
 window.addEventListener("packardsettingschange", renderHomepageTools);
 renderHomeGreeting();
+applyHomepageToolRoutes();
 renderHomepageTools();

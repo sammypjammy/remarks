@@ -92,7 +92,7 @@ export default defineConfig({
         const outputDirectory = resolve(import.meta.dirname, "dist");
         const staticPaths = [
           "shared", "settings/settings.js", "home/home.js",
-          "canned-remarks/remarks.js", "med-tabs-generator/parser.js",
+          "canned-remarks/remarks.js", "canned-remarks/sections.js", "med-tabs-generator/parser.js",
           "med-tabs-generator/index.js", "welcome-email-sender/attachments",
           "home/styles.css", "canned-remarks/styles.css"
         ];

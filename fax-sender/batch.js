@@ -1,14 +1,8 @@
 import { FaxTracker } from "./tracking.js";
 import { validLastFour } from "./message.js";
 import { browserHistoryStorage, loadFaxHistory, saveFaxHistory, FAX_HISTORY_LIMIT } from "./history.js";
-
-export function normalizeFaxNumber(value) {
-  return value.replace(/[\s().-]/g, "");
-}
-
-export function validFaxNumber(value) {
-  return /^\+[1-9]\d{7,14}$/.test(normalizeFaxNumber(value));
-}
+import { normalizeFaxNumber, validFaxNumber } from "./fax-number.js";
+export { normalizeFaxNumber, validFaxNumber } from "./fax-number.js";
 
 const uncertainSubmission = "Submission could not be confirmed. Check RingCentral's sent faxes before retrying to avoid duplicates.";
 
