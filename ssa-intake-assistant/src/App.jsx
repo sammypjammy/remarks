@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { createClientProfile } from './model/client-schema.js';
 import { profileCanBeMarkedReady } from './model/validation.js';
 import { editAnswer, confirmAnswer, markProfileReady, phaseOneRequiredPaths } from './model/review.js';
@@ -34,25 +34,12 @@ const SECTIONS = [
 
 const STEPS = ['Upload intake PDF', 'Extract information', 'Review answers', 'Mark ready'];
 
-export default function App({ initialProfile, onBack, onSource }) {
-  const [profile, setProfile] = useState(() => initialProfile || createClientProfile());
-  const [phase, setPhase] = useState(initialProfile ? 'review' : 'upload');
+export default function App() {
+  const [profile, setProfile] = useState(createClientProfile);
+  const [phase, setPhase] = useState('upload');
   const [message, setMessage] = useState('Choose a completed intake PDF. Processing stays in this browser tab.');
   const [error, setError] = useState('');
   const inputRef = useRef(null);
-
-  // Reopening the same intake updates acknowledgements, preserving SSA edits/confirmations.
-  useEffect(() => {
-    if (!initialProfile) return;
-    setProfile(current => {
-      const next = structuredClone(current);
-      next.source = initialProfile.source;
-      for (const section of SECTIONS) for (const [path] of section.fields) {
-        getAtPath(next, path).intakeIssues = getAtPath(initialProfile, path).intakeIssues;
-      }
-      return next;
-    });
-  }, [initialProfile]);
 
   const requiredComplete = useMemo(
     () => profileCanBeMarkedReady(profile, phaseOneRequiredPaths),
@@ -158,18 +145,18 @@ export default function App({ initialProfile, onBack, onSource }) {
   return (
     <div className="ssa-workspace">
         <section className="privacy-notice" aria-label="Privacy notice">
-          <strong>Local processing.</strong> Phase 1 keeps {initialProfile ? 'the intake and active profile' : 'the PDF and active profile'} in this browser tab’s memory. They are cleared when you close or reload the page. No answers are sent or saved.
+          <strong>Local processing.</strong> Phase 1 keeps the PDF and active profile in this browser tab’s memory. They are cleared when you close or reload the page. No answers are sent or saved.
         </section>
 
-        {!initialProfile && <nav className="steps" aria-label="Workflow progress">
+        <nav className="steps" aria-label="Workflow progress">
           {STEPS.map((step, index) => (
             <div className={`step ${index === activeStep ? 'active' : ''} ${index < activeStep ? 'done' : ''}`} key={step}>
               <span>{index + 1}</span><small>{step}</small>
             </div>
           ))}
-        </nav>}
+        </nav>
 
-        {!initialProfile && <section className="upload-card">
+        <section className="upload-card">
           <div>
             <p className="eyebrow">Step 1</p>
             <h2>Upload a completed intake</h2>
@@ -183,21 +170,16 @@ export default function App({ initialProfile, onBack, onSource }) {
             </label>
             {phase === 'review' && <button className="button quiet" onClick={clearProfile}>Clear profile</button>}
           </div>
-        </section>}
-        {initialProfile && <section className="upload-card">
-          <div><h2>Prepare SSA answers</h2><p>{initialProfile.source.transferredCount} fields transferred from Intake Checker · {stats.attention} need attention.</p>
-          <p>Reviewed issues are acknowledgements, not verified SSA answers. Confirm each answer for its SSA meaning.</p></div>
-          <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
-        </section>}
+        </section>
+
         {phase === 'review' && (
           <>
             <section className="review-heading">
               <div>
-                <p className="eyebrow">{initialProfile ? 'SSA review' : 'Step 3'}</p>
+                <p className="eyebrow">Step 3</p>
                 <h2>Review extracted answers</h2>
-                <p className="file-name">Source: {initialProfile ? "Intake Checker · current pasted intake" : `${profile.source.fileName} · ${profile.source.pageCount} pages`}</p>
-                {!initialProfile && <ExtractionSummary diagnostics={profile.source.diagnostics} />}
-                {initialProfile && profile.source.parsingNeedsReview && <p className="notes">Some source text was not recognized by Intake Checker. Check the source before confirming SSA answers.</p>}
+                <p className="file-name">Source: {profile.source.fileName} · {profile.source.pageCount} pages</p>
+                <ExtractionSummary diagnostics={profile.source.diagnostics} />
               </div>
               <div className="summary" aria-label="Review summary">
                 <strong>{stats.confirmed}/{stats.total}</strong>
@@ -214,7 +196,6 @@ export default function App({ initialProfile, onBack, onSource }) {
                     <ReviewField
                       key={path}
                       field={getAtPath(profile, path)}
-                      onSource={onSource}
                       label={label}
                       required={required}
                       onValue={(value) => handleValueChange(path, value)}
@@ -253,7 +234,7 @@ function ExtractionSummary({ diagnostics = {} }) {
   );
 }
 
-function ReviewField({ field, label, required, onValue, onConfirm, onSource }) {
+function ReviewField({ field, label, required, onValue, onConfirm }) {
   const statusLabel = { confirmed: 'Confirmed by employee', needs_review: 'Needs SSA review', missing: 'Missing', conflict: 'Conflict', firm_standard: 'Firm standard' }[field.status];
   return (
     <article className={`review-field status-${field.status}`}>
@@ -269,11 +250,9 @@ function ReviewField({ field, label, required, onValue, onConfirm, onSource }) {
         autoComplete="off"
       />
       <div className="field-meta">
-        <span>{field.sourceLocations?.length ? 'Pasted intake source' : field.sourcePage ? `PDF page ${field.sourcePage}` : 'No source location'}</span>
+        <span>{field.sourcePage ? `PDF page ${field.sourcePage}` : 'No source page'}</span>
         <span>Confidence {Math.round(field.confidence * 100)}%</span>
       </div>
-      {field.sourceLocations?.map((source, index) => <button type="button" className="button quiet" key={index} onClick={() => onSource?.(source.range)}>Find in Intake: {source.label}{field.sourceLocations.length > 1 ? ` (${index + 1})` : ""}</button>)}
-      {field.intakeIssues?.map((issue, index) => <p className="notes" key={index}>{issue.reviewed ? "Reviewed in Intake Checker: " : "Intake Checker issue: "}{issue.message}</p>)}
       {field.notes && <p className="notes">{field.notes}</p>}
       <label className="confirm-control">
         <input type="checkbox" checked={field.employeeConfirmed} disabled={!String(field.value).trim()} onChange={(event) => onConfirm(event.target.checked)} />

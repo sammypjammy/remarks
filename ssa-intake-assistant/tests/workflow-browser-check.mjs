@@ -7,6 +7,7 @@ import { resolve, join, extname, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { syntheticPdf } from './synthetic-pdf.mjs';
+import { readinessIntake, checkReadiness } from './readiness-browser-check.mjs';
 
 const browserPath = process.argv[2];
 assert(browserPath, 'Provide Chrome executable');
@@ -80,56 +81,8 @@ try {
   async function check(text) {
     await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(text)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   }
-  const intake = 'PERSONAL INFORMATION\nFirst Name: Synthetic\nMiddle Name: Test\nLast Name: Example\nSuffix: Jr\nSocial Security Number: 000-12-3456\nPhone Number: (202) 555-0142\nAlternate Phone: (202) 555-0143\nEmail: synthetic@example.test\nBIRTH INFORMATION\nDate of Birth: 2000-01-02\nADDRESS INFORMATION\nMailing Address - Street Address: 1 Example Road\nMailing Address - Street Address 2: Unit 2\nMailing Address - City: Sampletown\nMailing Address - State: TX\nMailing Address - Zipcode: 00000\nEMPLOYMENT INFORMATION\nCurrently working: Yes';
-  for (const width of [1280, 390]) {
-    await cdp('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
-    await visit('/intake-checker/');
-    await until(() => evaluate("document.querySelector('.toolkit-auth-name').textContent === 'Synthetic Employee'"));
-    await until(() => evaluate("PackardSettings.accountPreferencesStatus() === 'saved'"));
-    const storage = await evaluate('JSON.stringify([localStorage, sessionStorage])');
-    await evaluate(`window.clientWrites = 0; for (const method of ['setItem', 'removeItem', 'clear']) { const original = Storage.prototype[method]; Storage.prototype[method] = function(...args) { window.clientWrites++; return original.apply(this, args); }; } window.clientLogs = 0; for (const method of ['log','warn','error','info','debug']) console[method] = () => { window.clientLogs++; }; window.clientDb = 0; indexedDB.open = () => { window.clientDb++; throw Error('No client database'); };`);
-    await check(intake);
-    await evaluate("document.querySelector('#reviewItems .intake-reviewed').click(); document.querySelector('#validationIssues .intake-reviewed').click()");
-    const reviewHtml = await evaluate("document.getElementById('intakeResults').innerHTML");
-    const start = network.length;
-    await click('Continue to SSA Intake Assistant');
-    await until(() => evaluate("!!document.getElementById('first-name')"));
-    assert.equal(await evaluate("document.getElementById('first-name').value"), 'Synthetic');
-    assert.equal(await evaluate("document.querySelectorAll('.review-field').length"), 14);
-    assert(await evaluate("document.getElementById('ssaIntakeView').textContent.includes('14 fields transferred')"));
-    assert(await evaluate("[...document.querySelectorAll('.review-field .status-pill')].every(p => p.textContent === 'Needs SSA review')"));
-    await evaluate("document.querySelector('.confirm-control input').click()");
-    await until(() => evaluate("document.querySelector('.status-pill').textContent === 'Confirmed by employee'"));
-    await click('Back to Intake Checker');
-    assert.equal(await evaluate("document.getElementById('intakeText').value"), intake);
-    assert.equal(await evaluate("document.getElementById('intakeResults').innerHTML"), reviewHtml);
-    await click('Continue to SSA Intake Assistant');
-    assert.equal(await evaluate("document.querySelector('.confirm-control input').checked"), true);
-    await evaluate("const field = document.getElementById('first-name'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, 'Edited'); field.dispatchEvent(new Event('input', { bubbles: true }))");
-    await until(() => evaluate("!document.querySelector('.confirm-control input').checked"));
-    await click('Back to Intake Checker'); await click('Continue to SSA Intake Assistant');
-    assert.equal(await evaluate("document.getElementById('first-name').value"), 'Edited');
-    await click('Find in Intake: First Name');
-    assert.equal(await evaluate("document.getElementById('intakeText').value.slice(document.getElementById('intakeText').selectionStart, document.getElementById('intakeText').selectionEnd)"), 'First Name: Synthetic');
-    await click('Continue to SSA Intake Assistant');
-    assert(await evaluate('document.documentElement.scrollWidth <= innerWidth'));
-    const shot = await cdp('Page.captureScreenshot', { format: 'png' });
-    await writeFile(join(directory, `synthetic-${width}.png`), Buffer.from(shot.data, 'base64'));
-    assert.equal(await evaluate('JSON.stringify([localStorage, sessionStorage])'), storage);
-    assert.equal(await evaluate('window.clientWrites + window.clientDb + window.clientLogs'), 0);
-    assert(network.slice(start).every(request => request.method === 'GET' && !request.postData && request.url === origin + '/api/auth/session'));
-    await click('Back to Intake Checker');
-    await evaluate("document.getElementById('intakeText').value += '\\n'; document.getElementById('intakeText').dispatchEvent(new Event('input'))");
-    assert(await evaluate("document.getElementById('continueToSsa').hidden && !document.getElementById('ssaIntakeView').children.length"));
-    await check(intake); await click('Continue to SSA Intake Assistant');
-    await until(() => evaluate("!!document.getElementById('first-name')"));
-    assert.equal(await evaluate("document.getElementById('first-name').value"), 'Synthetic');
-    await evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }))");
-    assert(await evaluate("!document.getElementById('intakeText').value && !document.getElementById('ssaIntakeView').children.length"));
-    await visit('/intake-checker/');
-    assert(await evaluate("!document.getElementById('intakeText').value && document.getElementById('continueToSsa').hidden"));
-    console.log(`PASS ${width}px: transfer, acknowledgement retention, Back, edits, provenance, layout, pagehide/reload, no client writes/logs/transmission`);
-  }
+  const intake = readinessIntake;
+  await checkReadiness({ cdp, evaluate, visit, click, check, until, network, origin, directory });
   authenticated = false;
   await visit('/intake-checker/'); await check(intake); await click('Continue to SSA Intake Assistant');
   await until(() => evaluate("!document.getElementById('intakeText').value && document.getElementById('ssaIntakeView').hidden"));
@@ -176,7 +129,7 @@ try {
   assert.deepEqual(failures, []);
   console.log('PASS: authentication, direct PDF, image-only local OCR (9 fields, page 1), same-origin GET assets only');
   await visit('/intake-checker/'); await check(intake); await click('Continue to SSA Intake Assistant');
-  await until(() => evaluate("!!document.getElementById('first-name')"));
+  await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
   const stopped = once(child, 'exit');
   await cdp('Browser.close'); await stopped; socket.close();
   const reopened = spawn(browserPath, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${join(directory, 'profile')}`, '--dump-dom', '--virtual-time-budget=3000', origin + '/intake-checker/'], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });

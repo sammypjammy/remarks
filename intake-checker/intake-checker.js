@@ -1,17 +1,17 @@
 import { createIntakeHandoff } from "../ssa-intake-assistant/src/intake-handoff.jsx";
 import { parseIntake } from "./parser.js";
-import { validateIntake } from "./validation.js";
+import { createIntakeSession, correctIntakeField } from "./session.js";
 import { issueSource, findInTextarea } from "./source-location.js";
-import { reviewIntake } from "./review.js";
-import { createAcknowledgements, validationSummary } from "./acknowledgements.js";
+import { validationSummary } from "./acknowledgements.js";
 
 const input = document.getElementById("intakeText");
 const results = document.getElementById("intakeResults");
 const message = document.getElementById("intakeMessage");
 let activeIntake = null;
-const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, range), onAccessLost: () => reset() });
+const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, range), onAccessLost: () => reset(), onCorrect: applyCorrection });
 function clearResults() {
   activeIntake = null;
+  document.getElementById("intakeCorrections").replaceChildren();
   handoff.clear();
   document.getElementById("continueToSsa").hidden = true;
   results.hidden = true;
@@ -46,11 +46,9 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
   message.textContent = "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
-    const review = reviewIntake(parsed);
-    const report = validateIntake(parsed);
-    activeIntake = { parsed, review, report, reviewState: createAcknowledgements(review.items), validationState: createAcknowledgements(report.issues) };
-    renderReview(review, activeIntake.reviewState);
-    renderReport(report, partial, parsed, activeIntake.validationState);
+    activeIntake = createIntakeSession(parsed);
+    renderReview(activeIntake.review, activeIntake.reviewState);
+    renderReport(activeIntake.report, partial, parsed, activeIntake.validationState);
     document.getElementById("continueToSsa").hidden = false;
     document.getElementById("validationReport").hidden = false;
   } else {
@@ -69,7 +67,7 @@ function renderReport(report, partial, parsed, state) {
   }
   updateSummary();
   const list = document.getElementById("validationIssues");
-  for (const issue of report.issues) {
+  for (const issue of state.remaining()) {
     const row = document.createElement("li");
     row.dataset.severity = issue.severity;
     const title = document.createElement("strong");
@@ -152,7 +150,7 @@ function renderReview(review, state) {
     client.append(row);
   }
   const list = document.getElementById("reviewItems");
-  for (const item of review.items) {
+  for (const item of state.remaining()) {
     const row = document.createElement("li");
     row.dataset.severity = "warning";
     const title = document.createElement("strong");
@@ -175,4 +173,24 @@ function renderReview(review, state) {
   }
   document.getElementById("intakeReview").hidden = false;
   document.getElementById("reviewDivider").hidden = false;
+}
+
+function applyCorrection(session, target, value) {
+  if (session !== activeIntake || !correctIntakeField(session, target, value)) return false;
+  for (const id of ['reviewClient', 'reviewItems', 'validationIssues']) document.getElementById(id).replaceChildren();
+  renderReview(session.review, session.reviewState);
+  renderReport(session.report, session.parsed.unparsed.length > 0, session.parsed, session.validationState);
+  const corrections = document.getElementById('intakeCorrections');
+  corrections.replaceChildren();
+  const note = document.createElement('p');
+  note.textContent = 'Employee corrections are applied in memory. The pasted text remains the original source. Editing or rechecking it resets corrections.';
+  corrections.append(note);
+  const list = document.createElement('ul');
+  for (const [field, edit] of session.edits) {
+    const item = document.createElement('li');
+    item.textContent = field.label + ': ' + edit.changes.at(-1).value;
+    list.append(item);
+  }
+  corrections.append(list);
+  return true;
 }

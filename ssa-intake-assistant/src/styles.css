@@ -1,4 +1,22 @@
 .ssa-page { max-width: 1180px; }
+.ssa-readiness .readiness-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1.5rem 0; }
+.ssa-readiness .readiness-counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .7rem; }
+.ssa-readiness .readiness-counts > div { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+.ssa-readiness dt { color: var(--muted); font-size: .85rem; }
+.ssa-readiness dd { margin: .3rem 0 0; font-size: 1.8rem; font-weight: 750; }
+.ssa-readiness .review-card { margin: 1rem 0; padding: 1rem; overflow-wrap: anywhere; }
+.ssa-readiness summary { cursor: pointer; }
+.ssa-readiness .blocked-field { border-top: 1px solid var(--border); padding: .75rem 0; }
+.ssa-readiness .blocked-field summary > span { margin-left: .6rem; color: var(--muted); font-size: .8rem; }
+.ssa-readiness .blocked-field form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.ssa-readiness .blocked-field form label { flex-basis: 100%; }
+.ssa-readiness .blocked-field form input { flex: 1 1 200px; min-width: 0; max-width: 100%; padding: .65rem; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
+.ssa-readiness .ready-fields li { margin: .6rem 0; }
+@media (max-width: 640px) {
+  .ssa-readiness .readiness-header { align-items: stretch; flex-direction: column; }
+  .ssa-readiness .readiness-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ssa-readiness .blocked-field summary > span { display: block; margin: .3rem 0 0; }
+}
 .ssa-workspace { color: var(--text); }
 .ssa-workspace *, .ssa-workspace *::before, .ssa-workspace *::after { box-sizing: border-box; }
 .ssa-workspace h2, .ssa-workspace h3, .ssa-workspace p { margin-top: 0; }

@@ -54,6 +54,8 @@ The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by
 
 Find in Intake focuses the textarea and selects the source range without changing text. A temporary, invisible measuring element estimates wrapped line position and is immediately removed. Selection is exact; scroll centering can vary slightly with browser typography, wrapping, or zoom. Editing clears results and locate callbacks, and Clear removes all content/selection state.
 
-## SSA preparation (v1.6.0)
+## SSA preparation (v1.7.0)
 
-After checking a recognized intake, Continue to SSA Intake Assistant opens the Phase 1 review inside this page. Back retains the intake and Reviewed dismissals; SSA confirmations and edits also survive returning. Editing/rechecking the pasted source starts a new preparation profile. No client data is saved or sent. Reviewed is an acknowledgement, not SSA answer confirmation. The standalone SSA PDF route remains available.
+Continue to SSA Intake Assistant exposes the existing parsed fields, validation, source locations, and review decisions through the versioned in-memory client-profile contract. The dashboard summarizes readiness without a duplicate confirmation step. General Reviewed dismissals do not alter answers.
+
+Blocked-field corrections update this same Checker session and rerun its existing rules. A correction ledger appears below the input; the pasted text remains the original source. Back retains state, while editing/rechecking that text starts a fresh session. Nothing is persisted or transmitted. See ../ssa-intake-assistant/PROFILE-CONTRACT.md for the field audit and future mapping rules.
