@@ -119,14 +119,14 @@ try {
   await cdp("Page.enable");
   await cdp("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
-  const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/settings/", "/version-history/"];
-  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "Settings"];
+  const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/ssa-intake-assistant/", "/settings/", "/version-history/"];
+  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Settings"];
   for (const width of [1280, 390]) {
     authenticated = true;
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : page === '/ssa-intake-assistant/' ? 'SSA Intake Assistant v1.0.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert(await evaluate("document.getElementById('faxWorkspace').hidden"), "Disconnected users cannot use the fax workspace");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -162,8 +162,8 @@ try {
     await visit("/settings/");
     await evaluate("(async () => { PackardSettings.resetHomepagePreferences(); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/settings/");
-    assert.equal(await evaluate("document.querySelectorAll('#homepageToolList [data-tool-id]').length"), 5, "Homepage settings show every tool");
-    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage tools default visible");
+    assert.equal(await evaluate("document.querySelectorAll('#homepageToolList [data-tool-id]').length"), 6, "Homepage settings show every tool");
+    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 6, "Homepage tools default visible");
     assert(await evaluate("document.querySelector('#homepageName').value === '' && document.querySelector('#homepageTitle')"), "Homepage name defaults blank");
     assert(await evaluate("[...document.querySelectorAll('#homepageToolList .homepage-move-button')].every(button => !button.textContent.includes('Up') && !button.textContent.includes('Down') && button.title)"), "Homepage reorder controls use compact arrows");
     assert(await evaluate("document.querySelector('.toolkit-navigation').textContent.includes('Fax Sender') && document.querySelector('.toolkit-navigation').textContent.includes('Intake Checker')"), "Homepage settings do not remove navigation tools");
@@ -193,7 +193,7 @@ try {
     assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Homepage name survives refresh after reorder");
     await visit("/settings/");
     assert.equal(await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] .homepage-move-button[data-homepage-move=\\\"up\\\"]').disabled"), false, "Homepage order persists after navigation");
-    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "Settings"];
+    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Settings"];
     for (const path of pages) {
       await visit(path);
       await evaluate("document.querySelector('.app-menu-toggle').click()");
@@ -201,7 +201,7 @@ try {
       assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), reorderedMenuOrder, `Saved order on ${path}`);
     }
     await visit("/settings/");
-    for (const id of ["remarks", "med-tabs", "email", "fax", "intake"]) {
+    for (const id of ["remarks", "med-tabs", "email", "fax", "intake", "ssa-intake"]) {
       await evaluate(`document.querySelector('#homepageToolList [data-tool-id=${JSON.stringify(id)}] .homepage-visibility-toggle').click()`);
       await visit("/");
       assert.equal(await evaluate(`(() => { const card = document.querySelector('[data-home-tool=${JSON.stringify(id)}]'); return card.hidden && getComputedStyle(card).display === 'none' && card.getClientRects().length === 0; })()`), true, `Homepage visibly hides ${id}`);
@@ -225,15 +225,15 @@ try {
     await visit("/");
     await evaluate("(async () => { PackardSettings.saveHomepagePreferences({version:999, order:['fax'], hidden:['remarks']}); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/");
-    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Invalid homepage preferences fall back safely");
+    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 6, "Invalid homepage preferences fall back safely");
     await evaluate("(async () => { PackardSettings.saveHomepagePreferences({version:1, order:['remarks'], hidden:['unknown']}); await PackardSettings.flushPreferences(); location.reload() })()");
     await loaded("/");
-    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 5, "Missing and unknown homepage tools use defaults");
-    assert.deepEqual(await evaluate("PackardSettings.getHomepagePreferences().order"), ["remarks", "med-tabs", "email", "fax", "intake"], "Older partial preferences append missing current tools");
-    assert.deepEqual(await evaluate("PackardSettings.orderHomepageToolIds(['remarks', 'med-tabs', 'email', 'fax', 'intake', 'future-tool'])"), ["remarks", "med-tabs", "email", "fax", "intake", "future-tool"], "Tools missing from a saved preference append safely");
+    assert.equal(await evaluate("document.querySelectorAll('.tool-card:not([hidden])').length"), 6, "Missing and unknown homepage tools use defaults");
+    assert.deepEqual(await evaluate("PackardSettings.getHomepagePreferences().order"), ["remarks", "med-tabs", "email", "fax", "intake", "ssa-intake"], "Older partial preferences append missing current tools");
+    assert.deepEqual(await evaluate("PackardSettings.orderHomepageToolIds(['remarks', 'med-tabs', 'email', 'fax', 'intake', 'ssa-intake', 'future-tool'])"), ["remarks", "med-tabs", "email", "fax", "intake", "ssa-intake", "future-tool"], "Tools missing from a saved preference append safely");
     await visit("/settings/");
     await evaluate("document.getElementById('resetHomepage').click()");
-    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage reset restores visibility");
+    assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 6, "Homepage reset restores visibility");
     await visit("/");
     assert.equal(await evaluate("document.querySelector('.tool-card:not([hidden]) strong').textContent"), "Canned Remarks", "Reset restores default Home order");
     for (const path of pages) {
@@ -244,7 +244,7 @@ try {
     }
     await visit("/settings/");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections without a global Toolkit version");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 7, "Independent history sections without a global Toolkit version");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 0, "History sections start collapsed");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section expands");
@@ -252,7 +252,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 41, "Home v1.3.1 adds one release entry");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 42, "SSA v1.0.0 adds one release entry");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });

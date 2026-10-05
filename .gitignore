@@ -1,4 +1,5 @@
 node_modules/
+ssa-intake-assistant/public/ocr/
 dist/
 *.log
 .env

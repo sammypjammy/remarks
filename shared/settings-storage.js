@@ -39,7 +39,8 @@
     Object.freeze({ id: "med-tabs", label: "Med Tabs", path: "med-tabs-generator/" }),
     Object.freeze({ id: "email", label: "Welcome Emails", path: "welcome-email-sender/" }),
     Object.freeze({ id: "fax", label: "Fax Sender", path: "fax-sender/" }),
-    Object.freeze({ id: "intake", label: "Intake Checker", path: "intake-checker/" })
+    Object.freeze({ id: "intake", label: "Intake Checker", path: "intake-checker/" }),
+    Object.freeze({ id: "ssa-intake", label: "SSA Intake Assistant", path: "ssa-intake-assistant/" })
   ]);
   const HOMEPAGE_VERSION = 1;
   const NAVIGATION_SECTIONS = Object.freeze([

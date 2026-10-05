@@ -1,0 +1,59 @@
+.ssa-page { max-width: 1180px; }
+.ssa-workspace { color: var(--text); }
+.ssa-workspace *, .ssa-workspace *::before, .ssa-workspace *::after { box-sizing: border-box; }
+.ssa-workspace h2, .ssa-workspace h3, .ssa-workspace p { margin-top: 0; }
+.ssa-workspace h2 { margin-bottom: .45rem; font-size: 1.35rem; }
+.ssa-workspace h3 { margin-bottom: 1rem; font-size: 1.12rem; }
+.ssa-workspace .eyebrow { margin-bottom: .25rem; color: var(--muted); font-size: .72rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.ssa-auth-state { padding: 1.5rem; }
+.ssa-workspace .privacy-notice { padding: .85rem 1rem; border: 1px solid var(--accent-line); border-left: 4px solid var(--accent); border-radius: 8px; background: var(--accent-soft); line-height: 1.45; }
+.ssa-workspace .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; margin: 1.5rem 0; }
+.ssa-workspace .step { display: flex; align-items: center; gap: .5rem; color: var(--muted); }
+.ssa-workspace .step span { display: grid; place-items: center; flex: 0 0 auto; width: 1.8rem; height: 1.8rem; border: 1px solid var(--border); border-radius: 50%; background: var(--panel); font-size: .75rem; }
+.ssa-workspace .step small { font-size: .78rem; }
+.ssa-workspace .step.active { color: var(--text); font-weight: 700; }
+.ssa-workspace .step.active span, .ssa-workspace .step.done span { border-color: var(--accent); background: var(--accent); color: white; }
+.ssa-workspace .upload-card, .ssa-workspace .review-card, .ssa-workspace .ready-card { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow); }
+.ssa-workspace .upload-card, .ssa-workspace .ready-card { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; padding: 1.5rem; }
+.ssa-workspace .upload-card p:last-child, .ssa-workspace .ready-card p:last-child { margin-bottom: 0; }
+.ssa-workspace .upload-actions { display: flex; flex: 0 0 auto; gap: .6rem; }
+.ssa-workspace .button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: .55rem 1rem; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text); cursor: pointer; font: inherit; font-weight: 700; }
+.ssa-workspace .button.primary { border-color: var(--accent); background: var(--accent); color: white; }
+.ssa-workspace .button:disabled, .ssa-workspace .button.disabled { cursor: not-allowed; opacity: .55; }
+.ssa-workspace .button input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.ssa-workspace .error { color: var(--danger); font-weight: 700; }
+.ssa-workspace .review-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2rem 0 1rem; }
+.ssa-workspace .file-name, .ssa-workspace .extraction-summary { color: var(--muted); overflow-wrap: anywhere; }
+.ssa-workspace .file-name { margin-bottom: .3rem; font-size: .88rem; }
+.ssa-workspace .extraction-summary { margin-bottom: 0; font-size: .8rem; }
+.ssa-workspace .extraction-summary.warning { color: var(--danger); }
+.ssa-workspace .summary { display: grid; flex: 0 0 auto; text-align: right; }
+.ssa-workspace .summary strong { font-size: 1.45rem; }
+.ssa-workspace .summary span, .ssa-workspace .summary small { font-size: .78rem; }
+.ssa-workspace .summary small { color: var(--muted); }
+.ssa-workspace .review-card { margin-bottom: 1rem; padding: 1.4rem; }
+.ssa-workspace .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+.ssa-workspace .review-field { min-width: 0; padding: 1rem; border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 7px; background: var(--panel-alt); }
+.ssa-workspace .status-missing, .ssa-workspace .status-conflict { border-left-color: var(--danger); }
+.ssa-workspace .status-needs_review { border-left-color: #b77929; }
+.ssa-workspace .status-confirmed, .ssa-workspace .status-firm_standard { border-left-color: #39825b; }
+.ssa-workspace .field-title { display: flex; justify-content: space-between; gap: .6rem; margin-bottom: .5rem; }
+.ssa-workspace .field-title label { font-weight: 700; }
+.ssa-workspace .field-title label span { color: var(--danger); }
+.ssa-workspace .status-pill { color: var(--muted); font-size: .7rem; font-weight: 700; text-transform: uppercase; }
+.ssa-workspace .review-field > input { width: 100%; padding: .65rem; border: 1px solid var(--border); border-radius: 5px; background: var(--panel); color: var(--text); font: inherit; }
+.ssa-workspace .field-meta { display: flex; justify-content: space-between; gap: .5rem; margin-top: .45rem; color: var(--muted); font-size: .74rem; }
+.ssa-workspace .notes { margin: .45rem 0 0; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+.ssa-workspace .confirm-control { display: flex; align-items: center; gap: .45rem; margin-top: .7rem; font-size: .8rem; }
+.ssa-workspace .confirm-control input { accent-color: var(--accent); }
+.ssa-workspace .ready-card { margin: 1.3rem 0 2rem; }
+.ssa-workspace :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+@media (max-width: 760px) {
+  .ssa-workspace .steps small { display: none; }
+  .ssa-workspace .steps { display: flex; justify-content: space-between; }
+  .ssa-workspace .upload-card, .ssa-workspace .ready-card, .ssa-workspace .review-heading { align-items: stretch; flex-direction: column; }
+  .ssa-workspace .upload-actions { flex-wrap: wrap; }
+  .ssa-workspace .field-grid { grid-template-columns: 1fr; }
+  .ssa-workspace .summary { text-align: left; }
+  .ssa-workspace .field-meta { flex-wrap: wrap; }
+}

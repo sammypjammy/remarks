@@ -76,7 +76,7 @@ try {
   await cdp('Runtime.enable'); await cdp('Page.enable');
   for (const width of [1280,390]) {
     await cdp('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
-    for (const path of ['/', '/fax-sender/', '/welcome-email-sender/', '/intake-checker/', '/canned-remarks/', '/med-tabs-generator/', '/settings/', '/version-history/']) {
+    for (const path of ['/', '/fax-sender/', '/welcome-email-sender/', '/intake-checker/', '/ssa-intake-assistant/', '/canned-remarks/', '/med-tabs-generator/', '/settings/', '/version-history/']) {
       signedIn = false;
       await cdp('Page.navigate', { url: origin + path });
       await until(() => evaluate("document.readyState === 'complete' && !!document.querySelector('.toolkit-auth a') && !document.querySelector('.toolkit-auth a').hidden"));
@@ -109,7 +109,7 @@ try {
     assert(await evaluate("!document.cookie.includes('toolkit_session')"), 'opaque cookie inaccessible to JS');
     const shot = await cdp('Page.captureScreenshot', { format: 'png' });
     await writeFile(join(profile, `auth-${width}.png`), Buffer.from(shot.data, 'base64'));
-    console.log(`PASS auth UI ${width}px: eight pages, signed out/in, logout, login link, navigation, privacy, no overflow.`);
+    console.log(`PASS auth UI ${width}px: nine pages, signed out/in, logout, login link, navigation, privacy, no overflow.`);
   }
   signedIn = false;
   await evaluate("window.dispatchEvent(new Event('focus'))");

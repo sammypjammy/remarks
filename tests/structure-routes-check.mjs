@@ -5,8 +5,8 @@ import { createServer, preview } from 'vite';
 
 for (const mode of ['development', 'preview']) {
   const server = mode === 'development'
-    ? await createServer({ server: { host: '127.0.0.1', port: 0, open: false } })
-    : await preview({ preview: { host: '127.0.0.1', port: 0, open: false } });
+    ? await createServer({ configLoader: 'native', server: { host: '127.0.0.1', port: 0, open: false } })
+    : await preview({ configLoader: 'native', preview: { host: '127.0.0.1', port: 0, open: false } });
   if (mode === 'development') await server.listen();
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   async function get(path) {
@@ -15,7 +15,7 @@ for (const mode of ['development', 'preview']) {
     return response;
   }
   try {
-    for (const route of ['/', '/fax-sender/', '/welcome-email-sender/', '/canned-remarks/', '/intake-checker/', '/med-tabs-generator/', '/settings/', '/version-history/']) {
+    for (const route of ['/', '/fax-sender/', '/welcome-email-sender/', '/canned-remarks/', '/intake-checker/', '/ssa-intake-assistant/', '/med-tabs-generator/', '/settings/', '/version-history/']) {
       const html = await (await get(route)).text();
       assert.match(html, /<main|id="root"/, `${route}: page entry`);
       const scripts = [...html.matchAll(/<script\b([^>]*)>/g)].map(match => match[1]);
@@ -45,7 +45,8 @@ for (const mode of ['development', 'preview']) {
       const response = await get('/welcome-email-sender/attachments/' + encodeURIComponent(name));
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), await readFile('welcome-email-sender/attachments/' + name), name);
     }
-    console.log(`PASS ${mode}: eight pages, callback modules, legacy URLs and all attachment bytes`);
+    for (const asset of ['worker.min.js', 'eng.traineddata.gz', 'tesseract-core.wasm']) await get('/ssa-intake-assistant/ocr/' + asset);
+    console.log(`PASS ${mode}: nine pages, local OCR assets, callback modules, legacy URLs and all attachment bytes`);
   } finally {
     if (mode === 'development') await server.close();
     else await new Promise(done => server.httpServer.close(done));
