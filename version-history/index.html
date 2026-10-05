@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Version History | Packard Toolkit</title>
-    <link rel="icon" type="image/png" href="../settings/shared/favicon.png" />
-    <link rel="stylesheet" href="../settings/shared/style.css" />
+    <link rel="icon" type="image/png" href="../shared/favicon.png" />
+    <link rel="stylesheet" href="../shared/style.css" />
     <link rel="stylesheet" href="../settings/styles.css" />
-    <link rel="stylesheet" href="../settings/shared/footer.css" />
+    <link rel="stylesheet" href="../shared/footer.css" />
   </head>
   <body data-page="version-history">
     <div data-app-header></div>
@@ -18,6 +18,15 @@
         <p class="subtitle">Recorded updates to the Packard Toolkit. Earlier entries retain their original tool versions and recorded dates.</p>
       </section>
       <div class="version-history-sections">
+        <details class="version-history-section" data-history-tool="toolkit">
+          <summary><span>Packard Toolkit</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
+          <div class="version-history-entries">
+            <article class="settings-card"><div class="settings-card-header">
+              <h2>Packard Toolkit v2.15.0 &mdash; October 5, 2026</h2>
+              <p>Added a Toolkit edit-request email form, refined Fax Sender destination controls and connection status placement, corrected shared asset paths, and centralized Email Sender release history.</p>
+            </div></article>
+          </div>
+        </details>
         <details class="version-history-section" data-history-tool="home-page">
           <summary><span>Home Page</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
           <div class="version-history-entries">
@@ -56,6 +65,10 @@
         <details class="version-history-section" data-history-tool="fax-sender">
           <summary><span>Fax Sender</span><span class="version-history-chevron" aria-hidden="true">&#9656;</span></summary>
           <div class="version-history-entries">
+            <article id="fax-sender-v3-0-3" class="settings-card"><div class="settings-card-header">
+              <h2>Fax Sender v3.0.3 &mdash; September 28, 2026</h2>
+              <p>Refined destination and Last 4 layout, moved destination actions beneath their fields, and removed specified helper copy.</p>
+            </div></article>
             <article id="fax-sender-v2-16-0" class="settings-card"><div class="settings-card-header">
               <h2>Fax Sender v2.16.0 &mdash; September 21, 2026</h2>
               <p>Expanded persistent Fax History to 20 entries, separated batch reset from history, and compacted the fax setup controls.</p>
@@ -159,7 +172,7 @@
       </div>
     </main>
     <div data-app-footer></div>
-    <script src="../settings/shared/settings-storage.js"></script>
-    <script src="../settings/shared/app-shell.js"></script>
+    <script src="../shared/settings-storage.js"></script>
+    <script src="../shared/app-shell.js"></script>
   </body>
 </html>

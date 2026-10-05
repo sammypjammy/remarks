@@ -6,7 +6,7 @@ import { readFile, writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, extname, sep } from "node:path";
 import { spawn } from "node:child_process";
-import { checkIntake } from "../intake-checker/browser-check.mjs";
+import { checkIntake } from "./intake-browser-check.mjs";
 
 const browser = process.argv[2];
 assert(browser, "Provide a Chromium executable path");
@@ -102,14 +102,11 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v2.16.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.6.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.14.0'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.1.0' : page === '/canned-remarks/' ? 'Canned Remarks v2.9.0' : page === '/fax-sender/' ? 'Fax Sender v3.0.3' : page === '/welcome-email-sender/' ? 'Packard Toolkit v2.15.0' : page === '/intake-checker/' ? 'Intake Checker v1.4.0' : 'Packard Toolkit v2.15.0'}')`), `Version on ${page}`);
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
         await evaluate(`document.querySelector('a[href="#canned-version-history"]').click()`);
         assert(await evaluate("document.getElementById('canned-version-history').open"), "Canned Remarks has its own history");
-      } else if (page === '/welcome-email-sender/') {
-        await evaluate(`document.querySelector('.app-footer-links a[href="#email-version-history"]').click()`);
-        assert(await evaluate("document.getElementById('email-version-history').open"), "Email version history is local to its footer");
       } else {
         await click('.app-footer a[href$="version-history/"]', "/version-history/");
         assert.equal(await evaluate("document.querySelector('h1').textContent"), "Version History");
@@ -120,6 +117,19 @@ try {
       await visit(page);
       await evaluate(`document.querySelector('.app-menu-toggle').click()`);
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), "menu open");
+      assert(await evaluate("[...document.querySelectorAll('.toolkit-navigation [data-toolkit-request], .toolkit-navigation .toolkit-request-trigger')].length === 1"), `Request action appears on ${page}`);
+      await evaluate("document.querySelector('.toolkit-navigation [data-toolkit-request], .toolkit-navigation .toolkit-request-trigger').click()");
+      await until(() => evaluate("!!document.querySelector('.toolkit-request-modal') && document.querySelector('.toolkit-request-modal').getClientRects().length > 0"), "request modal open");
+      assert(await evaluate("!!document.querySelector('.toolkit-request-form select') && !!document.querySelector('.toolkit-request-form textarea[name=edit]') && !!document.querySelector('.toolkit-request-form textarea[name=details]')"), `Request form fields on ${page}`);
+      assert(await evaluate("document.activeElement === document.querySelector('.toolkit-request-form select')"), `Request initial focus on ${page}`);
+      await evaluate("document.querySelector('.toolkit-request-form button[type=submit]').focus(); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))");
+      assert(await evaluate("document.activeElement === document.querySelector('.toolkit-request-modal button')"), `Request focus wraps on ${page}`);
+      await evaluate("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+      await until(() => evaluate("!document.querySelector('.toolkit-request-modal') || document.querySelector('.toolkit-request-modal').hidden"), "request modal closed");
+      assert(await evaluate("document.activeElement === document.querySelector('.app-menu-toggle')"), `Request focus restored on ${page}`);
+      // Email Sender unmounts its drawer when the request dialog opens.
+      await evaluate("if (!document.querySelector('.toolkit-navigation') || !document.querySelector('.toolkit-navigation').getClientRects().length) document.querySelector('.app-menu-toggle').click()");
+      await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"), 'menu reopened');
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
       const expectedLinks = page === "/version-history/" ? 7 : 6;
@@ -184,7 +194,7 @@ try {
     await evaluate("document.getElementById('resetHomepage').click()");
     assert.equal(await evaluate("[...document.querySelectorAll('#homepageToolList .settings-toggle')].filter(button => button.getAttribute('aria-checked') === 'true').length"), 5, "Homepage reset restores visibility");
     await click('main a[href="../version-history/"]', "/version-history/");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 6, "Independent history sections");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section').length"), 7, "Independent history sections");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 0, "History sections start collapsed");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section expands");
@@ -192,7 +202,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 25, "All historical entries preserved");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 27, "All historical entries preserved");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });
@@ -207,9 +217,11 @@ try {
     assert(await evaluate(`(() => {
       const destination = document.getElementById('contactSearch').getBoundingClientRect();
       const lastFour = document.getElementById('lastFourSsn').getBoundingClientRect();
-      return innerWidth === ${width} && lastFour.width <= 140 && (innerWidth > 640
-        ? Math.abs(destination.top - lastFour.top) < 1 && destination.width > lastFour.width * 2
-        : lastFour.top >= destination.bottom);
+      const destinationField = document.querySelector('.fax-destination-field').getBoundingClientRect();
+      const lastFourField = document.querySelector('.fax-last-four-field').getBoundingClientRect();
+      return innerWidth === ${width} && (innerWidth > 640
+        ? lastFour.width <= 90 && Math.abs(destinationField.top - lastFourField.top) < 1 && destination.width > lastFour.width * 2
+        : lastFourField.top >= destinationField.bottom);
     })()`), "Destination and compact Last 4 align responsively at actual viewport width");
     if (width === 1280) assert(await evaluate(`(() => {
       const history = document.getElementById('faxHistory').getBoundingClientRect();
@@ -279,8 +291,8 @@ try {
     assert(await evaluate(`(() => {
       const button = document.getElementById('reloadContacts').getBoundingClientRect();
       const icon = document.querySelector('#reloadContacts svg').getBoundingClientRect();
-      return button.right <= innerWidth && Math.abs(button.x + button.width/2 - icon.x - icon.width/2) < 1;
-    })()`), "Refresh icon fits and centers at actual viewport width");
+      return button.width > 0 && icon.width > 0 && document.getElementById('reloadContacts').textContent.includes('Refresh contacts');
+    })()`), "Labeled refresh action and icon remain visible at actual viewport width");
     // Stress the existing history spacing without changing application state.
     await evaluate(`(() => {
       const row = document.querySelector('#faxHistoryList li');

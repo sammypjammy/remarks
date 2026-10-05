@@ -136,9 +136,9 @@ test("Email Sender manual draft tabs, Single isolation, popup feedback and foote
   assert.equal(await evaluate("document.body.textContent.includes('Retry Failed')"),false);
   await input('#bulk-recipients','one@example.com');
   assert.equal(await evaluate("document.querySelector('button[type=submit]').textContent.trim()"),'Open 1 Draft');
-  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.6.0/);
-  await evaluate("document.querySelector('.app-footer-links a[href=\"#email-version-history\"]').click()");
-  assert.equal(await evaluate("document.querySelector('#email-version-history').open"),true);
+  assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Packard Toolkit v2.15.0/);
+  assert.equal(await evaluate("document.querySelector('.app-footer-links a').getAttribute('href')"), '/version-history/');
+  assert.equal(await evaluate("document.querySelector('.app-footer details')"), null);
   await command("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate("document.documentElement.scrollWidth <= window.innerWidth"),true);
   await command("Browser.close");

@@ -80,10 +80,12 @@ try {
       await evaluate("window.dispatchEvent(new Event('focus'))");
       await until(() => evaluate("!!document.querySelector('.toolkit-auth button') && !document.querySelector('.toolkit-auth button').hidden"));
       assert(await evaluate("document.querySelector('.toolkit-auth-name').textContent.startsWith('Synthetic Employee')"));
+      if (path === '/fax-sender/') assert(await evaluate("document.querySelector('.toolkit-auth').parentElement.id === 'faxConnectionFooter' && !document.getElementById('faxConnectionFooter').hidden"), 'authenticated Fax Sender status moves to its footer');
       assert(await evaluate('document.documentElement.scrollWidth <= innerWidth'), `signed in overflow ${path} ${width}`);
       assert(await evaluate("!JSON.stringify(localStorage).includes('toolkit_session') && !JSON.stringify(sessionStorage).includes('toolkit_session') && !document.cookie.includes('toolkit_session')"));
       await evaluate("document.querySelector('.toolkit-auth button').click()");
       await until(() => evaluate("document.querySelector('.toolkit-auth button').hidden"));
+      if (path === '/fax-sender/') assert(await evaluate("document.querySelector('.toolkit-auth').parentElement.classList.contains('app-header-inner')"), 'signed-out Fax Sender status returns to its header');
       await evaluate("document.querySelector('.app-menu-toggle').click()");
       await until(() => evaluate("!!document.querySelector('.toolkit-navigation') && document.querySelector('.toolkit-navigation').getClientRects().length > 0"));
     }

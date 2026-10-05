@@ -1,4 +1,7 @@
 .fax-panel { max-width: 960px; min-width: 0; }
+.fax-connection-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+.fax-connection-footer[hidden] { display: none; }
+.fax-connection-footer .toolkit-auth { margin-left: 0; }
 #batchReceipts, #saveContactPanel { padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
 #batchReceipts p, #saveContactStatus { font-size: 0.85rem; overflow-wrap: anywhere; }
 #batchReceipts[hidden], #saveContactPanel[hidden], #offerSaveContact[hidden], #saveContactStatus[hidden] { display: none; }
@@ -36,16 +39,16 @@
   #faxHistoryList { max-height: clamp(300px, 60vh, 560px); }
 }
 #faxHistoryList:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
-.destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 8px; }
+.destination-control { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .destination-input-wrap { position: relative; min-width: 0; }
 .fax-panel #contactSearch { height: 48px; padding-right: 44px; text-overflow: ellipsis; }
 .destination-clear { position: absolute; top: 4px; right: 4px; width: 40px; height: 40px; background: transparent; color: var(--muted); border-radius: 8px; font-size: 1.4rem; }
-.destination-refresh { width: 48px; height: 48px; padding: 0; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
+.destination-refresh { min-height: 44px; padding: 8px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
 .destination-refresh svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .destination-refresh.is-loading svg { animation: contacts-spin 1.1s linear infinite; }
 @keyframes contacts-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .destination-refresh.is-loading svg { animation: none; opacity: 0.5; } }
-.destination-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 56px; z-index: 30; max-height: min(320px, 50vh); overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow-menu); }
+.destination-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30; max-height: min(320px, 50vh); overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: var(--shadow-menu); }
 #contactResults { list-style: none; padding: 4px; margin: 0; }
 #contactResults li + li { border-top: 1px solid var(--border-subtle); }
 .destination-option { width: 100%; min-height: 48px; display: flex; flex-direction: column; align-items: start; gap: 4px; padding: 10px 12px; border-radius: 7px; background: transparent; color: var(--text); text-align: left; overflow-wrap: anywhere; }
@@ -60,11 +63,13 @@
 .destination-dropdown[hidden], .destination-clear[hidden], #contactMessage[hidden], #numberHelp[hidden], #faxNumber { display: none; }
 @media (max-width: 480px) { .destination-dropdown { right: 0; } }
 .fax-panel fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 12px; }
-.fax-recipient-row { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 16px; align-items: start; }
+.fax-recipient-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 16px; align-items: start; }
 .fax-destination-field, .fax-last-four-field { display: grid; gap: 12px; min-width: 0; }
-.fax-panel #lastFourSsn { height: 48px; max-width: 140px; }
+.fax-last-four-field label { white-space: nowrap; }
+.fax-panel #lastFourSsn { height: 48px; max-width: 88px; text-align: center; }
+.destination-actions { display: flex; align-items: center; gap: 8px; margin-top: -4px; }
 .fax-panel #pdfFile[hidden] { display: none; }
-@media (max-width: 640px) { .fax-recipient-row { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .fax-recipient-row { grid-template-columns: minmax(0, 1fr); } .fax-panel #lastFourSsn { max-width: 100%; text-align: left; } }
 .fax-panel label { color: var(--text); font-weight: 700; }
 .fax-panel input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-alt); color: var(--text); }
 .fax-panel button { justify-self: start; }
@@ -96,6 +101,7 @@
   .fax-document { flex-direction: column; }
   .fax-document-actions { width: 100%; }
 }
+@media (max-width: 520px) { .fax-connection-footer { justify-content: flex-start; } }
 
 .fax-cover-sheet { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; margin: 0; justify-self: start; max-width: 100%; }
 .fax-panel .fax-cover-sheet label { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; cursor: pointer; }

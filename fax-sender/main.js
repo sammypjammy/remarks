@@ -22,6 +22,20 @@ const result = document.getElementById("faxResult");
 const list = document.getElementById("documentList");
 const downloadAllButton = document.getElementById("downloadAllReceipts");
 const downloadZipButton = document.getElementById("downloadReceiptZip");
+const authHost = document.querySelector("[data-toolkit-auth]");
+const authHeader = authHost?.parentElement;
+const authFooter = document.getElementById("faxConnectionFooter");
+if (authHost && authHeader && authFooter) {
+  const placeAuthStatus = () => {
+    const signedIn = Boolean(authHost.querySelector(".toolkit-auth-name")?.textContent.trim());
+    const actionRequired = Boolean(authHost.querySelector(".toolkit-auth-status")?.textContent.trim());
+    const target = signedIn && !actionRequired ? authFooter : authHeader;
+    if (authHost.parentElement !== target) target.append(authHost);
+    authFooter.hidden = target !== authFooter;
+  };
+  new MutationObserver(placeAuthStatus).observe(authHost, { childList: true, subtree: true, characterData: true, attributes: true });
+  placeAuthStatus();
+}
 let downloadingAll = false;
 const historyViews = new Map(); // DOM/receipt cache only; persisted records stay in FaxBatch.
 const batch = new FaxBatch({
@@ -54,6 +68,9 @@ const contactPicker = new ContactPicker({
   search: document.getElementById("contactSearch"), results: document.getElementById("contactResults"),
   message: document.getElementById("contactMessage"), reload: document.getElementById("reloadContacts"),
   numberInput, batch, onSelect: render
+});
+document.getElementById("clearDestinationAction").addEventListener("click", () => {
+  document.getElementById("clearDestination").click();
 });
 
 function element(tag, text, className) {

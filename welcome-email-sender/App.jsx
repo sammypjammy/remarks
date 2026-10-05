@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import ToolkitAuth from '../settings/shared/ToolkitAuth.jsx';
+import ToolkitAuth from '../shared/ToolkitAuth.jsx';
 import { caseManagers } from "./caseManagers.js";
 import { buildWelcomeEmail, buildWelcomeSubject, mergeEmailTemplates } from "./emailTemplate.js";
 import { getManagerAttachments, isOutlookGraphConfigured } from "./outlookConfig.js";
 import { createOutlookDraft, getOutlookErrorMessage, getGraphAccessToken } from "./outlookGraph.js";
 import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
-import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../settings/shared/settingsStorage.js";
+import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting } from "../shared/settingsStorage.js";
 
 const MANAGER_STORAGE_KEY = "packard-selected-case-manager";
 const LANGUAGE_STORAGE_KEY = "packard-welcome-email-language";
@@ -32,7 +32,10 @@ function getToolkitNavigation(isSettingsPage) {
   },
   {
     label: "Other",
-    items: [{ id: "settings", label: "Settings", href: "/settings/", current: isSettingsPage }],
+    items: [
+      { id: "settings", label: "Settings", href: "/settings/", current: isSettingsPage },
+      { id: "request", label: "Request a Toolkit edit", request: true }
+    ],
   },
   ];
 }
@@ -49,7 +52,6 @@ async function copyToClipboard(text) {
   textarea.style.opacity = "0";
   document.body.appendChild(textarea);
   textarea.select();
-
   const copied = document.execCommand("copy");
   textarea.remove();
   if (!copied) throw new Error("Clipboard copy failed");
@@ -163,6 +165,8 @@ export default function App() {
   const appMenuToggleRef = useRef(null);
   const appDrawerRef = useRef(null);
   const signaturePromptRef = useRef(null);
+  const [isToolkitRequestOpen, setIsToolkitRequestOpen] = useState(false);
+  const toolkitRequestRef = useRef(null);
 
   const customCaseManagers = useMemo(getCustomCaseManagers, []);
   const allCaseManagers = useMemo(() => ({
@@ -253,6 +257,35 @@ export default function App() {
       document.removeEventListener("keydown", handleDrawerKeydown);
     };
   }, [isAppMenuOpen]);
+
+  useEffect(() => {
+    if (!isToolkitRequestOpen) return undefined;
+    document.body.classList.add("menu-open");
+    toolkitRequestRef.current?.querySelector("select")?.focus();
+    const handleRequestKeydown = event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsToolkitRequestOpen(false);
+      }
+      if (event.key !== "Tab") return;
+      const controls = [...toolkitRequestRef.current.querySelectorAll("button, select, textarea")];
+      const first = controls[0];
+      const last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", handleRequestKeydown);
+    return () => {
+      document.body.classList.remove("menu-open");
+      document.removeEventListener("keydown", handleRequestKeydown);
+      appMenuToggleRef.current?.focus();
+    };
+  }, [isToolkitRequestOpen]);
 
   useEffect(() => {
     if (!isSignaturePromptOpen) return undefined;
@@ -511,6 +544,8 @@ export default function App() {
                         <span className="toolkit-nav-item active" aria-current="page" key={tool.id}>
                           <span>{tool.label}</span><span className="toolkit-nav-status">Current</span>
                         </span>
+                      ) : tool.request ? (
+                        <button className="toolkit-nav-item toolkit-request-trigger" type="button" onClick={() => { setIsAppMenuOpen(false); setIsToolkitRequestOpen(true); }} key={tool.id}>{tool.label}</button>
                       ) : tool.href ? (
                         <a className="toolkit-nav-item" href={tool.href} key={tool.id}>{tool.label}</a>
                       ) : (
@@ -523,6 +558,31 @@ export default function App() {
                 ))}
               </nav>
             </aside>
+          </>
+        )}
+
+        {isToolkitRequestOpen && (
+          <>
+            <div className="toolkit-request-backdrop" onClick={() => setIsToolkitRequestOpen(false)} aria-hidden="true"></div>
+            <section ref={toolkitRequestRef} className="toolkit-request-modal" role="dialog" aria-modal="true" aria-labelledby="toolkitRequestTitle">
+              <div className="toolkit-request-header">
+                <div><p className="app-menu-eyebrow">Toolkit feedback</p><h2 id="toolkitRequestTitle">Request a Toolkit edit</h2></div>
+                <button className="icon-button" type="button" onClick={() => setIsToolkitRequestOpen(false)} aria-label="Close request form">&times;</button>
+              </div>
+              <form className="toolkit-request-form" onSubmit={(event) => {
+                event.preventDefault();
+                const data = new FormData(event.currentTarget);
+                const signature = getEmailSignature()?.text || "Not provided";
+                const body = [`Tool or page: ${data.get("tool")}`, "", "Requested edit:", data.get("edit"), "", "Other details:", data.get("details") || "None provided", "", "Requester information from Email Signature:", signature].join("\n");
+                window.location.href = `mailto:samueljacobjensen@gmail.com?subject=${encodeURIComponent("Toolkit edit request: " + data.get("tool"))}&body=${encodeURIComponent(body)}`;
+                setIsToolkitRequestOpen(false);
+              }}>
+                <label>Tool or page<select name="tool" required><option value="">Choose a tool</option><option>Toolkit Home</option><option>Med Tabs</option><option>Canned Remarks</option><option>Welcome Emails</option><option>Fax Sender</option><option>Intake Checker</option><option>Settings</option></select></label>
+                <label>Requested edit<textarea name="edit" rows="4" required placeholder="What would you like changed?"></textarea></label>
+                <label>Other details <span>(optional)</span><textarea name="details" rows="3" placeholder="Anything else that would help?"></textarea></label>
+                <div className="toolkit-request-actions"><button className="secondary-btn" type="button" onClick={() => setIsToolkitRequestOpen(false)}>Cancel</button><button className="settings-save-button" type="submit">Open Email Draft</button></div>
+              </form>
+            </section>
           </>
         )}
 
@@ -715,16 +775,13 @@ export default function App() {
         <div className="app-footer-inner">
           <span>&copy; 2026 Packard Law Firm</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
-          <details id="email-version-history" className="email-version-history">
-            <summary>Email Sender v2.6.0</summary>
-            <p><strong>v2.6.0</strong> - Bulk Outlook Drafts opens one individual Outlook tab per valid unique recipient, preserving manual review and sending.</p>
-          </details>
+          <a className="app-footer-link" href="/version-history/">Packard Toolkit v2.15.0</a>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Internal use only</span>
           <span className="app-footer-divider" aria-hidden="true">&bull;</span>
           <span>Built by Sam Jensen</span>
           <span className="app-footer-links">
-            <a className="app-footer-link" href="#email-version-history" onClick={() => { document.getElementById("email-version-history").open = true; }}>Version history</a>
+            <a className="app-footer-link" href="/version-history/">Version history</a>
             <a className="app-footer-link" href="/settings/">Settings</a>
           </span>
         </div>

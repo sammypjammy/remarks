@@ -143,7 +143,7 @@ COMMIT;
 ```powershell
 npm run test:auth
 npm run test:auth:db
-node --test --test-concurrency=1 tests/*.test.js intake-checker/*.test.js
+node --test --test-concurrency=1 tests/*.test.js tests/*.test.mjs
 npm run build
 node tests/toolkit-auth-browser-check.mjs "C:\Program Files\Google\Chrome\Application\chrome.exe"
 node tests/navigation-browser-check.mjs "C:\Program Files\Google\Chrome\Application\chrome.exe"

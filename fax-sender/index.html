@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="../settings/shared/favicon.png" />
+    <link rel="icon" type="image/png" href="../shared/favicon.png" />
     <title>Fax Sender | Packard Toolkit</title>
-    <link rel="stylesheet" href="../settings/shared/style.css" />
-    <link rel="stylesheet" href="../settings/shared/footer.css" />
+    <link rel="stylesheet" href="../shared/style.css" />
+    <link rel="stylesheet" href="../shared/footer.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body data-page="fax">
@@ -29,9 +29,6 @@
                     <input id="contactSearch" type="text" role="combobox" aria-haspopup="dialog" aria-expanded="false" placeholder="Search contacts or enter fax number..." autocomplete="off" aria-describedby="contactMessage numberHelp" aria-controls="contactDropdown" />
                     <button id="clearDestination" class="destination-clear" type="button" aria-label="Clear fax destination" title="Clear fax destination" hidden>&times;</button>
                   </div>
-                  <button id="reloadContacts" type="button" class="destination-refresh" aria-label="Refresh RingCentral contacts" title="Refresh RingCentral contacts">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.34 5.66" /></svg>
-                  </button>
                   <div id="contactDropdown" class="destination-dropdown" role="dialog" aria-label="Choose a fax destination" hidden>
                     <ul id="contactResults" aria-label="Fax destinations"></ul>
                   </div>
@@ -41,6 +38,13 @@
                 <label for="lastFourSsn">Last 4 of SSN</label>
                 <input id="lastFourSsn" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required aria-required="true" autocomplete="off" />
               </div>
+            </div>
+            <div class="destination-actions">
+              <button id="reloadContacts" type="button" class="destination-refresh" aria-label="Refresh RingCentral contacts" title="Refresh RingCentral contacts">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7v5h-5M20 12a8 8 0 1 0-2.34 5.66" /></svg>
+                <span>Refresh contacts</span>
+              </button>
+              <button id="clearDestinationAction" type="button" class="secondary-btn" aria-label="Clear destination">Clear destination</button>
             </div>
             <input id="faxNumber" name="faxNumber" type="hidden" />
             <p id="contactMessage" role="status" aria-live="polite" hidden></p>
@@ -61,7 +65,7 @@
             <div id="coverCommentField" class="fax-cover-comment">
               <label for="coverPageText">Cover Sheet Comment <span>(optional)</span></label>
               <textarea id="coverPageText" rows="2" maxlength="1024" autocomplete="off" spellcheck="false" aria-describedby="coverCommentHelp"></textarea>
-              <p id="coverCommentHelp">Up to 1024 characters. Used on every fax in this batch; not saved in Fax History.</p>
+              <p id="coverCommentHelp" hidden></p>
             </div>
             <div class="fax-list-heading">
               <h2 id="documentCount">PDF Documents</h2>
@@ -69,7 +73,7 @@
             </div>
             <button id="choosePdfFiles" class="secondary-btn" type="button" aria-describedby="fileHelp">Choose PDF Files</button>
             <input id="pdfFile" name="file" type="file" accept=".pdf,application/pdf" multiple hidden aria-label="Choose PDF Files" aria-describedby="fileHelp" />
-            <p id="fileHelp">Up to 4 MB per PDF. Each PDF is a separate fax. Selecting more files adds them to the list.</p>
+            <p id="fileHelp" hidden></p>
             <p id="validation" aria-live="polite"></p>
             <div id="batchReceipts" hidden>
               <button id="downloadAllReceipts" class="primary-btn" type="button" disabled>Download All Fax Receipts</button>
@@ -83,7 +87,7 @@
               <button id="sendFax" class="primary-btn" type="submit" disabled hidden>Send Faxes</button>
               <button id="retryFailed" class="secondary-btn" type="button" hidden>Retry Failed</button>
             </div>
-            <p id="retryHelp" hidden>Retry is available only when RingCentral reports a definitive fax failure. Unknown outcomes cannot be retried here.</p>
+            <p id="retryHelp" hidden></p>
           </fieldset>
         </form>
         <p id="faxResult" role="status" aria-live="polite" hidden></p>
@@ -103,10 +107,11 @@
         </details>
       </aside>
       </div>
+      <div id="faxConnectionFooter" class="fax-connection-footer" aria-label="RingCentral and Toolkit connection status"></div>
     </main>
-    <div data-app-footer data-app-version="Fax Sender v2.16.0"></div>
-    <script src="../settings/shared/settings-storage.js"></script>
-    <script src="../settings/shared/app-shell.js"></script>
+    <div data-app-footer data-app-version="Fax Sender v3.0.3"></div>
+    <script src="../shared/settings-storage.js"></script>
+    <script src="../shared/app-shell.js"></script>
     <script type="module" src="./main.js"></script>
   </body>
 </html>

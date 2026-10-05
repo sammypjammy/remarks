@@ -11,7 +11,7 @@ if (!browser) throw new Error("Provide a Chromium browser executable path.");
 const directory = await mkdtemp(join(tmpdir(), "fax-contacts-browser-"));
 let html = await readFile(new URL("../fax-sender/index.html", import.meta.url), "utf8");
 html = html.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<link[^>]+>/g, "");
-const styles = await Promise.all(["../settings/shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
+const styles = await Promise.all(["../shared/style.css", "../fax-sender/styles.css"].map(file => readFile(new URL(file, import.meta.url), "utf8")));
 html = html.replace("</head>", `<style>${styles.join("\n")}</style></head>`);
 const sources = await Promise.all(["tracking.js", "message.js", "receipts-zip.js", "history.js", "batch.js", "contacts.js", "main.js"].map(async file =>
   (await readFile(new URL(`../fax-sender/${file}`, import.meta.url), "utf8")).replace(/^\uFEFF/, "").replace(/^import .*;\r?\n/gm, "")));
@@ -47,8 +47,17 @@ try {
   if (!historyPanel.open) historyPanel.querySelector("summary").click();
   const refreshRect = document.getElementById("reloadContacts").getBoundingClientRect();
   const iconRect = document.querySelector("#reloadContacts svg").getBoundingClientRect();
-  check(Math.abs((refreshRect.left + refreshRect.right - iconRect.left - iconRect.right) / 2) < 1, "Refresh icon must be horizontally centered");
-  check(Math.abs((refreshRect.top + refreshRect.bottom - iconRect.top - iconRect.bottom) / 2) < 1 && iconRect.width === 20, "Refresh icon must be centered and 20px");
+  const clearAction = document.getElementById("clearDestinationAction").getBoundingClientRect();
+  const rowRect = document.querySelector(".fax-recipient-row").getBoundingClientRect();
+  const destinationRect = document.querySelector(".fax-destination-field").getBoundingClientRect();
+  const lastFourFieldRect = document.querySelector(".fax-last-four-field").getBoundingClientRect();
+  const lastFourRect = document.getElementById("lastFourSsn").getBoundingClientRect();
+  check(document.getElementById("reloadContacts").textContent.includes("Refresh contacts") && document.getElementById("clearDestinationAction").textContent === "Clear destination", "Destination actions must be labeled");
+  check(refreshRect.top >= rowRect.bottom - 1 && clearAction.top >= rowRect.bottom - 1, "Destination actions must sit below recipient fields");
+  check(Math.abs(refreshRect.top - clearAction.top) < 1, "Destination actions must align together");
+  check(iconRect.width === 20 && iconRect.top >= refreshRect.top, "Refresh icon must remain 20px");
+  check(innerWidth < 641 || (lastFourRect.width <= 90 && destinationRect.width > lastFourRect.width), "Last 4 must be compact beside the destination on desktop");
+  check(innerWidth >= 641 ? Math.abs(lastFourFieldRect.top - destinationRect.top) < 1 : lastFourFieldRect.top >= destinationRect.bottom, "Recipient fields must stack only on mobile");
   const panelRect = document.querySelector(".fax-panel").getBoundingClientRect();
   const historyRect = historyPanel.getBoundingClientRect();
   check(innerWidth >= 1100 ? historyRect.left >= panelRect.right && panelRect.width > historyRect.width : historyRect.top >= panelRect.bottom, "History must be secondary on right or below workflow");
