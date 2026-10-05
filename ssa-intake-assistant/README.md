@@ -1,0 +1,9 @@
+# SSA Intake Assistant v1.0.0
+
+Open `/ssa-intake-assistant/` from the Toolkit homepage or navigation. A current Toolkit session is required. Phase 1 reads a selected PDF in the browser and keeps the PDF bytes, extracted text, and reviewed profile in page memory only. Reloading, closing the page, clearing the profile, or signing out removes the active profile. The app makes no client-data API request and uses no client-data browser storage, database, analytics, or logging.
+
+From the Toolkit root, run `npm install`, then `npm run dev`. `predev` and `build` copy OCR worker, WASM, and English model files from installed npm packages into this tool's ignored `public/ocr/` directory. The Vite server and production build serve them from `/ssa-intake-assistant/ocr/`; no OCR CDN is used. Run `npm run build` for production output and `npm run preview` to check `/ssa-intake-assistant/`.
+
+The dashboard uses PDF.js for text and form-field extraction. If no Phase 1 answers are found in a PDF with little direct text, it renders pages locally and runs Tesseract OCR. It extracts basic names, suffix, SSN, birth date, phone, email, and mailing address. Every answer shows a status, confidence, and source PDF page when available. Missing and conflicting values require employee review. Editing an answer resets its confirmation and profile readiness. Required Phase 1 answers must be employee-confirmed before **Mark profile ready** is enabled. The broader profile schema is a draft for later phases, not a claim of complete intake coverage.
+
+Only synthetic data belongs in tests and development screenshots. Do not copy the standalone project's named PDF or HTML files. Do not log PDF contents or extracted answers. The extension has not been migrated or connected: this release does not transfer a profile, fill SSA pages, navigate SSA pages, or submit anything. Login.gov, ID.me, credentials, MFA, CAPTCHA, attestations, signatures, and final submission are outside scope.

@@ -4,20 +4,25 @@
   "version": "2.14.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "predev": "npm run prepare-ssa-ocr",
+    "dev": "vite --configLoader native",
+    "build": "npm run prepare-ssa-ocr && vite build --configLoader native",
+    "prepare-ssa-ocr": "node ssa-intake-assistant/scripts/copy-ocr-assets.mjs",
+    "preview": "vite preview --configLoader native",
     "db:migrate": "node scripts/migrate-auth.mjs --apply",
     "test:auth": "node --test tests/toolkit-auth.test.js",
     "test:auth:db": "node --env-file=.env.local --test tests/toolkit-auth-db.test.js"
   },
   "dependencies": {
     "@azure/msal-browser": "5.19.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "fflate": "^0.8.3",
     "jose": "^6.2.12",
+    "pdfjs-dist": "^4.10.38",
     "pg": "^8.23.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "6.1.0",

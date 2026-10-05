@@ -7,6 +7,7 @@ Run `npm install`, then `npm run dev` to start the toolkit. Use `npm run build` 
 - `med-tabs-generator/`: medical tabs page, styles, parser, and JavaScript.
 - `welcome-email-sender/`: email page, React components, Outlook integration, authentication callback, styles, and PDF attachments.
 - `settings/`: settings page, styles, and JavaScript.
+- `ssa-intake-assistant/`: authenticated Phase 1 PDF extraction and review dashboard with locally bundled OCR. See its README for privacy and limitations.
 - `shared/`: shared styles, navigation, favicon, and settings storage, including the React settings adapter.
 - `tests/`: unit and browser checks; Intake checks use `intake-` prefixes.
 

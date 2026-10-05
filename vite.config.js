@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { cpSync, mkdirSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, writeFileSync, existsSync, createReadStream } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import sendFax from "./api/send-fax.js";
@@ -53,6 +53,29 @@ function authCallbackRoute(server) {
   });
 }
 
+function ssaOcrAssets() {
+  const source = resolve(import.meta.dirname, 'ssa-intake-assistant/public/ocr');
+  return {
+    name: 'ssa-local-ocr-assets',
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const name = /^\/ssa-intake-assistant\/ocr\/([A-Za-z0-9._-]+)$/.exec(request.url?.split('?')[0] || '')?.[1];
+        if (!name) return next();
+        const file = resolve(source, name);
+        if (!existsSync(file)) return next();
+        response.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript' : name.endsWith('.wasm') ? 'application/wasm' : 'application/octet-stream');
+        createReadStream(file).pipe(response);
+      });
+    },
+    closeBundle() {
+      if (!existsSync(source)) throw new Error('SSA local OCR assets are missing. Run npm run prepare-ssa-ocr.');
+      const destination = resolve(import.meta.dirname, 'dist/ssa-intake-assistant/ocr');
+      mkdirSync(destination, { recursive: true });
+      cpSync(source, destination, { recursive: true });
+    }
+  };
+}
+
 // Preserve compatibility URLs independently of their source-file locations.
 const legacySharedStyles = '@import "/shared/style.css";\n@import "/home/styles.css";\n@import "/canned-remarks/styles.css";\n';
 
@@ -78,6 +101,7 @@ export default defineConfig({
   server: { port: 5173, strictPort: true },
   plugins: [
     react(),
+    ssaOcrAssets(),
     { name: 'compatibility-routes', configureServer: compatibilityRoutes },
     { name: 'local-toolkit-auth', configureServer: localToolkitAuth },
     { name: "local-fax-api", configureServer: localFaxApi },
@@ -120,6 +144,7 @@ export default defineConfig({
         home: resolve(import.meta.dirname, "index.html"),
         faxSender: resolve(import.meta.dirname, "fax-sender/index.html"),
         intakeChecker: resolve(import.meta.dirname, "intake-checker/index.html"),
+        ssaIntakeAssistant: resolve(import.meta.dirname, "ssa-intake-assistant/index.html"),
         cannedRemarks: resolve(import.meta.dirname, "canned-remarks/index.html"),
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
         welcomeEmailSender: resolve(import.meta.dirname, "welcome-email-sender/index.html"),
