@@ -40,4 +40,3 @@ export async function recognizePdfPage(page, worker) {
     canvas.height = 1;
   }
 }
-

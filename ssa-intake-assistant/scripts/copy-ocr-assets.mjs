@@ -22,4 +22,3 @@ await mkdir(destination, { recursive: true });
 await Promise.all(
   files.map(([source, name]) => copyFile(join(dependencyRoot, source), join(destination, name))),
 );
-

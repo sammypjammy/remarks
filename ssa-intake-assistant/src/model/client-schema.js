@@ -91,4 +91,3 @@ export function isField(value) {
       Object.prototype.hasOwnProperty.call(value, 'status'),
   );
 }
-

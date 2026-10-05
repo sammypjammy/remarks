@@ -23,4 +23,3 @@ export function groupItemsIntoLines(items) {
     )
     .filter(Boolean);
 }
-
