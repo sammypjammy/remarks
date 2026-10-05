@@ -53,3 +53,7 @@ The shared Toolkit panel contains a 45/55 input/report grid above 1080px; smalle
 The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by its existing nodes. No labels/values or validation rules change. `issueSource` follows the validation issue record path, then resolves the exact field within that record. Missing fields fall back to the record/section heading; absent sections have no locate action.
 
 Find in Intake focuses the textarea and selects the source range without changing text. A temporary, invisible measuring element estimates wrapped line position and is immediately removed. Selection is exact; scroll centering can vary slightly with browser typography, wrapping, or zoom. Editing clears results and locate callbacks, and Clear removes all content/selection state.
+
+## SSA preparation (v1.6.0)
+
+After checking a recognized intake, Continue to SSA Intake Assistant opens the Phase 1 review inside this page. Back retains the intake and Reviewed dismissals; SSA confirmations and edits also survive returning. Editing/rechecking the pasted source starts a new preparation profile. No client data is saved or sent. Reviewed is an acknowledgement, not SSA answer confirmation. The standalone SSA PDF route remains available.

@@ -1,3 +1,4 @@
+import { createIntakeHandoff } from "../ssa-intake-assistant/src/intake-handoff.jsx";
 import { parseIntake } from "./parser.js";
 import { validateIntake } from "./validation.js";
 import { issueSource, findInTextarea } from "./source-location.js";
@@ -7,7 +8,12 @@ import { createAcknowledgements, validationSummary } from "./acknowledgements.js
 const input = document.getElementById("intakeText");
 const results = document.getElementById("intakeResults");
 const message = document.getElementById("intakeMessage");
+let activeIntake = null;
+const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, range), onAccessLost: () => reset() });
 function clearResults() {
+  activeIntake = null;
+  handoff.clear();
+  document.getElementById("continueToSsa").hidden = true;
   results.hidden = true;
   document.getElementById("intakeEmpty").hidden = false;
   message.textContent = "";
@@ -26,6 +32,8 @@ input.addEventListener("input", clearResults);
 document.getElementById("clearIntake").addEventListener("click", () => { reset(); input.focus(); });
 // Avoid restoring client text/results through back-forward page caching.
 window.addEventListener("pagehide", reset);
+window.addEventListener("packardaccountchange", reset);
+document.getElementById("continueToSsa").addEventListener("click", () => { if (activeIntake) handoff.open(activeIntake); });
 document.getElementById("intakeForm").addEventListener("submit", event => {
   event.preventDefault();
   clearResults();
@@ -38,8 +46,12 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
   message.textContent = "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
-    renderReview(reviewIntake(parsed));
-    renderReport(validateIntake(parsed), partial, parsed);
+    const review = reviewIntake(parsed);
+    const report = validateIntake(parsed);
+    activeIntake = { parsed, review, report, reviewState: createAcknowledgements(review.items), validationState: createAcknowledgements(report.issues) };
+    renderReview(review, activeIntake.reviewState);
+    renderReport(report, partial, parsed, activeIntake.validationState);
+    document.getElementById("continueToSsa").hidden = false;
     document.getElementById("validationReport").hidden = false;
   } else {
     message.textContent = "The intake could not be reliably parsed: no sections were recognized. Validation was not run. Copy the intake again and review the pasted text.";
@@ -48,8 +60,7 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   results.hidden = false;
 });
 
-function renderReport(report, partial, parsed) {
-  const state = createAcknowledgements(report.issues);
+function renderReport(report, partial, parsed, state) {
   const summary = document.getElementById("validationSummary");
   function updateSummary() {
     const result = validationSummary(report.issues, state.remaining(), partial);
@@ -111,7 +122,7 @@ function locateButton(range, label) {
   return button;
 }
 
-function renderReview(review) {
+function renderReview(review, state) {
   const client = document.getElementById("reviewClient");
   for (const [label, value, empty] of [
     ["Client name / last four of SSN", review.identifier, "Client name and last four unavailable"],
@@ -141,7 +152,6 @@ function renderReview(review) {
     client.append(row);
   }
   const list = document.getElementById("reviewItems");
-  const state = createAcknowledgements(review.items);
   for (const item of review.items) {
     const row = document.createElement("li");
     row.dataset.severity = "warning";

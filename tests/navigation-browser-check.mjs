@@ -126,7 +126,7 @@ try {
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.5.0' : page === '/ssa-intake-assistant/' ? 'SSA Intake Assistant v1.0.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.3.1' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.6.0' : page === '/ssa-intake-assistant/' ? 'SSA Intake Assistant v1.1.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert(await evaluate("document.getElementById('faxWorkspace').hidden"), "Disconnected users cannot use the fax workspace");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -148,7 +148,7 @@ try {
       assert(await evaluate(`![...document.querySelectorAll('.toolkit-navigation a')].some(a => a.href.includes('version-history')) && !document.querySelector('.toolkit-navigation').innerText.toLowerCase().includes('version history')`), "History excluded from primary menu");
       const links = await evaluate(`[...document.querySelectorAll('.toolkit-navigation a')].map(a => ({ href: a.getAttribute('href'), path: new URL(a.href).pathname }))`);
       assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), defaultMenuOrder, `Default tool order on ${page}`);
-      const expectedLinks = page === "/version-history/" ? 7 : 6;
+      const expectedLinks = page === "/version-history/" ? defaultMenuOrder.length : defaultMenuOrder.length - 1;
       assert.equal(links.length, expectedLinks, `Toolkit links on ${page}`);
       assert(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)).length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(item => /Fax Sender|Intake Checker/.test(item.textContent)).length) === 2`), `Fax Sender and Intake Checker appear once on ${page}`);
       assert.equal(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => a.textContent.trim() === 'Fax Sender' && new URL(a.href).pathname === '/fax-sender/').length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(a => a.textContent.trim().startsWith('Fax Sender')).length)`), 1, `One canonical Fax Sender navigation item on ${page}`);
@@ -252,7 +252,7 @@ try {
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 2, "Multiple history sections remain open");
     await evaluate("document.querySelector('[data-history-tool=\\\"home-page\\\"] > summary').click()");
     assert.equal(await evaluate("document.querySelectorAll('.version-history-section[open]').length"), 1, "History section collapses independently");
-    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 42, "SSA v1.0.0 adds one release entry");
+    assert.equal(await evaluate("document.querySelectorAll('.version-history-section article').length"), 44, "SSA v1.1.0 and Intake Checker v1.6.0 add two release entries");
     if (!process.argv.includes("--fax-only")) await checkIntake({ visit, click, evaluate, width, capture: async () => {
       const metrics = await cdp("Page.getLayoutMetrics");
       const shot = await cdp("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width, height: metrics.cssContentSize.height, scale: 1 } });

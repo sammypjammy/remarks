@@ -3,7 +3,7 @@ export const intakeRules = {
   sections: {
     "PERSONAL INFORMATION": {
       required: ["First Name", "Last Name", "Gender", "Social Security Number", "Phone Number", "Email"],
-      optional: ["Middle Name", "Suffix", "Nickname", "Preferred Contact Method"]
+      optional: ["Middle Name", "Suffix", "Nickname", "Preferred Contact Method", "Alternate Phone", "Secondary Phone"]
     },
     "BIRTH INFORMATION": { required: ["Date of Birth", "City of Birth", "State of Birth", "Country of Birth"] },
     "ADDRESS INFORMATION": {

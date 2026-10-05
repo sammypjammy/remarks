@@ -13,6 +13,7 @@
     <div data-app-header></div>
     <div data-app-menu></div>
     <main class="app-shell intake-page">
+      <div id="intakeCheckerView">
       <section class="page-intro" aria-labelledby="pageTitle">
         <h1 id="pageTitle">Intake Checker</h1>
         <p class="subtitle">Paste a DeLorean intake, check it, and locate information that needs attention.</p>
@@ -33,6 +34,7 @@
         <section class="intake-output" aria-label="Intake results">
           <p id="intakeEmpty">Check an intake to see issues here.</p>
           <div id="intakeResults" hidden>
+          <button id="continueToSsa" class="primary-btn" type="button" hidden>Continue to SSA Intake Assistant</button>
           <section id="intakeReview" aria-labelledby="reviewTitle" hidden>
             <h2 id="reviewTitle" tabindex="-1">Things to Notate in Remarks</h2>
             <div id="reviewClient"></div>
@@ -47,8 +49,10 @@
           </div>
         </section>
       </section>
+      </div>
+      <section id="ssaIntakeView" hidden aria-label="SSA Intake Assistant"></section>
     </main>
-    <div data-app-footer data-app-version="Intake Checker v1.5.0"></div>
+    <div data-app-footer data-app-version="Intake Checker v1.6.0"></div>
     <script src="../shared/settings-storage.js"></script>
     <script src="../shared/app-shell.js"></script>
     <script type="module" src="./intake-checker.js"></script>
