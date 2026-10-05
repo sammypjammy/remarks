@@ -8,6 +8,11 @@ import { openBulkDrafts, parseBulkRecipients } from "./bulkEmail.js";
 import { addEmailHistory, browserEmailHistoryStorage, createEmailHistoryEntry, EMAIL_HISTORY_LIMIT, loadEmailHistory, saveEmailHistory } from "./emailHistory.js";
 import { getCustomCaseManagers, getEmailSignature, getEmailTemplates, getSetting, setSetting, getToolkitNavigation } from "../shared/settingsStorage.js";
 
+const EMAIL_TYPES = [
+  { id: "welcome", label: "Welcome Emails", usesCaseManager: true },
+  { id: "medical", label: "Medical Request", usesCaseManager: false },
+  { id: "other", label: "Other", usesCaseManager: false },
+];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OUTLOOK_WEB_HOSTS = new Set([
   "outlook.office.com",
@@ -102,6 +107,9 @@ export default function App() {
   const toolkitNavigation = getToolkitNavigation(false);
   const [clientEmail, setClientEmail] = useState(getInitialClientEmail);
   const [mode, setMode] = useState("single");
+  const [emailType, setEmailType] = useState("welcome");
+  const [constructionAlert, setConstructionAlert] = useState("");
+  const isWelcome = EMAIL_TYPES.find(type => type.id === emailType)?.usesCaseManager;
   const [bulkText, setBulkText] = useState("");
   const [isBulkCreating, setIsBulkCreating] = useState(false);
   const [bulkError, setBulkError] = useState("");
@@ -295,6 +303,10 @@ export default function App() {
   async function handleSubmit(event) {
     const owner = window.PackardSettings.accountPreferenceOwner();
     event.preventDefault();
+    if (!isWelcome) {
+      setConstructionAlert(`${EMAIL_TYPES.find(type => type.id === emailType).label} is under construction. No email or Outlook draft was created.`);
+      return;
+    }
     if (bulkBusyRef.current) return;
     if (isBulk) { handleBulkDrafts(); return; }
     if (!validate()) return;
@@ -415,6 +427,16 @@ export default function App() {
     resetSenderForm({ focus: true, clearStatus: true });
   }
 
+  function handleEmailTypeChange(nextType) {
+    setEmailType(nextType);
+    setErrors({});
+    setBulkError("");
+    setCopyStatus("");
+    setConstructionAlert("");
+    setIsPreviewOpen(false);
+    setIsSignaturePromptOpen(false);
+  }
+
   return (
     <div className="page-shell">
       <div className="app-shell">
@@ -487,10 +509,33 @@ export default function App() {
         <main className="panel" aria-labelledby="page-title">
           <div className="page-header">
             <div className="page-header-copy">
-              <h1 id="page-title">Welcome Email Sender</h1>
+              <h1 id="page-title">Email Sender</h1>
               <p className="subtitle">Prepare a personalized welcome email and open it in Outlook.</p>
             </div>
-            <div className="language-selector" role="radiogroup" aria-label="Packet language">
+          </div>
+
+          <div className="email-workspace">
+          <form className="sender-card" onSubmit={handleSubmit} noValidate>
+          <fieldset className="sender-fields" disabled={batchLocked}>
+          <div className="sender-top-controls">
+            <div className="email-type-control">
+              <label htmlFor="email-type">Email Type</label>
+              <div className="select-wrap">
+                <select id="email-type" value={emailType} disabled={isCreatingDraft} onChange={event => handleEmailTypeChange(event.target.value)}>
+                  {EMAIL_TYPES.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="language-selector email-mode" role="group" aria-label="Email mode">
+              {["single", "bulk"].map(value => (
+                <button key={value} type="button" className={`language-option ${mode === value ? "active" : ""}`}
+                  aria-pressed={mode === value} disabled={isCreatingDraft}
+                  onClick={() => { setMode(value); setErrors({}); setCopyStatus(""); setConstructionAlert(""); }}>
+                  {value === "single" ? "Single" : "Bulk"}
+                </button>
+              ))}
+            </div>
+            <div className="language-selector" role="radiogroup" aria-label="Email language">
               <button
                 className={`language-option ${language === "english" ? "active" : ""}`}
                 type="button"
@@ -512,19 +557,6 @@ export default function App() {
                 Spanish
               </button>
             </div>
-          </div>
-
-          <div className="email-workspace">
-          <form className="sender-card" onSubmit={handleSubmit} noValidate>
-          <fieldset className="sender-fields" disabled={batchLocked}>
-          <div className="language-selector email-mode" role="group" aria-label="Email mode">
-            {["single", "bulk"].map(value => (
-              <button key={value} type="button" className={`language-option ${mode === value ? "active" : ""}`}
-                aria-pressed={mode === value} disabled={isCreatingDraft}
-                onClick={() => { setMode(value); setErrors({}); setCopyStatus(""); }}>
-                {value === "single" ? "Single" : "Bulk"}
-              </button>
-            ))}
           </div>
           <div className="form-fields">
             <div className="field-group">
@@ -569,7 +601,7 @@ export default function App() {
             </>}
             </div>
 
-            <div className="field-group">
+            {isWelcome && <div className="field-group">
             <label htmlFor="case-manager">Case Manager</label>
             <div className="select-wrap">
               <select
@@ -587,10 +619,10 @@ export default function App() {
               </select>
             </div>
             {errors.manager && <p className="field-error" id="manager-error">{errors.manager}</p>}
-            </div>
+            </div>}
           </div>
 
-          <button
+          {isWelcome && <button
             className="preview-toggle"
             type="button"
             onClick={() => setIsPreviewOpen((open) => !open)}
@@ -599,9 +631,9 @@ export default function App() {
           >
             {isPreviewOpen ? "Hide preview" : "Preview email"}
             <span aria-hidden="true">{isPreviewOpen ? "\u2212" : "+"}</span>
-          </button>
+          </button>}
 
-          {isPreviewOpen && (
+          {isWelcome && isPreviewOpen && (
             <section className="email-preview" aria-label="Email preview">
               <dl>
                 <div><dt>To:</dt><dd>{isBulk ? `Individual copy to each of ${bulkRecipients.recipients.length} recipients` : clientEmail.trim()}</dd></div>
@@ -612,8 +644,8 @@ export default function App() {
           )}
 
           <div className="actions">
-            <button className="primary-button" type="submit" disabled={!hasRequiredFields || isCreatingDraft || (isBulk && !isOutlookGraphConfigured)}>
-              <span>{isBulk ? `Open ${bulkRecipients.recipients.length} Draft${bulkRecipients.recipients.length === 1 ? "" : "s"}` : isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft"}</span>
+            <button className="primary-button" type="submit" disabled={isWelcome && (!hasRequiredFields || isCreatingDraft || (isBulk && !isOutlookGraphConfigured))}>
+              <span>{isWelcome ? (isBulk ? `Open ${bulkRecipients.recipients.length} Draft${bulkRecipients.recipients.length === 1 ? "" : "s"}` : isCreatingDraft ? "Creating Draft…" : "Open Outlook Draft") : "Open Email"}</span>
               <svg viewBox="0 0 20 20" aria-hidden="true">
                 <path d="M7.5 4.5h8v8M15 5 8.25 11.75M15 10.5v4a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4" />
               </svg>
@@ -623,7 +655,7 @@ export default function App() {
             </button>
           </div>
 
-          <p className="privacy-note">
+          {isWelcome ? <p className="privacy-note">
             {isBulk ? (isOutlookGraphConfigured
               ? `Each recipient opens in a separate Outlook tab with ${managerAttachments.length} PDF attachment${managerAttachments.length === 1 ? "" : "s"}. Review and send each draft yourself in Outlook.`
               : "Bulk draft creation requires Microsoft Outlook integration to be configured.") : isOutlookGraphConfigured
@@ -633,8 +665,9 @@ export default function App() {
                 ? `${managerAttachments.length} PDF attachment${managerAttachments.length === 1 ? "" : "s"} will be added automatically. Nothing is sent until you review it.`
                 : "No PDF is mapped to this case manager yet. The draft will still be created for review."
               : "Outlook attachment setup is pending. Until configured, the email body is copied for you to paste."}
-          </p>
+          </p> : <p className="privacy-note">{EMAIL_TYPES.find(type => type.id === emailType).label} is under construction.</p>}
           </fieldset>
+          {constructionAlert && <p className="field-error" role="alert">{constructionAlert}</p>}
           {isBulk && bulkError && <p className="field-error" role="alert">{bulkError}</p>}
           </form>
           <aside className="email-history-card" aria-labelledby="email-history-title">

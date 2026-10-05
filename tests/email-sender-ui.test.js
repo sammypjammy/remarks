@@ -112,6 +112,7 @@ test("Email Sender persistent Single/Bulk history, popup feedback and footer ver
   await command("Page.navigate", { url: `${origin}/welcome-email-sender/` });
   await waitFor("Boolean(document.querySelector('#client-email'))");
   await waitFor("PackardSettings.accountPreferencesStatus() === 'saved'");
+  assert.equal(await evaluate("Math.max(...[...document.querySelectorAll('#email-type, .email-mode, [aria-label=\"Email language\"]')].map(element => element.getBoundingClientRect().bottom)) - Math.min(...[...document.querySelectorAll('#email-type, .email-mode, [aria-label=\"Email language\"]')].map(element => element.getBoundingClientRect().bottom)) < 8"), true);
   await evaluate("window.PackardSettings.saveEmailSignature('Test User\\nCase Manager\\n555-0100'); window.PackardSettings.setSetting('openDraftsInNewTab', false); window.dispatchEvent(new Event('packardsettingschange'))");
   await input("#client-email", "single@example.com");
   await input("#case-manager", "Amanda Zuscar");
@@ -133,7 +134,7 @@ test("Email Sender persistent Single/Bulk history, popup feedback and footer ver
   assert.equal(await evaluate("document.querySelector('.email-history-item strong').textContent"),"success@example.com");
   assert.match(await evaluate("document.querySelector('.email-history-item').textContent"),/Amanda Zuscar/);
   await command("Page.reload");
-  await waitFor("Boolean(document.querySelector('#client-email')) && document.querySelectorAll('.email-history-item').length === 1");
+  await waitFor("Boolean(document.querySelector('#client-email')) && document.querySelector('.email-history-item strong')?.textContent === 'success@example.com'");
   assert.equal(await evaluate("document.querySelector('.email-history-item strong').textContent"),"success@example.com");
   await input("#case-manager","Amanda Zuscar");await click("Bulk");
   await input("#bulk-recipients","a@example.com; A@EXAMPLE.COM\nb@example.com\tbad");
@@ -159,7 +160,29 @@ test("Email Sender persistent Single/Bulk history, popup feedback and footer ver
   assert.match(await evaluate("document.querySelector('.app-footer').textContent"),/Email Sender v2.8.0/);
   await evaluate("document.querySelector('.app-footer-links a[href=\"#email-version-history\"]').click()");
   assert.equal(await evaluate("document.querySelector('#email-version-history').open"),true);
+  for (const type of ["medical", "other"]) {
+    await input("#email-type", type);
+    assert.equal(await evaluate("Boolean(document.querySelector('#case-manager'))"), false);
+    assert.equal(await evaluate("Boolean(document.querySelector('.email-preview'))"), false);
+    assert.equal(await evaluate("document.querySelector('button[role=radio][aria-checked=true]').textContent.trim()"), "English");
+    await click("Open Email");
+    assert.match(await evaluate("document.querySelector('[role=alert]').textContent"), /under construction/);
+    assert.equal(await evaluate("window.mailTest.drafts.length"), 2);
+    assert.equal(await evaluate("window.mailTest.tabs.length"), 2);
+    assert.equal(await evaluate("document.querySelectorAll('.email-history-item').length"), 3);
+    await click("Single");
+    await click("Spanish");
+    assert.equal(await evaluate("document.querySelector('button[role=radio][aria-checked=true]').textContent.trim()"), "Spanish");
+    await click("Open Email");
+    assert.equal(await evaluate("window.mailTest.drafts.length"), 2);
+    await click("Bulk");
+    await click("English");
+  }
+  await input("#email-type", "welcome");
+  assert.equal(await evaluate("Boolean(document.querySelector('#case-manager'))"), true);
+  assert.equal(await evaluate("Boolean(document.querySelector('[role=alert]'))"), false);
   await command("Emulation.setDeviceMetricsOverride",{width:390,height:844,deviceScaleFactor:1,mobile:true});
   assert.equal(await evaluate("document.documentElement.scrollWidth <= window.innerWidth"),true);
+  assert.equal(await evaluate("document.querySelector('#email-type').getBoundingClientRect().width > 0"), true);
   await command("Browser.close");
 });

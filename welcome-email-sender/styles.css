@@ -192,6 +192,9 @@ input:focus, select:focus { border-color: var(--accent); background: var(--panel
 input.has-error, select.has-error { border-color: var(--danger); }
 .sender-fields { display: grid; gap: 20px; border: 0; padding: 0; margin: 0; min-width: 0; }
 .email-mode { justify-self: start; }
+.sender-top-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.email-type-control { flex: 1 1 190px; min-width: 0; }
+.sender-top-controls .language-selector { margin-bottom: 2px; }
 #bulk-recipients { width: 100%; box-sizing: border-box; min-height: 150px; resize: vertical; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface-inset); color: var(--text); }
 .bulk-summary { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 8px 0; }
 .bulk-details { font-size: 0.85rem; margin: 10px 0; overflow-wrap: anywhere; }
@@ -373,6 +376,8 @@ input.has-error, select.has-error { border-color: var(--danger); }
 }
 
 @media (max-width: 480px) {
+  .email-type-control { flex-basis: 100%; }
+  .sender-top-controls .language-selector { flex: 1 1 140px; }
   .app-header { height: 66px; }
   .app-brand { font-size: 0.95rem; }
   .theme-toggle { padding-inline: 10px; }
