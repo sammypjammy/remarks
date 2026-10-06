@@ -1,4 +1,4 @@
-# SSA Intake Assistant v1.8.0
+# SSA Intake Assistant v1.9.0
 
 Open `/ssa-intake-assistant/` from the Toolkit homepage or navigation. A current Toolkit session is required. Phase 1 reads a selected PDF in the browser and keeps the PDF bytes, extracted text, and reviewed profile in page memory only. Reloading, closing the page, clearing the profile, or signing out removes the active profile. The app makes no client-data API request and uses no client-data browser storage, database, analytics, or logging.
 
@@ -12,11 +12,11 @@ Only synthetic data belongs in tests and development screenshots. Do not copy th
 
 Intake Checker v1.8.0 passes its existing parsed results, validation and review decisions to a versioned in-memory profile. SSA Intake Assistant summarizes ready/blocked fields and exact reasons without asking employees to reconfirm ready answers. Corrections update the Checker session and rerun its existing validation; Back retains that state. Editing or rechecking the original pasted text resets corrections.
 
-See [PROFILE-CONTRACT.md](PROFILE-CONTRACT.md) for the complete 119-definition catalog, repeating medical problems, schema 3.0.0, readiness rules, source provenance, types, unmapped fields and future extension requirements. Every parsed field is retained; unsupported meanings are blocked. The standalone direct-PDF workflow remains separate and unchanged. No extension connection is included.
+See [PROFILE-CONTRACT.md](PROFILE-CONTRACT.md) for the complete 119-definition catalog, repeating medical problems, schema 3.0.0, readiness rules, source provenance, types, unmapped fields and future extension requirements. Every parsed field is retained; unsupported meanings are blocked. The standalone direct-PDF workflow remains separate and unchanged. A development-only, explicitly approved connection is available on the exact local Toolkit origin; production has no extension bridge.
 
 Run focused tests with node --test --test-isolation=none tests/intake-*.test.js ssa-intake-assistant/src/model/*.test.js ssa-intake-assistant/src/pdf/*.test.js. After the production build, run node ssa-intake-assistant/tests/workflow-browser-check.mjs followed by the Chrome executable path for desktop/mobile, correction, privacy, PDF and OCR checks.
 
-SSA Intake Assistant v1.8.0 uses contract 3.0.0 scoped parsing requirements. Its open Unrecognized intake text panel lists each unresolved line and links directly to that text in Intake Checker. Valid unrelated answers can stay ready, but ready-field counts never imply that unresolved parsing requirements are cleared.
+SSA Intake Assistant v1.9.0 uses contract 3.0.0 scoped parsing requirements. Its open Unrecognized intake text panel lists each unresolved line and links directly to that text in Intake Checker. Valid unrelated answers can stay ready, but ready-field counts never imply that unresolved parsing requirements are cleared.
 
 Unsupported questions retained from standalone plain labels remain in the profile without creating attention cards. These are separate from parsing failures: their answers are preserved, but cannot be filled until an exact mapping is implemented. Supported neighboring answers are not blocked just because another question is unsupported. Contract 3.0.0 rules and types are unchanged; this fixes input recognition.
 
@@ -24,4 +24,4 @@ The presentation filters acknowledged validation reasons, parsing notices and ge
 
 The attention list follows unresolved Intake Checker validation only. Optional missing answers and unsupported mappings create no additional employee tasks. Once Checker issues are resolved or ignored, the handoff needs no further review. Technical fillability is unchanged: missing or unsupported answers are never invented or promoted to ready.
 
-Synthetic extension development: see [extension-dev/README.md](extension-dev/README.md). This separate, permission-free practice package uses fictional data only; the Toolkit handoff and standalone PDF/OCR workflow are unchanged.
+Synthetic extension development: see [extension-dev/README.md](extension-dev/README.md). This separate practice package uses fictional data and accepts an explicit local-development transfer of mapped ready answers. No host or storage permissions are requested. The standalone PDF/OCR workflow is unchanged.

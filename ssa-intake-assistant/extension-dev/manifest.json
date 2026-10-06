@@ -1,8 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Packard SSA Synthetic Practice",
-  "version": "0.1.0",
-  "description": "Development only: synthetic practice page. No access to websites or client profiles.",
-  "action": { "default_popup": "launcher.html", "default_title": "Open synthetic practice" },
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'" }
+  "version": "0.2.0",
+  "description": "Development only: synthetic practice and explicitly approved local Toolkit transfers.",
+  "action": {
+    "default_popup": "launcher.html",
+    "default_title": "Open synthetic practice"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxqHraWXQ5qM9/zFnPcp0jFq2gBc63RzfH4a7muM9iZ+xBuUFttFAuPHkf6tHmWQleBJwCGkLm6pE4KS8krOcBzZVWDdCbzpKx47xAPUiyn1Cz4rWJJ29bQHEfcp2KWWK1KJGX4Cm1VifBHVIBG7GhOiKh7t3qn/HycMbc/7y1P4BF4Q6HK1M+gskL7m+92Ctt5hHEDiNAm5jKOYB0FbEAhVHgpkO0QBCDviCGdlrVwt1eczlHYdfayxfNqoQc9rzpIltMAJuayBYRrecoG7Uy9We7e9rVhcBEw/BhsScD/PO1w6zuHsRC7WXSUMHj3Ls9rGH+/OvweTzal5b5YRZhwIDAQAB",
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1/*",
+      "http://localhost/*"
+    ]
+  }
 }

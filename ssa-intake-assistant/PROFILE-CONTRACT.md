@@ -206,3 +206,7 @@ The table below is checked by the contract tests. Category-specific duplicate la
 | financial-support.other-support-stay-with-family | FINANCIAL SUPPORT | Other Support - Stay with Family | boolean |
 | financial-support.other-support-stay-with-friends | FINANCIAL SUPPORT | Other Support - Stay with Friends | boolean |
 | financial-support.other-support-other | FINANCIAL SUPPORT | Other Support - Other | boolean |
+
+## Development-only consumer
+
+SSA v1.9.0 can explicitly share a narrow projection of the eight practice mappings with the 0.2.0 development extension, from the exact local development Toolkit page only. Contract 3.0.0 and readyFields semantics are unchanged. The transfer excludes source text, provenance, review metadata and authentication. It requires source approval, receiver arming, a bound session/nonce and a short lease. No production or live SSA connection is enabled. See extension-dev/README.md for the protocol, lifecycle, trust boundary and test instructions.

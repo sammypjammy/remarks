@@ -4,7 +4,7 @@ import AuthGate from './AuthGate.jsx';
 import { fromIntakeChecker } from './model/from-intake-checker.js';
 import './styles.css';
 
-// Both views live in one document. No URL, history, storage or message transport.
+// Both views live in one document. The optional development bridge is explicitly approved.
 export function createIntakeHandoff({ onSource, onAccessLost, onCorrect }) {
   const checker = document.getElementById('intakeCheckerView');
   const host = document.getElementById('ssaIntakeView');
@@ -21,6 +21,7 @@ export function createIntakeHandoff({ onSource, onAccessLost, onCorrect }) {
     root.render(<AuthGate onAccessLost={onAccessLost}><ReadinessDashboard profile={profile} onBack={back} onSource={back} onCorrect={correct} /></AuthGate>);
   }
   function back(range) {
+    window.dispatchEvent(new Event('packard-ssa-revoke'));
     host.hidden = true;
     checker.hidden = false;
     if (range) onSource(range);

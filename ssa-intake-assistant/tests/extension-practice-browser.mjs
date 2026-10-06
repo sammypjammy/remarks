@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 const browser = process.argv[2]; assert(browser, 'Provide Chrome executable');
 const root = resolve('ssa-intake-assistant/extension-dev');
 const directory = await mkdtemp(join(tmpdir(), 'packard-synthetic-extension-'));
-const allowed = new Set(['practice.html','practice.js','mapping.js','synthetic.js','style.css']);
+const allowed = new Set(['practice.html','practice.js','mapping.js','synthetic.js','bridge-contract.js','style.css']);
 const server = createServer(async (req, res) => {
   const name = req.url.slice(1);
   if (!allowed.has(name) || req.method !== 'GET') return res.writeHead(404).end();

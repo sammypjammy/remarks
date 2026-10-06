@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { reviewPresentation } from './model/review-presentation.js';
 import { profileSummary } from './model/intake-contract.js';
 
 const display = field => field.value === null ? 'No established answer' : typeof field.value === 'boolean' ? field.value ? 'Yes' : 'No' : field.value;
+const DevelopmentBridge = import.meta.env.DEV ? lazy(() => import('./DevelopmentBridge.jsx')) : null;
 
 export default function ReadinessDashboard({ profile, onBack, onSource, onCorrect }) {
   const { blocked, ignored, parsingIssues, requirements, reviews } = reviewPresentation(profile);
@@ -12,16 +13,18 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   const ready = profile.fields.filter(field => field.readiness === 'ready');
   const [message, setMessage] = useState('');
   function correct(id, value) {
+    window.dispatchEvent(new Event('packard-ssa-revoke'));
     const result = onCorrect(id, value);
     setMessage(result ? 'Correction applied to Intake Checker in memory. Readiness was recalculated using its existing validation.' : 'This source is ambiguous. Correct the pasted intake in Intake Checker.');
   }
   return <div className="ssa-workspace ssa-readiness">
-    <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. Nothing is sent or saved.</section>
+    <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. No client-data uploads or saved profiles.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.8.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.9.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Only unresolved Intake Checker issues need attention here.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
+    {DevelopmentBridge && ['http://127.0.0.1:5173/intake-checker/', 'http://localhost:5173/intake-checker/'].includes(location.href) && <Suspense fallback={<p>Loading development connection…</p>}><DevelopmentBridge profile={profile} /></Suspense>}
     <dl className="readiness-counts" aria-label="Profile readiness summary">
       {[["total", "Total fields"], ["ready", "Ready"], ["blocked", "Needs attention"], ["missing", "Missing"], ["conflicts", "Conflicts"]].map(([key, label]) =>
         <div key={key}><dt>{label}</dt><dd data-count={key}>{counts[key]}</dd></div>)}

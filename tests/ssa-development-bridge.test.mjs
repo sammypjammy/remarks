@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { projectReady, trustedSender, receiveBridge, BRIDGE_NAME, SOURCE_URL, LEASE_MS, MAX_SESSION_MS } from '../ssa-intake-assistant/extension-dev/bridge-contract.js';
+import { DEVELOPMENT_EXTENSION_ID } from '../ssa-intake-assistant/src/model/development-extension-id.js';
+import { syntheticProfile } from '../ssa-intake-assistant/extension-dev/synthetic.js';
+const nonce='11111111-1111-1111-1111-111111111111', session='22222222-2222-2222-2222-222222222222';
+const sender=()=>({url:SOURCE_URL,origin:'http://127.0.0.1:5173',frameId:0,tab:{id:7}});
+function event() { const listeners=new Set();return {addListener:f=>listeners.add(f),removeListener:f=>listeners.delete(f),emit:m=>[...listeners].forEach(f=>f(m))}; }
+function harness() {
+  let time=0, cleared=0, received=null, next;
+  const messages=[], port={name:BRIDGE_NAME,sender:sender(),onMessage:event(),onDisconnect:event(),postMessage:m=>messages.push(m),disconnect(){this.disconnected=true;}};
+  const stop=receiveBridge(port,{nonce,onProfile:p=>{received=p},onClear:()=>{cleared++;received=null},now:()=>time,schedule:(f,delay)=>{next={f,delay};return 1},cancel:()=>{}});
+  return {port,stop,messages,send:(type,extra={})=>port.onMessage.emit({type,receiver:nonce,session,...extra}),get received(){return received},get cleared(){return cleared},get timer(){return next},time:value=>{time=value}};
+}
+test('projection sends only mapped ready values with no source, review, credentials or unknown fields',()=>{
+  const p=syntheticProfile();p.credentials='synthetic-secret';p.fields[0].sources=[{rawValue:'synthetic source'}];p.fields[0].employeeReview={edits:[]};
+  const projected=projectReady(p);
+  assert.equal(projected.fields.length,7);assert(!JSON.stringify(projected).includes('synthetic-secret'));assert(!JSON.stringify(projected).includes('sources'));
+  p.fields[0].readiness='blocked';assert(!projectReady(p).fields.some(f=>f.id==='personal.first-name'));
+  p.fields.push({...p.fields[1]});assert(!projectReady(p).fields.some(f=>f.id==='personal.last-name'));
+  p.schemaVersion='99';assert.equal(projectReady(p),null);
+});
+test('only exact local URL, origin, top frame and browser tab are accepted',()=>{
+  assert(trustedSender(sender()));
+  assert(trustedSender({...sender(),url:'http://localhost:5173/intake-checker/',origin:'http://localhost:5173'}));
+  assert(!trustedSender({...sender(),url:'http://localhost:5173/intake-checker/'}));
+  for(const change of [{url:'https://ssa.gov/'},{url:SOURCE_URL+'?profile=x'},{url:SOURCE_URL.replace(':5173',':5174')},{origin:'https://untrusted.invalid'},{frameId:1},{tab:null},{id:'another-extension'}]) assert(!trustedSender({...sender(),...change}));
+});
+test('receiver binds nonce and session, clears on revoke and rejects repeated payloads',()=>{
+  const h=harness();assert.equal(h.messages[0].type,'challenge');assert.equal(h.timer.delay,LEASE_MS);
+  h.send('profile',{receiver:'wrong',profile:syntheticProfile()});assert.equal(h.received,null);
+  h.send('profile',{profile:syntheticProfile()});assert(h.received);assert.equal(h.messages.at(-1).type,'accepted');
+  h.send('heartbeat');assert(h.received);
+  h.send('profile',{profile:syntheticProfile()});assert.equal(h.received,null);assert.equal(h.cleared,1);
+  h.stop();assert.equal(h.cleared,1);
+  const other=harness();other.send('profile',{profile:syntheticProfile()});other.send('revoke');assert.equal(other.received,null);
+});
+test('disconnect, expired lease, hard deadline and wrong-session replay clear the receiver',()=>{
+  for(const release of [h=>h.port.onDisconnect.emit(),h=>h.timer.f(),h=>{h.time(MAX_SESSION_MS);h.send('heartbeat')},h=>h.send('heartbeat',{session:nonce})]){
+    const h=harness();h.send('profile',{profile:syntheticProfile()});release(h);assert.equal(h.received,null);assert.equal(h.cleared,1);
+  }
+});
+test('public package key pins the expected extension identity',async()=>{
+  const m=JSON.parse(await readFile(new URL('../ssa-intake-assistant/extension-dev/manifest.json',import.meta.url),'utf8'));
+  const id=createHash('sha256').update(Buffer.from(m.key,'base64')).digest('hex').slice(0,32).replace(/[0-9a-f]/g,c=>String.fromCharCode(97+parseInt(c,16)));
+  assert.equal(id,DEVELOPMENT_EXTENSION_ID);
+});

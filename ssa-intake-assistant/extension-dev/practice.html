@@ -3,7 +3,8 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'">
 <title>SSA synthetic practice</title><link rel="stylesheet" href="style.css"><script type="module" src="practice.js"></script></head>
 <body><main><p class="notice">DEVELOPMENT · SYNTHETIC DATA ONLY · NOT AN SSA WEBSITE</p><h1>Practice profile filling</h1>
-<p>This isolated page tests mappings with fictional answers. It cannot read Toolkit profiles or access other websites. Do not enter client information.</p>
+<p>This page tests mappings with fictional answers. It can receive an explicitly approved synthetic profile from the local development Toolkit. It cannot access SSA. Do not enter client information.</p>
+<button id="receive" type="button">Receive from local Toolkit</button><p id="connection" role="status">Not connected. No profile received.</p>
 <div class="actions"><button id="fill" type="button">Fill synthetic answers</button><button id="clear" type="button">Clear practice</button></div>
 <p id="status" role="status">Nothing filled. Select Fill to run the practice.</p>
 <section id="practice" data-practice="packard-synthetic-v1" aria-label="Simulated identity and dates"></section>
