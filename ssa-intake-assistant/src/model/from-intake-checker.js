@@ -127,7 +127,7 @@ export function fromIntakeChecker(session) {
   }
   return {
     schema: 'packard.intake-client-profile', schemaVersion: PROFILE_SCHEMA_VERSION, revision: session.revision || 0,
-    source: { kind: 'intake-checker', toolVersion: '1.10.0' }, fields,
+    source: { kind: 'intake-checker', toolVersion: '1.11.0' }, fields,
     validationIssues, reviewDecisions,
     requirements: validationIssues.filter(issue => !associatedIssues.has(issue.id)),
     unparsed: parsed.unparsed.map(item => ({ ...item })), deferred: [...report.deferred],

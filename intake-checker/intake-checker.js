@@ -89,10 +89,10 @@ function renderReport(report, partial, parsed, state) {
       if (ranges.length > 1) button.textContent = 'Find answer ' + (index + 1);
       actions.append(button);
     });
-    if (issue.severity === 'warning') actions.append(reviewedButton(row, title.textContent, () => {
+    actions.append(reviewedButton(row, title.textContent, () => {
       state.review(issue);
       updateSummary();
-    }, summary));
+    }, summary, "Ignore"));
     row.append(actions);
     if (issue.record && issue.location) {
       const location = document.createElement("small");
@@ -116,12 +116,12 @@ function renderNormalizations(formats) {
   host.hidden = !list.children.length;
 }
 
-function reviewedButton(row, label, acknowledge, fallback) {
+function reviewedButton(row, label, acknowledge, fallback, action = "Reviewed") {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "secondary-btn intake-reviewed";
-  button.textContent = "Reviewed";
-  button.setAttribute("aria-label", `Reviewed: ${label}`);
+  button.textContent = action;
+  button.setAttribute("aria-label", `${action}: ${label}`);
   button.addEventListener("click", () => {
     const next = row.nextElementSibling?.querySelector("button") || row.previousElementSibling?.querySelector("button");
     acknowledge();

@@ -45,3 +45,19 @@
 
 #intakeMessage[data-severity="error"] { color: #9b1c1c; background: #fff1f1; padding: 12px; border-left: 3px solid #c0392b; }
 [data-theme="dark"] #intakeMessage[data-severity="error"] { color: #ffb4b4; background: #351d22; }
+
+/* Compact notification lists; keep controls large enough to target. */
+#validationIssues, #reviewItems { gap: 6px; margin: 8px 0; }
+#validationIssues li, #reviewItems li { padding: 8px 10px; line-height: 1.3; }
+#validationIssues li > strong, #reviewItems li > strong { display: block; font-size: .9rem; }
+#validationIssues p { margin: 3px 0; line-height: 1.3; font-size: .875rem; }
+#validationIssues small { margin-top: 3px; font-size: .72rem; }
+.issue-actions { gap: 6px; margin-top: 5px; }
+.intake-page .issue-actions button, .intake-page .issue-actions a { min-height: 32px; padding: 4px 9px; line-height: 1.2; margin: 0; }
+#reviewDivider { margin: 12px 0; }
+#validationSummary { margin: 6px 0; }
+#validationReport { margin-top: 8px; }
+#reviewClient p { margin: 4px 0; }
+@media (max-width: 640px) {
+  .intake-page .issue-actions button, .intake-page .issue-actions a { min-height: 40px; }
+}

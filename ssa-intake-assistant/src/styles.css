@@ -78,3 +78,24 @@
   .ssa-workspace .summary { text-align: left; }
   .ssa-workspace .field-meta { flex-wrap: wrap; }
 }
+
+/* Compact preparation notices, without changing the direct-PDF review layout. */
+.ssa-readiness .readiness-header { margin: .75rem 0; gap: .6rem; }
+.ssa-readiness .readiness-header p:last-child { margin-bottom: 0; }
+.ssa-readiness .privacy-notice { padding: .55rem .75rem; font-size: .85rem; }
+.ssa-readiness .readiness-counts { margin: .6rem 0; gap: .45rem; }
+.ssa-readiness .readiness-counts > div { padding: .6rem .75rem; }
+.ssa-readiness dd { font-size: 1.5rem; margin-top: .15rem; }
+.ssa-readiness .review-card { margin: .65rem 0; padding: .7rem .85rem; }
+.ssa-readiness h3 { margin-bottom: .5rem; }
+.ssa-readiness .blocked-field { padding-top: .45rem; padding-bottom: .45rem; line-height: 1.3; }
+.ssa-readiness .blocked-field p, .ssa-readiness .parsing-issues p { margin: .35rem 0; font-size: .85rem; }
+.ssa-readiness ul { margin: .4rem 0; padding-left: 1.2rem; }
+.ssa-readiness li { margin: .3rem 0; line-height: 1.35; }
+.ssa-readiness .parsing-issues li { padding: .3rem 0; border-top: 1px solid var(--border); }
+.ssa-readiness .button { min-height: 32px; padding: .3rem .6rem; font-size: .8rem; }
+.ssa-readiness .blocked-field .button, .ssa-readiness .parsing-issues .button { margin: .2rem .35rem; }
+@media (max-width: 640px) {
+  .ssa-readiness .button { min-height: 40px; }
+  .ssa-readiness .blocked-field summary > span { display: inline; margin: 0 .35rem; }
+}

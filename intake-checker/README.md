@@ -26,7 +26,7 @@ Flow: `parser.js` → structured intake → independent `review.js` and `validat
 
 `reviewIntake(parsed)` returns a masked identifier, email, and review items with parser source ranges. It does not mutate parsed data or validation results. The plain-text parser recognizes the exact optional labels in `review-fields.js`, supplied with the release request, without adding required fields. Review uses native keyboard-accessible buttons styled as plain text and the Clipboard API; copy failures are reported without replacing the displayed value. The identifier joins the name and last four with a space. Review flags use the Toolkit's light/dark yellow palette. No client or review data is persisted or transmitted.
 
-Review and validation warnings share `createAcknowledgements` and a Reviewed button helper. Red errors have no dismissal button and continue to block affected profile fields until corrected. Each rendering owns an in-memory Set keyed by item identity, keeping repeated-record issues independent. Original results are never mutated. Dismissal removes the acknowledged row and validation counts use the remaining items. “All validation issues reviewed” is not a success result; genuine success requires the validator to return zero issues and complete parsing. Every raw-text check/edit, Clear, or page exit discards the UI state. SSA corrections preserve unrelated unchanged dismissals and reconsider affected ones. No acknowledgement state is stored outside the current rendering.
+Review and validation warnings share `createAcknowledgements` and a Reviewed button helper. Red errors and yellow warnings both have an Ignore button. Ignoring removes the item from the Checker attention list and preserves its review decision in memory. Existing SSA readiness checks still identify invalid, missing, conflicting and ambiguous answers; ignoring an item does not fabricate or repair an answer. Each rendering owns an in-memory Set keyed by item identity, keeping repeated-record issues independent. Original results are never mutated. Dismissal removes the acknowledged row and validation counts use the remaining items. “All validation issues reviewed” is not a success result; genuine success requires the validator to return zero issues and complete parsing. Every raw-text check/edit, Clear, or page exit discards the UI state. SSA corrections preserve unrelated unchanged dismissals and reconsider affected ones. No acknowledgement state is stored outside the current rendering.
 
 Required sections with no required information produce one section-level issue; partially completed sections retain individual missing-field issues. Medical provider records require a clinic name or doctor name, current-spouse maiden name and SSN are optional, previous marriage records require Type of Marriage when recognized marriage details exist, and children are optional. School name, City and State are required; other school fields are optional. Height inches accepts numeric and string zero as provided.
 
@@ -54,7 +54,7 @@ The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by
 
 Find in Intake focuses the textarea and selects the source range without changing text. A temporary, invisible measuring element estimates wrapped line position and is immediately removed. Selection is exact; scroll centering can vary slightly with browser typography, wrapping, or zoom. Editing clears results and locate callbacks, and Clear removes all content/selection state.
 
-## SSA preparation (v1.10.0)
+## SSA preparation (v1.11.0)
 
 Continue to SSA Intake Assistant exposes the existing parsed fields, validation, source locations, and review decisions through the versioned in-memory client-profile contract. The dashboard summarizes readiness without a duplicate confirmation step. General Reviewed dismissals do not alter answers.
 
@@ -69,7 +69,7 @@ The Checker owns formats.js and values.js. Validation returns a page-memory Map 
 - Emails retain characters/case and receive a practical syntax check, not mailbox verification. Quoted local parts/domain literals are currently unsupported. Free text, notes and unknown labels remain unchanged.
 - Calendar-valid dates accept existing ISO, slash and English-month formats. Month/year stays month precision. No new age/future-date or date-order business rule is introduced here.
 - Existing mapped amounts allow digits, optional decimal point and optional leading dollar sign. No currency conversion or inferred unit. Commas, negative amounts and written units currently require correction.
-- Missing required answers/invalid formats remain red and cannot be dismissed in the UI. Yellow warnings can be reviewed/dismissed without changing an answer. SSA readiness continues to enforce unresolved errors even if an acknowledgement is supplied programmatically.
+- Missing required answers/invalid formats appear red until corrected or ignored in the Checker list. Yellow warnings can also be ignored without changing an answer. SSA readiness still distinguishes ignoring a validation item from repairing the underlying answer.
 
 ### Final review checklist for Sam
 
@@ -77,7 +77,7 @@ Revisit permitted punctuation (including periods, commas, apostrophes, quotes an
 
 ## Duplicate answers
 
-One comparison helper serves validation, review, and the client profile. Within the same field and subject, identical answers and answers equal after the approved format normalization are treated as one answer. Every original occurrence and source range remains intact. Free-text differences are not erased. Blank versus supplied answers conflict; blank-only duplicates remain missing. Conflicts are red errors with a Find answer action for each occurrence, cannot be dismissed, and must be corrected in the pasted intake. Invalid repeated values still fail format checks.
+One comparison helper serves validation, review, and the client profile. Within the same field and subject, identical answers and answers equal after the approved format normalization are treated as one answer. Every original occurrence and source range remains intact. Free-text differences are not erased. Blank versus supplied answers conflict; blank-only duplicates remain missing. Conflicts are red errors with a Find answer action for each occurrence, can be ignored in the Checker attention list, but conflicting values still require source correction before becoming fillable. Invalid repeated values still fail format checks.
 
 Separate jobs, providers, children and spouses are never merged by name. Repeated singleton sections remain ambiguous in the profile because subject identity is not established; different values across those sections also produce a red conflict. Identical medical-condition text across numbered labels is combined with all original source labels and ranges retained. Missing and conflicting answers remain explicit, and no fuzzy matching or diagnosis inference is used.
 
@@ -89,7 +89,11 @@ Reversed provider visit dates flag both First Visit Date and Last Visit Date in 
 
 Corrections re-evaluate all rules in memory. Changes to onset or job dates reset affected failed-work dismissals; unrelated flags remain dismissed. First/last visit changes reset date-order review; unrelated provider changes preserve it. Medical-answer and income-receipt changes reset their respective review flags, while an income amount edit alone does not reset the general income flag.
 
-## Scoped parsing review (v1.10.0)
+## Scoped parsing review (v1.11.0)
 Unparsed lines retain the containing parser node in page-memory metadata. The validator exposes its path, line number and original range. Unclear text blocks that section/record and descendants in the profile; sibling records and other sections remain independently eligible. Text outside recognized sections stays an unresolved requirement, without invalidating established answers. No label or answer is guessed.
 
 The observed export prefix (Print as PDF, Intake Form, display-name line, Generated on timestamp, then PERSONAL INFORMATION) is recognized as document metadata. It remains in the original textarea and is never used to fill answers. Source offsets are unchanged. Only this structured prefix is recognized; arbitrary prefaces remain reviewable. Standalone unknown labels are preserved structurally, without adding validation or SSA question mappings.
+
+Ignoring applies to missing, format, conflict and parsing errors as well as yellow warnings. Rechecking starts a new review; related edits reset affected decisions, while unrelated dismissals survive. Clearing, reloading or closing discards all decisions. Ignoring every item does not relabel the underlying data as valid.
+
+Notification cards use compact padding, paragraph margins and action spacing, with larger touch controls on mobile. Reviewed/ignored decisions carry into SSA preparation and do not reappear as active notices on Continue/Back. Rechecking or related edits can reset them as documented above.
