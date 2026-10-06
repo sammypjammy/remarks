@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Packard SSA Synthetic Practice",
+  "version": "0.1.0",
+  "description": "Development only: synthetic practice page. No access to websites or client profiles.",
+  "action": { "default_popup": "launcher.html", "default_title": "Open synthetic practice" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'" }
+}
