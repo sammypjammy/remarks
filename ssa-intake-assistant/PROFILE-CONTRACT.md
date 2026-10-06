@@ -1,4 +1,4 @@
-# Intake client-profile contract 2.0.0
+# Intake client-profile contract 3.0.0
 
 This is the in-memory `packard.intake-client-profile` contract consumed by the Intake Checker handoff in SSA Intake Assistant v1.3.0. Its version is independent of both tool versions and of the legacy direct-PDF Phase 1 profile. The direct-PDF route retains its existing local review workflow; it is not automatically eligible for the future extension.
 
@@ -15,7 +15,7 @@ Present source fields are included even when blank. Missing required fields repo
 ```text
 {
   schema: "packard.intake-client-profile",
-  schemaVersion: "2.0.0",
+  schemaVersion: "3.0.0",
   revision: integer,
   source: { kind: "intake-checker", toolVersion: "1.8.0" },
   fields: [{
@@ -42,7 +42,7 @@ Present source fields are included even when blank. Missing required fields repo
 }
 ```
 
-`text` uses Checker-owned format results for scoped names, places, addresses, phone numbers, SSNs, ZIPs, emails and amounts. The original parsed candidate remains in sources.rawValue; normalization does not manufacture an employee edit or confirmation. Unknown/free-text answers are unchanged. The Checker, not the adapter, validates formats. Contract 2.0.0 is a major version because normalized values and readiness semantics change; 1.0.0 is no longer accepted by readyFields(). `boolean` accepts only explicit Yes/No/true/false; qualified or uncertain answers are blocked. `date` uses Intake Checker's existing `parseCalendarDate`: day precision becomes YYYY-MM-DD, month precision becomes YYYY-MM. No missing day is invented. Unsupported or impossible calendar dates become missing, retaining the raw source. Type encoding is not a second business validator.
+`text` uses Checker-owned format results for scoped names, places, addresses, phone numbers, SSNs, ZIPs, emails and amounts. The original parsed candidate remains in sources.rawValue; normalization does not manufacture an employee edit or confirmation. Unknown/free-text answers are unchanged. The Checker, not the adapter, validates formats. Contract 3.0.0 changes readiness semantics from a global unparsed-text block to scoped parsing requirements. Versions 1.0.0 and 2.0.0 are no longer accepted by readyFields(). Normalized value encoding is unchanged from 2.0.0. `boolean` accepts only explicit Yes/No/true/false; qualified or uncertain answers are blocked. `date` uses Intake Checker's existing `parseCalendarDate`: day precision becomes YYYY-MM-DD, month precision becomes YYYY-MM. No missing day is invented. Unsupported or impossible calendar dates become missing, retaining the raw source. Type encoding is not a second business validator.
 
 `range` is a nullable `{start, end}` pair of UTF-16 offsets into the original pasted text (including CRLF). Repeated candidates keep their own source ranges and raw values. Corrections keep original provenance, including original nulls, and append employee-entered values in the edit ledger. An answer added where no source exists has a null range. Profile objects contain plain data; the owning Checker session's mutable state and edit Map are not an extension payload.
 
@@ -51,7 +51,7 @@ Present source fields are included even when blank. Missing required fields repo
 - Ready: a known direct meaning in an unambiguous scope, an established typed value, no remaining applicable validation problem, and no conflict. Employee-entered corrections become ready under the same conditions. No confirmation checkbox is required or fabricated.
 - Missing: blank, Not provided, N/A/NA, unknown, none provided, Not applicable/Not available, placeholder dashes/question marks, null/undefined/NaN, TBD, Select/Choose prompts, or invalid calendar dates. Raw source remains available. `No`, `false`, `0`, and a literal `None` are not globally replaced by guesses.
 - Conflict: candidates differing after Intake Checker format normalization for one field, including missing versus supplied. Identical/format-equivalent duplicates combine with all original sources preserved. The value is null; all candidates remain available. Resolve conflicts in the source.
-- Ambiguous: unknown mapping/context, duplicate singleton sections, duplicate Current Spouse records, uncertain boolean meaning, or unparsed source text. Unparsed text conservatively blocks the profile's fields until the original intake is corrected. Repeated providers/jobs/children have separate record identities rather than merged answers.
+- Ambiguous: unknown mapping/context, duplicate singleton sections, duplicate Current Spouse records, uncertain boolean meaning, or unparsed source text. Unparsed text inside a recognized node blocks fields in that node and its descendants, not unrelated sections or sibling records. Unscoped text remains an unresolved profile requirement without invalidating established answers. Parsing issues carry code, line, scopePath, scopeTitle and source ranges; dismissal and editing an answer cannot bypass source correction. Repeated providers/jobs/children have separate record identities rather than merged answers.
 - Validation: apply the existing validator's exact section, record and field scope. Unacknowledged field warnings and all still-present errors block. Dismissing an error does not repair it. Acknowledged warnings retain their metadata; they do not change values or precision.
 - General review items (Currently Working, Receiving income, Other Names, Separated, more than 10 conditions, failed work attempts) retain their reviewed/dismissed state but do not themselves invalidate established answers. Scoped acknowledgement IDs are recorded on fields; unscoped decisions remain at profile level.
 
@@ -65,7 +65,7 @@ The dashboard permits corrections only for a known unambiguous target. It calls 
 
 Singleton IDs equal their catalog definition IDs, such as `personal.first-name`. Repeating IDs append `@` and a session record key, such as `providers.phone-number@providers-2`. Medical problems use `medical-problems.problem@problem-1`. Record keys follow the source order within their category, remain stable across Back, and must not be treated as cross-intake person IDs or inferred chronological rank. Medical exact-text duplicates share the first occurrence's key and retain every source; corrections can merge or split those groups while other original medical occurrence keys remain unchanged. Unsupported IDs use source node/field positions and are never fillable.
 
-A future mapping must reference an exact `definitionId`, select the intended `recordId`, verify a supported schema version, and consume only `readiness: ready` fields with no blocking reasons and non-null values. The local `readyFields()` projection accepts only schema 2.0.0. A mapping must also check the SSA question's actual meaning, required precision and accepted representation. A month-only answer cannot satisfy a full-date question. Unsupported, absent, ambiguous, or differently worded questions must pause for an employee; no fallback to a similarly named answer is allowed.
+A future mapping must reference an exact `definitionId`, select the intended `recordId`, verify a supported schema version, and consume only `readiness: ready` fields with no blocking reasons and non-null values. The local `readyFields()` projection accepts only schema 3.0.0. A mapping must also check the SSA question's actual meaning, required precision and accepted representation. A month-only answer cannot satisfy a full-date question. Unsupported, absent, ambiguous, or differently worded questions must pause for an employee; no fallback to a similarly named answer is allowed.
 
 Disability onset (`disability.onset-date-of-disability`), last worked (`employment.when-did-you-last-work`), and individual job start/end dates are independent. There is no established date-work-stopped definition. It is never derived from onset, last worked, or a job end date. Alternate Phone and Secondary Phone also remain distinct source answers until a future mapping establishes equivalence.
 

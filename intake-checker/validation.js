@@ -2,7 +2,7 @@ import { intakeRules } from "./rules.js";
 
 import { isMissing, parseCalendarDate } from './values.js';
 import { resolveAnswers } from "./answers.js";
-import { sourceRange } from "./parser.js";
+import { sourceRange, unparsedScope } from "./parser.js";
 import { inspectFormats } from './formats.js';
 export { isMissing, parseCalendarDate } from './values.js';
 
@@ -167,9 +167,13 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
         sources: answer.fields.map(sourceRange).filter(Boolean) });
     }
   }
-  for (const item of intake.unparsed) issue({ section: 'PARSING', location: null,
-    sources: [sourceRange(item)].filter(Boolean) }, null,
-    'Line ' + item.line + ' could not be assigned reliably. Correct its label or placement in the pasted intake.');
+  for (const item of intake.unparsed) {
+    const scope = all.find(entry => entry.node === unparsedScope(item));
+    issue({ section: 'PARSING', location: null, code: 'parsing', line: item.line,
+      scopePath: scope?.location || null, scopeTitle: scope?.node.title || null,
+      sources: [sourceRange(item)].filter(Boolean) }, null,
+      'Line ' + item.line + ' could not be assigned reliably.' + (scope ? ' Answers in ' + scope.node.title + ' need source review.' : ' This text is outside any recognized section.') + ' Correct its label or placement in the pasted intake.');
+  }
   issues.push(...formats.issues);
   return { issues, deferred: [...rules.deferred], formats: formats.results };
 }

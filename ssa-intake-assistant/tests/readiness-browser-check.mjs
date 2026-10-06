@@ -29,6 +29,16 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     const storage = await evaluate('JSON.stringify([localStorage, sessionStorage])');
     const history = await evaluate('JSON.stringify([location.href, history.state, history.length])');
     await evaluate(`window.clientWrites = 0; for (const method of ['setItem', 'removeItem', 'clear']) { const original = Storage.prototype[method]; Storage.prototype[method] = function(...args) { window.clientWrites++; return original.apply(this, args); }; } window.clientLogs = 0; for (const method of ['log','warn','error','info','debug']) console[method] = () => { window.clientLogs++; }; window.clientDb = 0; indexedDB.open = () => { window.clientDb++; throw Error('No client database'); };`);
+    const scopedText = 'PERSONAL INFORMATION\nFirst Name: Synthetic\nMEDICAL PROVIDERS\nClinic 1\nClinic Name: Synthetic Clinic\nUnmapped question: Synthetic answer';
+    await check(scopedText); await click('Continue to SSA Intake Assistant');
+    await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
+    assert(await evaluate('!!document.querySelector(' + JSON.stringify('.ready-fields [data-field-id="personal.first-name"]') + ')'));
+    assert(await evaluate('!!document.querySelector(' + JSON.stringify('.blocked-fields [data-field-id="providers.clinic-name@providers-1"]') + ')'));
+    assert(await evaluate("document.querySelector('.parsing-issues').textContent.includes('Line 6')"));
+    assert(await evaluate('document.documentElement.scrollWidth <= innerWidth'));
+    await evaluate("document.querySelector('.parsing-issues button').click()");
+    assert.equal(await evaluate("intakeText.value.slice(intakeText.selectionStart, intakeText.selectionEnd)"), 'Unmapped question: Synthetic answer');
+    assert.equal(await evaluate('intakeText.value'), scopedText);
     const normalizedIntake = completeSyntheticIntake()
       .replace('**First Name:** Synthetic', '**First Name:** sYNTHETIC.')
       .replace('**Phone Number:** 202-555-0142', '**Phone Number:** (202) 555.0142');

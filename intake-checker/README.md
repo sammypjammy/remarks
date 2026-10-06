@@ -54,7 +54,7 @@ The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by
 
 Find in Intake focuses the textarea and selects the source range without changing text. A temporary, invisible measuring element estimates wrapped line position and is immediately removed. Selection is exact; scroll centering can vary slightly with browser typography, wrapping, or zoom. Editing clears results and locate callbacks, and Clear removes all content/selection state.
 
-## SSA preparation (v1.8.0)
+## SSA preparation (v1.9.0)
 
 Continue to SSA Intake Assistant exposes the existing parsed fields, validation, source locations, and review decisions through the versioned in-memory client-profile contract. The dashboard summarizes readiness without a duplicate confirmation step. General Reviewed dismissals do not alter answers.
 
@@ -88,3 +88,6 @@ Unknown plain colon labels are retained as unparsed text instead of appended to 
 Reversed provider visit dates flag both First Visit Date and Last Visit Date in red. Same-month dates lacking day precision keep the yellow order-review warning. No/false for Have you ever worked exempts last-work requirements, including grouped missing-section requirements transferred to the profile.
 
 Corrections re-evaluate all rules in memory. Changes to onset or job dates reset affected failed-work dismissals; unrelated flags remain dismissed. First/last visit changes reset date-order review; unrelated provider changes preserve it. Medical-answer and income-receipt changes reset their respective review flags, while an income amount edit alone does not reset the general income flag.
+
+## Scoped parsing review (v1.9.0)
+Unparsed lines retain the containing parser node in page-memory metadata. The validator exposes its path, line number and original range. Unclear text blocks that section/record and descendants in the profile; sibling records and other sections remain independently eligible. Text outside recognized sections stays an unresolved requirement, without invalidating established answers. No label or answer is guessed.

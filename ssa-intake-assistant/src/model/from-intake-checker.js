@@ -45,6 +45,7 @@ export function fromIntakeChecker(session) {
   function addField(definition, nodes, { recordId = null, ambiguousScope = false, unsupported = false, label = definition.label, providedCandidates = null } = {}) {
     const candidates = providedCandidates || nodes.flatMap(entry => entry.node.fields.filter(field => field.label === label).map(field => ({ entry, field })));
     const issues = validationIssues.filter(issue => {
+      if (issue.code === 'parsing') return issue.scopePath && nodes.some(entry => entry.path === issue.scopePath || entry.path.startsWith(issue.scopePath + '/'));
       if (issue.section !== definition.section) return false;
       if (!issue.field && issue.requiredFields && !issue.requiredFields.includes(label)) return false;
       if (providedCandidates) return candidates.some(({ entry, field }) => (!issue.location || issue.location === entry.path) && (!issue.field || issue.field === field.label));
@@ -65,8 +66,8 @@ export function fromIntakeChecker(session) {
     const blockingReasons = [];
     if (encoded.missing) blockingReasons.push({ code: 'missing', message: encoded.reason });
     if (conflict) blockingReasons.push({ code: 'conflict', message: 'Competing values for the same field. Resolve them in the pasted intake.' });
-    if (unsupported || ambiguousScope || parsed.unparsed.length || encoded.ambiguous) {
-      blockingReasons.push({ code: 'ambiguous', message: unsupported ? 'Intake Checker retains this field but has no established mapping for this label and source context.' : ambiguousScope ? 'Repeated or ambiguous source sections do not establish a unique subject.' : parsed.unparsed.length ? 'The intake contains unparsed text. Resolve it in Intake Checker before using this profile.' : encoded.reason });
+    if (unsupported || ambiguousScope || encoded.ambiguous) {
+      blockingReasons.push({ code: 'ambiguous', message: unsupported ? 'Intake Checker retains this field but has no established mapping for this label and source context.' : ambiguousScope ? 'Repeated or ambiguous source sections do not establish a unique subject.' : encoded.reason });
     }
     // Dismissal is not a repair. An error still present in the validator stays blocked.
     const unresolved = issues.filter(issue => issue.severity === 'error' || !issue.acknowledged);
@@ -80,7 +81,7 @@ export function fromIntakeChecker(session) {
     }));
     const relevantReviews = reviewDecisions.filter(item => item.range && sources.some(source => source.range && item.range.start <= source.range.end && item.range.end >= source.range.start));
     const acknowledgements = [...issues, ...relevantReviews].filter(item => item.acknowledged).map(item => item.id);
-    const correctionAllowed = !unsupported && !ambiguousScope && !parsed.unparsed.length && candidates.length <= 1 && nodes.length <= 1;
+    const correctionAllowed = !unsupported && !ambiguousScope && !issues.some(issue => issue.code === 'parsing') && candidates.length <= 1 && nodes.length <= 1;
     fields.push({
       id: recordId ? `${definition.id}@${recordId}` : definition.id,
       definitionId: definition.id, recordId, category: definition.category, label,
@@ -126,7 +127,7 @@ export function fromIntakeChecker(session) {
   }
   return {
     schema: 'packard.intake-client-profile', schemaVersion: PROFILE_SCHEMA_VERSION, revision: session.revision || 0,
-    source: { kind: 'intake-checker', toolVersion: '1.8.0' }, fields,
+    source: { kind: 'intake-checker', toolVersion: '1.9.0' }, fields,
     validationIssues, reviewDecisions,
     requirements: validationIssues.filter(issue => !associatedIssues.has(issue.id)),
     unparsed: parsed.unparsed.map(item => ({ ...item })), deferred: [...report.deferred],

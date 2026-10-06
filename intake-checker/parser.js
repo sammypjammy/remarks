@@ -16,6 +16,8 @@ for (const label of reviewFields) plainFields.add(label);
 
 // Internal metadata follows node lifetime; it does not change the validation data shape.
 const sourceRanges = new WeakMap();
+const unparsedScopes = new WeakMap();
+export const unparsedScope = item => unparsedScopes.get(item) || null;
 export const sourceRange = node => sourceRanges.get(node) || null;
 
 // Ordered arrays preserve duplicate headings/labels without inventing field names.
@@ -35,7 +37,9 @@ export function parseIntake(rawText) {
   function node(title) { return { title, fields: [], subsections: [] }; }
   const unparsed = (index, rawLine, range) => {
     const item = { line: index + 1, text: rawLine };
-    sourceRanges.set(item, range); result.unparsed.push(item);
+    sourceRanges.set(item, range);
+    unparsedScopes.set(item, stack.at(-1)?.node || section);
+    result.unparsed.push(item);
   };
   let index = -1;
   // Preserve original UTF-16 offsets, including CRLF, for textarea selection APIs.

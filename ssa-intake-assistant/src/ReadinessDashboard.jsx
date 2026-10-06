@@ -6,6 +6,7 @@ const display = field => field.value === null ? 'No established answer' : typeof
 export default function ReadinessDashboard({ profile, onBack, onSource, onCorrect }) {
   const counts = profileSummary(profile);
   const blocked = profile.fields.filter(field => field.readiness === 'blocked');
+  const parsingIssues = profile.validationIssues.filter(issue => issue.code === 'parsing');
   const ready = profile.fields.filter(field => field.readiness === 'ready');
   const [message, setMessage] = useState('');
   function correct(id, value) {
@@ -15,7 +16,7 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. Nothing is sent or saved.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.3.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.4.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Ready fields need no additional confirmation.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
@@ -26,6 +27,12 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
     <p className="notes">{counts.received} fields received from the active intake; {counts.total - counts.received} missing required fields included. Missing and conflict counts are subsets of blocked fields.</p>
     <p className="notes">Ready means an established intake answer, not that every SSA question has been answered. Future questions with no exact supported mapping must pause.</p>
     <p role="status" aria-live="polite">{message}</p>
+    {parsingIssues.length > 0 && <section className="review-card parsing-issues" aria-labelledby="parsing-title">
+      <h3 id="parsing-title">Unrecognized intake text ({parsingIssues.length})</h3>
+      <p>These lines still require correction. Only their affected sections or records are blocked; unrelated answers may remain ready.</p>
+      <ul>{parsingIssues.map(issue => <li key={issue.id}>{issue.message}{issue.sources.map((range, index) =>
+        <button key={index} type="button" className="button quiet" onClick={() => onSource(range)}>Find unrecognized text on line {issue.line}</button>)}</li>)}</ul>
+    </section>}
     <section className="review-card blocked-fields" aria-labelledby="blocked-title">
       <h3 id="blocked-title">Blocked fields ({blocked.length})</h3>
       {!blocked.length && <p>No received fields are blocked.</p>}
@@ -35,10 +42,9 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
       <summary>Ready fields ({ready.length}) — no further confirmation</summary>
       <ul>{ready.map(field => <li key={field.id} data-field-id={field.id}><strong>{field.label}</strong> · {field.category}{field.recordId ? ` / ${field.recordId}` : ''}: {display(field)}{field.origin === 'employee_entered' && <span> · Employee-entered</span>}</li>)}</ul>
     </details>
-    {(profile.requirements.length > 0 || profile.unparsed.length > 0) && <details className="review-card">
+    {profile.requirements.some(issue => issue.code !== 'parsing') && <details className="review-card">
       <summary>Other Intake Checker requirements</summary>
-      <ul>{profile.requirements.map(issue => <li key={issue.id}>{issue.section}{issue.record ? ` / ${issue.record}` : ''}: {issue.message}{issue.acknowledged ? ' (Reviewed in Intake Checker)' : ''}</li>)}</ul>
-      {profile.unparsed.length > 0 && <p>Some source text was not parsed. Return to Intake Checker to resolve the source.</p>}
+      <ul>{profile.requirements.filter(issue => issue.code !== 'parsing').map(issue => <li key={issue.id}>{issue.section}{issue.record ? ` / ${issue.record}` : ''}: {issue.message}{issue.acknowledged ? ' (Reviewed in Intake Checker)' : ''}</li>)}</ul>
     </details>}
     <details className="review-card">
       <summary>Intake Checker review decisions ({profile.reviewDecisions.length})</summary>
@@ -53,7 +59,10 @@ function BlockedField({ field, onSource, onCorrect }) {
   const warningOnly = field.blockingReasons.every(reason => reason.code === 'validation' && field.validation.issues.find(issue => issue.id === reason.issueId)?.severity === 'warning');
   return <details className="blocked-field" data-field-id={field.id} data-severity={warningOnly ? 'warning' : 'error'}>
     <summary><strong>{field.label}</strong><span>{field.category}{field.recordId ? ` / ${field.recordId}` : ''}</span><span className="status-pill">{field.blockingReasons.some(reason => reason.code === 'conflict') ? 'Conflict' : field.blockingReasons.some(reason => reason.code === 'missing') ? 'Missing' : 'Blocked'}</span></summary>
-    <ul>{field.blockingReasons.map((reason, index) => <li key={index}>{reason.message}</li>)}</ul>
+    <ul>{field.blockingReasons.map((reason, index) => <li key={index}>{reason.message}
+      {field.validation.issues.find(issue => issue.id === reason.issueId && issue.code === 'parsing')?.sources.map((range, sourceIndex) =>
+        <button key={sourceIndex} type="button" className="button quiet" onClick={() => onSource(range)}>Find unrecognized text</button>)}
+    </li>)}</ul>
     {field.sources.map((source, index) => <p key={index} className="notes">Source: {source.rawValue ?? 'Not provided'}{' '}
       {source.range && <button type="button" className="button quiet" onClick={() => onSource(source.range)}>Find in Intake</button>}</p>)}
     {field.origin === 'employee_entered' && <p className="notes">Current value was employee-entered.</p>}

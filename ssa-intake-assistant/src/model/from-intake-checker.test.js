@@ -33,9 +33,9 @@ test('catalog covers every existing fixed parser label, all 119 meanings and the
 test('contract version and IDs are stable across values, rechecking and unrelated section order', () => {
   const a = profile('PERSONAL INFORMATION\nFirst Name: Synthetic\nWORK HISTORY\nMost Recent Job\nStart Date: 2000-01-01');
   const b = profile('WORK HISTORY\nMost Recent Job\nStart Date: 2001-02-03\nPERSONAL INFORMATION\nFirst Name: Edited');
-  assert.equal(PROFILE_SCHEMA_VERSION, '2.0.0');
+  assert.equal(PROFILE_SCHEMA_VERSION, '3.0.0');
   assert.equal(a.schema, 'packard.intake-client-profile');
-  assert.equal(a.schemaVersion, '2.0.0');
+  assert.equal(a.schemaVersion, '3.0.0');
   assert(field(a, 'personal.first-name'));
   assert(field(b, 'personal.first-name'));
   assert(field(a, 'jobs.start-date@jobs-1'));
@@ -82,7 +82,7 @@ test('conflicts preserve all candidates and source offsets without choosing an a
 });
 
 test('unknown labels, unparsed text, duplicate sections and uncertain booleans are blocked', () => {
-  for (const text of ['## CUSTOM\n**Unmapped question:** Synthetic', 'Unrecognized preface\nPERSONAL INFORMATION\nFirst Name: Synthetic', 'PERSONAL INFORMATION\nFirst Name: Synthetic\nPERSONAL INFORMATION\nFirst Name: Synthetic', 'EMPLOYMENT INFORMATION\nCurrently working: Sometimes']) {
+  for (const text of ['## CUSTOM\n**Unmapped question:** Synthetic', 'PERSONAL INFORMATION\nFirst Name: Synthetic\nPERSONAL INFORMATION\nFirst Name: Synthetic', 'EMPLOYMENT INFORMATION\nCurrently working: Sometimes']) {
     const received = profile(text).fields.filter(item => item.sources.length);
     assert(received.length);
     assert(received.every(item => item.readiness === 'blocked' && item.blockingReasons.some(reason => reason.code === 'ambiguous')));
