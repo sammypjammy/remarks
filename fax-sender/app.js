@@ -1,4 +1,4 @@
-import {Scope,Batch,Poller,number,formatNumber,formatSsn,autofillCoverComment,receiptFilename,receiptZip,latestBatchReceipts,wait} from './client.js';
+import {Scope,Batch,Poller,number,formatNumber,formatClientSsn,parseClientSsn,autofillCoverComment,receiptFilename,receiptZip,latestBatchReceipts,wait} from './client.js';
 const $=id=>document.getElementById(id);
 let batch,poller,entries=[],contacts=[],selectedName='',signedIn=false,syncing=false,historySequence=0,receiptBusy=false,contactBusy=false;
 const objectUrls=new Set();
@@ -124,10 +124,10 @@ $('createContact').addEventListener('click',async()=>{
 });
 $('cover').addEventListener('change',render);
 $('autofillComments').addEventListener('change',()=>{if($('autofillComments').checked)applyAutofill();render();});
-$('fullSsn').addEventListener('input',()=>{$('fullSsn').value=formatSsn($('fullSsn').value);applyAutofill();render();});
+$('fullSsn').addEventListener('input',()=>{$('fullSsn').value=formatClientSsn($('fullSsn').value);$('fullSsn').setCustomValidity('');applyAutofill();render();});
 $('pdfFiles').addEventListener('change',async()=>{const files=[...$('pdfFiles').files];$('pdfFiles').value='';try{await batch.add(files,name=>$('autofillComments').checked?autofillCoverComment(name,$('fullSsn').value):name.replace(/\.pdf$/i,'').trim()||'Document');note('');}catch{note('Choose valid PDF files no larger than 4 MB.');}});
-const settings=()=>({faxNumber:number($('destination').value),fullSsn:$('fullSsn').value,recipientName:selectedName,includeCoverSheet:$('cover').checked});
-async function send(retry) {note('');try{await batch.run(settings(),retry);}catch{note('Check destination, enter a complete Full SSN, and review cover comments before sending.');}}
+const settings=()=>({faxNumber:number($('destination').value),...parseClientSsn($('fullSsn').value),recipientName:selectedName,includeCoverSheet:$('cover').checked});
+async function send(retry) {note('');try{if(!parseClientSsn($('fullSsn').value)){ $('fullSsn').setCustomValidity('Enter a client name followed by a complete Full SSN.');$('fullSsn').reportValidity();throw Error();}await batch.run(settings(),retry);}catch{note('Check destination, enter a client name and complete Full SSN, and review cover comments before sending.');}}
 $('faxForm').addEventListener('submit',e=>{e.preventDefault();void send(false);});$('retry').addEventListener('click',()=>void send(true));
 $('clear').addEventListener('click',()=>{if(batch.running)return;batch.clear();$('faxForm').reset();selectedName='';$('contactResults').replaceChildren();note('');render();});
 function save(blob,filename) {const url=URL.createObjectURL(blob),a=element('a');objectUrls.add(url);a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>{URL.revokeObjectURL(url);objectUrls.delete(url);},60000);}

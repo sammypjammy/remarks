@@ -3,8 +3,11 @@ export const validLastFour=value=>/^\d{4}$/.test(value);
 export const ssnDigits=value=>String(value).replace(/\D/g,'').slice(0,9);
 export const formatSsn=value=>{const digits=ssnDigits(value);return digits.length>5?digits.slice(0,3)+'-'+digits.slice(3,5)+'-'+digits.slice(5):digits.length>3?digits.slice(0,3)+'-'+digits.slice(3):digits;};
 export const validSsn=value=>/^\d{3}-\d{2}-\d{4}$/.test(value);
+export const validClientName=value=>typeof value==='string' && value.length<=200 && /^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u.test(value.trim());
+export const parseClientSsn=value=>{const match=String(value).trim().match(/^(.*?)\s+(\d{3}-\d{2}-\d{4})$/);return match&&validClientName(match[1])?{clientName:match[1].trim().replace(/\s+/g,' '),fullSsn:match[2]}:null;};
+export const formatClientSsn=value=>String(value).replace(/^(.*?\S)\s+(\d[^\s]*)$/,(_,name,ssn)=>name+' '+formatSsn(ssn));
 export const documentTitle=filename=>filename.replace(/\.pdf$/i,'').trim()||'Document';
-export const autofillCoverComment=(filename,fullSsn)=>documentTitle(filename)+(fullSsn?' for '+fullSsn:'');
+export const autofillCoverComment=(filename,combined)=>documentTitle(filename)+(String(combined).trim()?' for '+String(combined).trim():'');
 export function number(value) { let s=value.replace(/[\s().-]/g,'');if(/^\d{10}$/.test(s))s='+1'+s;else if(/^1\d{10}$/.test(s))s='+'+s;return /^\+[1-9]\d{6,14}$/.test(s)?s:''; }
 export function formatNumber(value) { return /^\+1\d{10}$/.test(value)?`(${value.slice(2,5)}) ${value.slice(5,8)}-${value.slice(8)}`:value; }
 export function receiptFilename(filename,lastFour) { if(!validLastFour(lastFour))throw Error();return `Fax Receipt - ${filename.replace(/(?:\.pdf)+$/i,'').replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ').trim().slice(0,180)||'Document'} ${lastFour}.pdf`; }
@@ -48,7 +51,7 @@ export class Batch {
   }
   async run(settings,retry=false) {
     if(this.running || this.adding || !this.scope.context)return;
-    if(!validSsn(settings.fullSsn) || !number(settings.faxNumber) || this.documents.some(doc=>doc.coverPageText.trim().length>1024))throw Error('Enter the destination, a complete Full SSN, and comments of at most 1024 characters.');
+    if(!validClientName(settings.clientName) || !validSsn(settings.fullSsn) || !number(settings.faxNumber) || this.documents.some(doc=>doc.coverPageText.trim().length>1024))throw Error('Enter the destination, client name, a complete Full SSN, and comments of at most 1024 characters.');
     const queue=this.documents.filter(d=>retry?d.entry?.retryable===true:d.state==='Ready');if(!queue.length)return;
     const epoch=this.scope.epoch,batchId=crypto.randomUUID();this.snapshot ||= Object.freeze({...settings,faxNumber:number(settings.faxNumber)});
     this.locked=true;this.running=true;this.onChange();
