@@ -52,3 +52,35 @@ test('related corrections and rechecking restore attention without restoring unr
   assert(!view.blocked.some(field => field.id === 'personal.email'));
   assert(reviewPresentation(fromIntakeChecker(session(text))).blocked.some(field => field.id === 'personal.email'));
 });
+
+test('optional blanks and unsupported answers do not create another review task', () => {
+  const s = session('PERSONAL INFORMATION\nFirst Name: Synthetic\nMiddle Name: Not provided\nSuffix: Not provided\nNickname: Not provided\n**Unknown question:** Synthetic');
+  s.report.issues.forEach(s.validationState.review);
+  s.review.items.forEach(s.reviewState.review);
+  const profile = fromIntakeChecker(s), before = JSON.stringify(profile);
+  assert.equal(reviewPresentation(profile).blocked.length, 0);
+  for (const id of ['personal.middle-name', 'personal.suffix', 'personal.nickname']) {
+    assert.equal(profile.fields.find(field => field.id === id).readiness, 'blocked');
+    assert(!readyFields(profile).some(field => field.id === id));
+  }
+  assert(profile.fields.some(field => field.category === 'unsupported'));
+  assert.equal(JSON.stringify(profile), before);
+});
+
+test('schema-only limitations never produce attention without Checker issues', () => {
+  const profile = fromIntakeChecker(session('PERSONAL INFORMATION\nMiddle Name: Not provided\n**Unknown question:** Synthetic'));
+  const fields = profile.fields.filter(field => !field.validation.issues.length);
+  assert(fields.some(field => field.readiness === 'blocked'));
+  assert.equal(reviewPresentation({ ...profile, fields }).blocked.length, 0);
+});
+
+test('a passing Checker intake with optional blanks needs no SSA review', async () => {
+  const { completeSyntheticIntake } = await import('../../tests/complete-intake.mjs');
+  const text = completeSyntheticIntake().replace('**Middle Name:** Synthetic', '**Middle Name:** Not provided').replace('**Suffix:** Synthetic', '**Suffix:** Not provided').replace('**Nickname:** Synthetic', '**Nickname:** Not provided') + '\n## CUSTOM\n**Unmapped question:** Synthetic';
+  const s = session(text);
+  assert.equal(s.report.issues.length, 0);
+  s.review.items.forEach(s.reviewState.review);
+  const view = reviewPresentation(fromIntakeChecker(s));
+  assert.equal(view.blocked.length + view.requirements.length + view.parsingIssues.length + view.reviews.length, 0);
+  assert.equal(view.ignored.length, 0);
+});

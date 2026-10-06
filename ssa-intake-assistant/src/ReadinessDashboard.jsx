@@ -18,8 +18,8 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. Nothing is sent or saved.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.6.0</p><h2>Client profile readiness</h2>
-        <p>Intake Checker is the source of truth. Ready fields need no additional confirmation.</p></div>
+      <div><p className="eyebrow">SSA Intake Assistant v1.7.0</p><h2>Client profile readiness</h2>
+        <p>Intake Checker is the source of truth. Only unresolved Intake Checker issues need attention here.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
     <dl className="readiness-counts" aria-label="Profile readiness summary">
@@ -27,8 +27,9 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
         <div key={key}><dt>{label}</dt><dd data-count={key}>{counts[key]}</dd></div>)}
     </dl>
     <p className="notes">{counts.received} fields received from the active intake; {counts.total - counts.received} missing required fields included. Missing and conflict counts refer to items still needing attention.</p>
-    <p className="notes">Ready means an established intake answer, not that every SSA question has been answered. Future questions with no exact supported mapping must pause.</p>
+    <p className="notes">Ready means an established intake answer, not that every SSA question has been answered. Optional blanks and unmapped information do not create additional review tasks. Future questions with no exact supported mapping must pause.</p>
     {ignored.length > 0 && <p className="notes ignored-summary">{ignored.length} fields hidden based on your Intake Checker review decisions. Ignoring does not change answers or mark them ready.</p>}
+    {!blocked.length && !parsingIssues.length && !requirements.length && !reviews.length && <p role="status">Intake Checker review complete. No additional review needed here.</p>}
     {message && <p role="status" aria-live="polite">{message}</p>}
     {parsingIssues.length > 0 && <section className="review-card parsing-issues" aria-labelledby="parsing-title">
       <h3 id="parsing-title">Unrecognized intake text ({parsingIssues.length})</h3>

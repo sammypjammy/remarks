@@ -35,6 +35,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     for (let visitIndex = 0; visitIndex < 2; visitIndex++) {
       await click('Continue to SSA Intake Assistant');
       await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
+      assert.equal((await counts()).blocked, 0);
       assert(await evaluate('!document.querySelector(' + JSON.stringify('.blocked-fields [data-field-id="personal.first-name"]') + ')'));
       assert(await evaluate("!document.querySelector('.parsing-issues') && document.querySelector('.ignored-summary').textContent.includes('hidden')"));
       assert(await evaluate("!document.querySelector('.ssa-readiness').textContent.includes('Currently Working —')"));
@@ -56,7 +57,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
     assert(await evaluate("!document.querySelector('.parsing-issues')"));
     assert(await evaluate('!!document.querySelector(' + JSON.stringify('.ready-fields [data-field-id="disability.onset-date-of-disability"]') + ')'));
-    assert(await evaluate("[...document.querySelectorAll('.blocked-field')].some(row => row.textContent.includes('Filed for disability in the past') && row.textContent.includes('Not mapped yet') && row.textContent.includes('No intake correction is required'))"));
+    assert(await evaluate("![...document.querySelectorAll('.blocked-field')].some(row => row.textContent.includes('Filed for disability in the past'))"));
     await click('Back to Intake Checker');
     assert.equal(await evaluate('intakeText.value'), documentText);
     const normalizedIntake = completeSyntheticIntake()
@@ -77,7 +78,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     const start = network.length;
     await click('Continue to SSA Intake Assistant');
     await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
-    assert.deepEqual(await counts(), { total: 121, ready: 117, blocked: 4, missing: 1, conflicts: 1 });
+    assert.deepEqual(await counts(), { total: 121, ready: 117, blocked: 3, missing: 1, conflicts: 1 });
     assert(await evaluate("!document.querySelector('#ssaIntakeView input[type=checkbox]') && !document.querySelector('#ssaIntakeView .confirm-control')"));
     assert(await evaluate("document.querySelector('.ready-fields [data-field-id=\"personal.last-name\"]').textContent.includes('Synthetic')"));
     assert(await evaluate("document.querySelector('[data-field-id=\"personal.first-name\"]').textContent.includes('must contain letters')"));
@@ -92,7 +93,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     assert.equal((await counts()).ready, 118);
     assert.equal(await evaluate("document.getElementById('correct-birth.date-of-birth').value"), '2000-01-02', 'unapplied draft survives another correction');
     await correct('birth.date-of-birth', '2000-01-02');
-    assert.deepEqual(await counts(), { total: 121, ready: 119, blocked: 2, missing: 0, conflicts: 1 });
+    assert.deepEqual(await counts(), { total: 121, ready: 119, blocked: 1, missing: 0, conflicts: 1 });
     assert(await evaluate("document.querySelector('.ready-fields [data-field-id=\"personal.first-name\"]').textContent.includes('Employee-entered')"));
     await click('Back to Intake Checker');
     assert.equal(await evaluate("document.querySelectorAll('#reviewItems li').length"), 0, 'unrelated dismissal retained after correction');
@@ -115,7 +116,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     assert(await evaluate("document.getElementById('continueToSsa').hidden && !document.getElementById('ssaIntakeView').children.length && !document.getElementById('intakeCorrections').children.length"));
     await check(readinessIntake); await click('Continue to SSA Intake Assistant');
     await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
-    assert.equal((await counts()).blocked, 4, 'new source session clears prior corrections');
+    assert.equal((await counts()).blocked, 3, 'new source session clears prior corrections');
     await evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }))");
     assert(await evaluate("!document.getElementById('intakeText').value && !document.getElementById('ssaIntakeView').children.length"));
     await visit('/intake-checker/');

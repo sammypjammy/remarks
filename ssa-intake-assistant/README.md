@@ -1,4 +1,4 @@
-# SSA Intake Assistant v1.6.0
+# SSA Intake Assistant v1.7.0
 
 Open `/ssa-intake-assistant/` from the Toolkit homepage or navigation. A current Toolkit session is required. Phase 1 reads a selected PDF in the browser and keeps the PDF bytes, extracted text, and reviewed profile in page memory only. Reloading, closing the page, clearing the profile, or signing out removes the active profile. The app makes no client-data API request and uses no client-data browser storage, database, analytics, or logging.
 
@@ -16,8 +16,10 @@ See [PROFILE-CONTRACT.md](PROFILE-CONTRACT.md) for the complete 119-definition c
 
 Run focused tests with node --test --test-isolation=none tests/intake-*.test.js ssa-intake-assistant/src/model/*.test.js ssa-intake-assistant/src/pdf/*.test.js. After the production build, run node ssa-intake-assistant/tests/workflow-browser-check.mjs followed by the Chrome executable path for desktop/mobile, correction, privacy, PDF and OCR checks.
 
-SSA Intake Assistant v1.6.0 uses contract 3.0.0 scoped parsing requirements. Its open Unrecognized intake text panel lists each unresolved line and links directly to that text in Intake Checker. Valid unrelated answers can stay ready, but ready-field counts never imply that unresolved parsing requirements are cleared.
+SSA Intake Assistant v1.7.0 uses contract 3.0.0 scoped parsing requirements. Its open Unrecognized intake text panel lists each unresolved line and links directly to that text in Intake Checker. Valid unrelated answers can stay ready, but ready-field counts never imply that unresolved parsing requirements are cleared.
 
-Unsupported questions retained from standalone plain labels display Not mapped yet. These are separate from parsing failures: their answers are preserved, but cannot be filled until an exact mapping is implemented. Supported neighboring answers are not blocked just because another question is unsupported. Contract 3.0.0 rules and types are unchanged; this fixes input recognition.
+Unsupported questions retained from standalone plain labels remain in the profile without creating attention cards. These are separate from parsing failures: their answers are preserved, but cannot be filled until an exact mapping is implemented. Supported neighboring answers are not blocked just because another question is unsupported. Contract 3.0.0 rules and types are unchanged; this fixes input recognition.
 
-The v1.6.0 presentation filters acknowledged validation reasons, parsing notices and general review notifications from active lists. Ignored fields are hidden from attention counts but are not promoted to ready. Profile answers, original blocking reasons, schema 3.0.0 and readyFields() remain unchanged. Unrelated undismissed reasons still appear. Back/Continue uses the same page-memory session.
+The presentation filters acknowledged validation reasons, parsing notices and general review notifications from active lists. Ignored fields are hidden from attention counts but are not promoted to ready. Profile answers, original blocking reasons, schema 3.0.0 and readyFields() remain unchanged. Unresolved Intake Checker issues still appear. Back/Continue uses the same page-memory session.
+
+The attention list follows unresolved Intake Checker validation only. Optional missing answers and unsupported mappings create no additional employee tasks. Once Checker issues are resolved or ignored, the handoff needs no further review. Technical fillability is unchanged: missing or unsupported answers are never invented or promoted to ready.
