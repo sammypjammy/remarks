@@ -3,6 +3,7 @@ import { checkReview } from "./intake-review-browser-check.mjs";
 import { checkValidationReviewed } from "./intake-validation-reviewed-browser-check.mjs";
 // All fixtures are synthetic and were not copied from real clients or intakes.
 import { intakeRules } from "../intake-checker/rules.js";
+import { syntheticValue } from './synthetic-intake-values.js';
 
 // Reuse the Toolkit's production-build Chromium navigation harness.
 export async function checkIntake({ visit, click, evaluate, width, capture }) {
@@ -31,7 +32,7 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   await evaluate("document.getElementById('intakeText').dispatchEvent(new Event('input'))");
   assert(await evaluate("document.getElementById('intakeResults').hidden"), "Editing clears stale results");
   assert.equal(await evaluate("document.getElementById('validationIssues').children.length"), 0);
-  const requiredFields = labels => labels.map(label => `**${label}:**No`).join("\n");
+  const requiredFields = labels => labels.map(label => `**${label}:**${syntheticValue(label)}`).join("\n");
   const complete = Object.entries(intakeRules.sections).map(([title, config]) => `**${title}**\n${requiredFields(config.required)}`).join("\n") + "\n**MEDICAL PROBLEMS**\n**Problem one:**Example condition";
   await evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(complete)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   assert.equal(await evaluate("document.getElementById('validationSummary').textContent"), "You're all good!");

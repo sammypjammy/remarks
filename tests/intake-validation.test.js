@@ -4,11 +4,12 @@ import assert from "node:assert/strict";
 import { parseIntake } from "../intake-checker/parser.js";
 import { intakeRules } from "../intake-checker/rules.js";
 import { isMissing, parseCalendarDate, validateIntake } from "../intake-checker/validation.js";
+import { syntheticValue } from './synthetic-intake-values.js';
 
 const now = new Date(2031, 8, 16);
 const check = text => validateIntake(parseIntake(text), intakeRules, { now }).issues;
 const scoped = (text, section) => check(text).filter(issue => issue.section === section);
-const fields = (labels, value = "No") => labels.map(label => `**${label}:**${value}`).join("\n");
+const fields = (labels, value) => labels.map(label => `**${label}:**${value ?? syntheticValue(label)}`).join("\n");
 const record = (key, extra = "", omit = []) => `**${intakeRules.records[key].section}**\n#### ${ { providers: "Clinic 1", medications: "Medication 1", jobs: "Most Recent Job", children: "Person" }[key] }\n${fields(intakeRules.records[key].required.filter(label => !omit.includes(label)))}\n${key === "providers" ? "**Clinic Name:**Synthetic Clinic\n" : ""}${extra}`;
 
 test("missing normalization preserves No, Yes, zero, and None", () => {
@@ -30,7 +31,7 @@ test("all configured required fields are independently required; optional fields
     const complete = `**${section}**\n${fields(config.required)}\n${fields(config.optional || [], "*Not provided*")}`;
     assert.equal(scoped(complete, section).length, 0, section);
     for (const field of config.required) {
-      const issues = scoped(complete.replace(`**${field}:**No`, `**${field}:** `), section);
+      const issues = scoped(complete.replace(`**${field}:**${syntheticValue(field)}`, `**${field}:** `), section);
       assert.equal(issues.length, 1, `${section}: ${field}`);
       assert.equal(issues[0].field, config.required.length === 1 ? null : field);
     }
@@ -89,7 +90,7 @@ test("provider visit rules: optional dates, first-only, last-only, order, and mo
   assert.equal(provider("**First Visit Date:**September 2031\n**Last Visit Date:**October 2031").length, 0);
   for (const value of ["September 1, 2031", "September 30, 2031", "October 2031", "2032-01"]) assert.equal(provider(`**Next Visit Date:**${value}`).length, 0);
   for (const value of ["August 2031", "2030-12-31"]) assert.equal(provider(`**Next Visit Date:**${value}`)[0].severity, "error");
-  assert.equal(provider("**Next Visit Date:**not a date")[0].severity, "warning");
+  assert.equal(provider("**Next Visit Date:**not a date")[0].severity, "error");
   assert.equal(provider("**First Visit Date:**September 2031\n**Last Visit Date:**9/2/2031")[0].severity, "warning");
   const parsed = parseIntake(record("providers", "**Last Visit Date:**9/1/2031"));
   const before = JSON.stringify(parsed);
@@ -121,7 +122,7 @@ test("work addresses only apply in current local calendar year, not a rolling 12
   assert.equal(job("December 2031").length, 4);
   assert.equal(job("2030-12-31").length, 0);
   assert.equal(job("2032-01-01").length, 0);
-  assert.equal(job("invalid").length, 0);
+  assert.deepEqual(job("invalid").map(issue => [issue.field, issue.severity]), [["End Date", "error"]]);
   assert.deepEqual(job("").map(issue => issue.field), ["End Date"]);
   assert.equal(scoped("**EMPLOYMENT INFORMATION**\n**Have you ever worked:**No\n**Currently working:**No", "EMPLOYMENT INFORMATION").length, 0);
 });
@@ -163,7 +164,7 @@ test("nested school fields validate, training stays optional, labels match exact
   assert.deepEqual(scoped(text.replace("**School City:**No", "**School City:**"), "SCHOOL INFORMATION").map(issue => issue.field), ["School City"]);
   assert.deepEqual(scoped(text.replace("**School State:**No", "**School State:**"), "SCHOOL INFORMATION").map(issue => issue.field), ["School State"]);
   const optionalBlank = intakeRules.sections["SCHOOL INFORMATION"].optional.map(label => `**${label}:**`).join("\n");
-  assert.equal(scoped(`**SCHOOL INFORMATION**\n**School City:**Example\n**School State:**UT\n${optionalBlank}`, "SCHOOL INFORMATION").length, 0);
+  assert.equal(scoped(`**SCHOOL INFORMATION**\n**School City:**Example\n**School State:**UT\n**School name where highest grade completed:**Synthetic School\n${optionalBlank}`, "SCHOOL INFORMATION").length, 0);
   assert.equal(scoped(text.replace("#### SCHOOL INFORMATION\n", ""), "SCHOOL INFORMATION").length, 0);
 });
 
@@ -172,7 +173,7 @@ test("security-question parent names are optional", () => {
   assert.equal(scoped("**SECURITY QUESTIONS**\n**Mother - First Name:**\n**Mother - Maiden Name:**\n**Father - First Name:**\n**Father - Last Name:**", "SECURITY QUESTIONS").length, 0);
 });
 
-test("periods are rejected only in exact person-name fields", () => {
+test("configured names are normalized without changing original source fields", () => {
   const cases = [
     ["PERSONAL INFORMATION", "First Name", "J."],
     ["MEDICAL PROVIDERS", "Doctor First Name", "Robert Sr."],
@@ -183,8 +184,12 @@ test("periods are rejected only in exact person-name fields", () => {
   ];
   for (const [section, label, value] of cases) {
     const recordHeading = section === "MEDICAL PROVIDERS" ? "\n#### Clinic 1" : section === "MARRIAGE INFORMATION" ? "\n#### Current Spouse" : section === "CHILDREN INFORMATION" ? "\n#### Child 1" : "";
-    const issues = scoped(`**${section}**${recordHeading}\n**${label}:**${value}`, section).filter(issue => issue.message === "Periods are not allowed in person names.");
-    assert.deepEqual(issues.map(issue => issue.field), [label], `${section}: ${label}`);
+    const parsed = parseIntake(`**${section}**${recordHeading}\n**${label}:**${value}`);
+    const report = validateIntake(parsed);
+    const entry = [...report.formats].find(([field]) => field.label === label);
+    assert.equal(entry[0].value, value);
+    assert(!entry[1].value.includes('.'));
+    assert.equal(entry[1].error, null);
   }
   for (const [section, label] of [["MEDICAL PROVIDERS", "Clinic Name"], ["SCHOOL INFORMATION", "School name where highest grade completed"], ["WORK HISTORY", "Business Name"], ["WORK HISTORY", "Employer"], ["PERSONAL INFORMATION", "Email"]]) {
     const recordHeading = section === "MEDICAL PROVIDERS" ? "\n#### Clinic 1" : section === "WORK HISTORY" ? "\n#### Job 1" : "";
@@ -218,4 +223,15 @@ test("a complete intake has no errors and results are deterministic without muta
   assert.deepEqual(result.issues, []);
   assert.deepEqual(result, validateIntake(parsed, intakeRules, { now }));
   assert.equal(JSON.stringify(parsed), before);
+});
+
+test("school requires exactly name, city and state in nested and parent layouts", () => {
+  const labels = ["School name where highest grade completed", "School City", "School State"];
+  assert.deepEqual([...intakeRules.sections["SCHOOL INFORMATION"].required].sort(), [...labels].sort());
+  for (const heading of ["**SCHOOL INFORMATION**", "**EDUCATION INFORMATION**", "**EDUCATION INFORMATION**\n#### SCHOOL INFORMATION"]) {
+    for (const missing of labels) {
+      const text = heading + "\n" + labels.map(label => '**' + label + ':**' + (label === missing ? 'Not provided' : 'Synthetic')).join("\n");
+      assert.deepEqual(scoped(text, "SCHOOL INFORMATION").map(issue => issue.field), [missing]);
+    }
+  }
 });

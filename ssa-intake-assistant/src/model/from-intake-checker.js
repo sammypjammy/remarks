@@ -1,3 +1,5 @@
+import { medicalProblemGroups } from '../../../intake-checker/medical-problems.js';
+import { resolveAnswers } from '../../../intake-checker/answers.js';
 import { sourceRange } from '../../../intake-checker/parser.js';
 import { intakeRules } from '../../../intake-checker/rules.js';
 import { isMissing, parseCalendarDate } from '../../../intake-checker/validation.js';
@@ -40,24 +42,26 @@ export function fromIntakeChecker(session) {
   const claimed = new Set(), associatedIssues = new Set();
   const fields = [];
 
-  function addField(definition, nodes, { recordId = null, ambiguousScope = false, unsupported = false, label = definition.label } = {}) {
-    const candidates = nodes.flatMap(entry => entry.node.fields.filter(field => field.label === label).map(field => ({ entry, field })));
+  function addField(definition, nodes, { recordId = null, ambiguousScope = false, unsupported = false, label = definition.label, providedCandidates = null } = {}) {
+    const candidates = providedCandidates || nodes.flatMap(entry => entry.node.fields.filter(field => field.label === label).map(field => ({ entry, field })));
     const issues = validationIssues.filter(issue => {
-      if (issue.section !== definition.section || issue.field && issue.field !== label) return false;
+      if (issue.section !== definition.section) return false;
+      if (!issue.field && issue.requiredFields && !issue.requiredFields.includes(label)) return false;
+      if (providedCandidates) return candidates.some(({ entry, field }) => (!issue.location || issue.location === entry.path) && (!issue.field || issue.field === field.label));
+      if (issue.field && issue.field !== label) return false;
       if (issue.record && !nodes.some(entry => entry.node.title === issue.record)) return false;
       return issue.location ? nodes.some(entry => entry.path === issue.location) : true;
     });
     // Do not invent optional answers or hypothetical repeat records.
     const rule = definition.record ? intakeRules.records[definition.category] : intakeRules.sections[definition.section];
-    const requiredBySection = issues.some(issue => !issue.field) && rule?.required?.includes(label);
+    const requiredBySection = issues.some(issue => !issue.field && (issue.requiredFields || rule?.required || []).includes(label));
     if (!candidates.length && !issues.some(issue => issue.field === label) && !requiredBySection) return;
     candidates.forEach(({ field }) => claimed.add(field));
     issues.forEach(issue => associatedIssues.add(issue.id));
-    const encodings = candidates.map(({ field }) => encode(field.value, definition.dataType));
+    const encodings = candidates.map(({ field }) => encode(report.formats.get(field)?.value ?? field.value, definition.dataType));
     const encoded = encodings[0] || encode(null, definition.dataType);
     // Keep contradictory source answers, including missing versus supplied, visible.
-    const distinct = new Set(candidates.map(({ field }) => String(field.value ?? '').trim()));
-    const conflict = distinct.size > 1;
+    const conflict = resolveAnswers(candidates.map(({ field }) => field), report.formats).conflict;
     const blockingReasons = [];
     if (encoded.missing) blockingReasons.push({ code: 'missing', message: encoded.reason });
     if (conflict) blockingReasons.push({ code: 'conflict', message: 'Competing values for the same field. Resolve them in the pasted intake.' });
@@ -71,7 +75,7 @@ export function fromIntakeChecker(session) {
     const sources = candidates.map(({ entry, field }) => ({
       section: definition.parent && entry.node.title === definition.parent ? entry.node.title : definition.section,
       record: recordId ? entry.node.title : null,
-      nodePath: entry.path, label, range: sourceRange(field),
+      nodePath: entry.path, label: field.label, range: sourceRange(field),
       rawValue: session.edits?.has(field) ? session.edits.get(field).originalValue : field.value,
     }));
     const relevantReviews = reviewDecisions.filter(item => item.range && sources.some(source => source.range && item.range.start <= source.range.end && item.range.end >= source.range.start));
@@ -110,12 +114,10 @@ export function fromIntakeChecker(session) {
       }
     });
   }
-  let problemIndex = 0;
-  for (const entry of entries.filter(entry => entry.node.title === 'MEDICAL PROBLEMS' || entry.ancestors.some(parent => parent.node.title === 'MEDICAL PROBLEMS'))) {
-    for (const label of new Set(entry.node.fields.filter(field => intakeRules.medicalProblemLabel.test(field.label)).map(field => field.label))) {
-      addField(medicalProblemDefinition, [entry], { label, recordId: `problem-${++problemIndex}` });
-    }
-  }
+  medicalProblemGroups(parsed).forEach(group => {
+    const nodes = [...new Set(group.candidates.map(candidate => candidate.entry))];
+    addField(medicalProblemDefinition, nodes, { label: group.label, recordId: group.recordId, providedCandidates: group.candidates });
+  });
   // Lossless fallback: arbitrary bold labels are accepted by the parser, never silently dropped.
   for (const entry of entries) for (const [index, field] of entry.node.fields.entries()) {
     if (claimed.has(field)) continue;
@@ -124,7 +126,7 @@ export function fromIntakeChecker(session) {
   }
   return {
     schema: 'packard.intake-client-profile', schemaVersion: PROFILE_SCHEMA_VERSION, revision: session.revision || 0,
-    source: { kind: 'intake-checker', toolVersion: '1.7.0' }, fields,
+    source: { kind: 'intake-checker', toolVersion: '1.8.0' }, fields,
     validationIssues, reviewDecisions,
     requirements: validationIssues.filter(issue => !associatedIssues.has(issue.id)),
     unparsed: parsed.unparsed.map(item => ({ ...item })), deferred: [...report.deferred],

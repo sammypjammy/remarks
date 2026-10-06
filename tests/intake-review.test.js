@@ -24,7 +24,7 @@ test("missing and duplicate identity fields are safe", () => {
   assert.equal(review(personal + "900-00-0742\nPERSONAL INFORMATION\nFirst Name: Other").identifier, "");
 });
 for (const count of [10, 11]) test(`${count} populated medical problems`, () => {
-  const text = "MEDICAL PROBLEMS\n" + Array.from({ length: count }, (_, i) => `Problem ${i + 1}: Synthetic condition`).join("\n") + "\nProblem 20: Not provided\nProblem 21:";
+  const text = "MEDICAL PROBLEMS\n" + Array.from({ length: count }, (_, i) => `Problem ${i + 1}: Synthetic condition ${i + 1}`).join("\n") + "\nProblem 20: Not provided\nProblem 21:";
   assert.equal(messages(text).includes("More Than 10 Conditions"), count > 10);
 });
 for (const [section, label, message] of [
@@ -52,15 +52,15 @@ test("Separated is an exact-value Remarks trigger, not a validation error", () =
   assert.equal(validateIntake(parseIntake(text)).issues.some(issue => issue.message.includes("Marital Status")), false);
   assert.deepEqual(messages(text.replace("Separated", "Married")), []);
 });
-const work = (start, end) => `WORK HISTORY\nMost Recent Job\nStart Date: ${start}\nEnd Date: ${end}`;
+const work = (start, end, onset = "2020-01-01") => `DISABILITY INFORMATION\nOnset date of disability: ${onset}\nWORK HISTORY\nMost Recent Job\nStart Date: ${start}\nEnd Date: ${end}`;
 for (const [start, end, expected] of [
   ["2025-01-02", "2025-04-01", true],
-  ["2025-01-02", "2025-04-02", false],
+  ["2025-01-02", "2025-04-02", true],
   ["2025-01-02", "2025-04-03", false],
   ["2025-01-31", "2025-04-29", true],
-  ["2025-01-31", "2025-04-30", false],
+  ["2025-01-31", "2025-04-30", true],
   ["2023-11-30", "2024-02-28", true],
-  ["2024-11-30", "2025-02-28", false],
+  ["2024-11-30", "2025-02-28", true],
   ["2025-02-01", "2025-02-01", true],
   ["2025-02-01", "2025-01-31", false],
   ["2025-02", "2025-03-01", false],
@@ -70,7 +70,7 @@ for (const [start, end, expected] of [
   ["", "2025-03-01", false],
   ["2025-02-01", "", false],
   ["2/1/2025", "April 30, 2025", true],
-  ["2/1/2025", "May 1, 2025", false]
+  ["2/1/2025", "May 1, 2025", true]
 ]) test(`work ${start} to ${end}`, () => {
   assert.equal(messages(work(start, end)).some(message => message.startsWith("Failed Work Attempt")), expected);
 });
@@ -98,4 +98,14 @@ test("plain and Markdown use the same parser metadata; review leaves validation/
     assert.equal(JSON.stringify(parsed), snapshot);
     assert.deepEqual(validateIntake(parsed), before);
   }
+});
+
+for (const onset of ["2025-02-01", "2025-02-02", "", "Not provided", "bad", "2025-02-30", "2025-01"]) test('failed work requires an established earlier onset: ' + (onset || 'blank'), () => {
+  assert.deepEqual(messages(work("2025-02-01", "2025-03-01", onset)), []);
+});
+test("conflicting onset dates do not create a failed-work notification", () => {
+  assert.deepEqual(messages(work("2025-02-01", "2025-03-01") + "\nDISABILITY INFORMATION\nOnset date of disability: 2025-03-01"), []);
+});
+test("missing onset and unrelated last-work date do not establish onset", () => {
+  assert.deepEqual(messages("EMPLOYMENT INFORMATION\nWhen did you last work: 2020-01-01\nWORK HISTORY\nMost Recent Job\nStart Date: 2025-02-01\nEnd Date: 2025-03-01"), []);
 });

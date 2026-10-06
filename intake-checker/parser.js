@@ -33,6 +33,10 @@ export function parseIntake(rawText) {
     lines = [];
   }
   function node(title) { return { title, fields: [], subsections: [] }; }
+  const unparsed = (index, rawLine, range) => {
+    const item = { line: index + 1, text: rawLine };
+    sourceRanges.set(item, range); result.unparsed.push(item);
+  };
   let index = -1;
   // Preserve original UTF-16 offsets, including CRLF, for textarea selection APIs.
   for (const sourceLine of String(rawText).matchAll(/([^\r\n]*)(\r\n|\r|\n|$)/g)) {
@@ -62,23 +66,27 @@ export function parseIntake(rawText) {
         (stack.at(-1)?.node || section).subsections.push(next);
         stack.push({ level, node: next });
       } else {
-        result.unparsed.push({ line: index + 1, text: rawLine });
+        unparsed(index, rawLine, range);
       }
     } else if (match) {
       finishField();
       const target = stack.at(-1)?.node || section;
-      if (!target) result.unparsed.push({ line: index + 1, text: rawLine });
+      if (!target) unparsed(index, rawLine, range);
       else {
         field = { label: match[1], value: null };
         sourceRanges.set(field, range);
         target.fields.push(field);
         lines = [match[2]];
       }
+    } else if (plainField) {
+      // An unknown question must not become part of the previous answer.
+      finishField();
+      unparsed(index, rawLine, range);
     } else if (field) {
       lines.push(rawLine);
       if (rawLine.trim()) sourceRanges.get(field).end = range.end;
     } else if (line) {
-      result.unparsed.push({ line: index + 1, text: rawLine });
+      unparsed(index, rawLine, range);
     }
   }
   finishField();

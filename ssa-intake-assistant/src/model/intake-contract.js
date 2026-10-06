@@ -2,7 +2,7 @@ import { intakeRules } from '../../../intake-checker/rules.js';
 import { reviewFields } from '../../../intake-checker/review-fields.js';
 
 // This catalog describes EXISTING labels; it does not change what the parser accepts.
-export const PROFILE_SCHEMA_VERSION = '1.0.0';
+export const PROFILE_SCHEMA_VERSION = '2.0.0';
 export const FIELD_TYPES = Object.freeze(['text', 'boolean', 'date']);
 const sectionIds = {
   'PERSONAL INFORMATION': 'personal', 'BIRTH INFORMATION': 'birth',

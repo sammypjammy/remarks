@@ -1,34 +1,10 @@
 import { intakeRules } from "./rules.js";
 
-export function isMissing(value) {
-  return value == null || (typeof value === "string" && /^(?:\s*|\s*(?:Not provided|\*Not provided\*)\s*)$/i.test(value));
-}
-
-// Explicit calendar formats only. Never use Date.parse's locale-dependent guessing.
-export function parseCalendarDate(value) {
-  if (typeof value !== "string") return null;
-  const text = value.trim();
-  let year, month, day;
-  let match;
-  if ((match = text.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/))) {
-    [, year, month, day] = match;
-  } else if ((match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) {
-    [, month, day, year] = match;
-  } else if ((match = text.match(/^(\d{1,2})\/(\d{4})$/))) {
-    [, month, year] = match;
-  } else if ((match = text.match(/^([A-Za-z]+)\s+(?:(\d{1,2}),?\s+)?(\d{4})$/))) {
-    const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-    month = months.findIndex(name => name === match[1].toLowerCase() || name.slice(0, 3) === match[1].toLowerCase()) + 1;
-    day = match[2]; year = match[3];
-  } else return null;
-  year = Number(year); month = Number(month);
-  const precision = day === undefined ? "month" : "day";
-  day = day === undefined ? 1 : Number(day);
-  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
-  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (year < 1000 || month < 1 || month > 12 || day < 1 || day > days[month - 1]) return null;
-  return { year, month, day, precision };
-}
+import { isMissing, parseCalendarDate } from './values.js';
+import { resolveAnswers } from "./answers.js";
+import { sourceRange } from "./parser.js";
+import { inspectFormats } from './formats.js';
+export { isMissing, parseCalendarDate } from './values.js';
 
 function flatten(nodes, path = "") {
   return nodes.flatMap((node, index) => {
@@ -39,6 +15,7 @@ function flatten(nodes, path = "") {
 
 export function validateIntake(intake, rules = intakeRules, { now = new Date() } = {}) {
   const issues = [];
+  const formats = inspectFormats(intake);
   const all = flatten(intake.sections);
   const sections = title => all.filter(entry => entry.node.title === title);
   const values = (node, label) => (node?.fields || []).filter(field => field.label === label).map(field => field.value).filter(value => !isMissing(value));
@@ -49,20 +26,15 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
   const requiredSection = (node, fields, context, label) => {
     if (!fields.length) return;
     if (!node || !fields.some(field => values(node, field).length)) {
-      issue(context, null, `${label} is required but was not provided.`);
+      issue({ ...context, requiredFields: [...fields] }, null, `${label} is required but was not provided.`);
       return;
     }
     required(node, fields, context);
   };
   const contextFor = (section, entry, record = false) => ({ section, ...(record ? { record: entry.node.title } : {}), location: entry.location });
   // Multiple conflicting values cannot silently choose which condition/date applies.
-  function single(node, label, context) {
-    const found = [...new Set(values(node, label))];
-    if (found.length > 1) {
-      issue(context, label, `${label} has multiple different values. Review this field; dependent checks were skipped.`, "warning");
-      return null;
-    }
-    return found[0] ?? null;
+  function single(node, label) {
+    return resolveAnswers(node.fields.filter(field => field.label === label), formats.results).value;
   }
   for (const [title, config] of Object.entries(rules.sections)) {
     let entries = sections(title);
@@ -72,8 +44,8 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     for (const entry of entries) {
       let requiredFields = config.required;
       if (title === "EMPLOYMENT INFORMATION") {
-        const workedValues = [...new Set(values(entry.node, "Have you ever worked").map(value => value.trim().toLowerCase()))];
-        if (workedValues.length === 1 && workedValues[0] === "no") requiredFields = requiredFields.filter(field => field !== "When did you last work");
+        const worked = single(entry.node, "Have you ever worked");
+        if (/^(no|false)$/i.test(worked?.trim() || "")) requiredFields = requiredFields.filter(field => field !== "When did you last work");
       }
       requiredSection(entry.node, requiredFields, contextFor(title, entry), title);
     }
@@ -86,8 +58,8 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
         const next = { node, location: `${entry.location}/${index}` };
         const recognized = config.heading?.test(node.title) || node.fields.some(field => [...(config.required || []), ...(config.recognition || [])].includes(field.label));
         if (recognized) found.push(next);
-        else if (node.subsections.length) visit(next);
-        else if (!(config.allowEmptyRecords && !node.fields.length)) issue(contextFor(config.section, next, true), null, "Record structure is not recognized. Review the parsed structure; this record was not validated.", "warning");
+        if (node.subsections.length) visit(next);
+        else if (!recognized && !(config.allowEmptyRecords && !node.fields.length)) issue(contextFor(config.section, next, true), null, "Record structure is not recognized. Review the parsed structure; this record was not validated.", "warning");
       }
     }
     visit(root);
@@ -126,7 +98,7 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     function date(value, field) {
       if (value === null) return null;
       const parsed = parseCalendarDate(value);
-      if (!parsed) issue(context, field, "Date format is not recognized or the calendar date is invalid. Review this date; comparison was skipped.", "warning");
+      // Invalid dates are reported once by the shared format checks below.
       return parsed;
     }
     // Last-only is valid; no inferred date is written back to the intake.
@@ -137,6 +109,7 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
         const firstMonth = first.year * 12 + first.month;
         const lastMonth = last.year * 12 + last.month;
         if (lastMonth < firstMonth || (lastMonth === firstMonth && first.precision === "day" && last.precision === "day" && last.day < first.day)) {
+          issue(context, "First Visit Date", "First Visit Date must be on or before Last Visit Date.");
           issue(context, "Last Visit Date", "Last Visit Date must be on or after First Visit Date.");
         } else if (lastMonth === firstMonth && (first.precision === "month" || last.precision === "month")) {
           issue(context, "Last Visit Date", "Visit dates in the same month lack day precision. Review their order.", "warning");
@@ -158,7 +131,7 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
   for (const root of sections("MARRIAGE INFORMATION")) {
     const context = contextFor("MARRIAGE INFORMATION", root);
     const marriageFields = new Set([...spouse.required, ...spouse.optional]);
-    for (const entry of root.node.subsections.map((node, index) => ({ node, location: `${root.location}/${index}` }))) {
+    for (const entry of flatten(root.node.subsections, root.location)) {
       if (entry.node.fields.some(field => marriageFields.has(field.label)) && !values(entry.node, "Type of Marriage").length) {
         issue(contextFor("MARRIAGE INFORMATION", entry, true), "Type of Marriage", "Type of Marriage is required when marriage details are provided.");
       }
@@ -171,21 +144,32 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     for (const entry of current) required(entry.node, spouse.required, contextFor("MARRIAGE INFORMATION", entry, true));
   }
 
-  for (const [title, labels] of Object.entries(rules.personNameFields || {})) {
-    let entries = sections(title);
-    const parent = rules.sections[title]?.parent;
-    if (!entries.length && parent) entries = sections(parent);
-    const labelSet = new Set(labels);
-    for (const entry of entries) {
-      const candidates = [{ node: entry.node, location: entry.location }, ...flatten(entry.node.subsections, entry.location)];
-      for (const candidate of candidates) {
-        for (const personName of candidate.node.fields.filter(field => labelSet.has(field.label) && !isMissing(field.value))) {
-          if (personName.value.includes(".")) {
-            issue({ section: title, ...(candidate.node === entry.node ? {} : { record: candidate.node.title }), location: candidate.location }, personName.label, "Periods are not allowed in person names.");
-          }
-        }
-      }
+  // Every label is checked, including optional and unsupported labels. Source
+  // ranges allow staff to inspect each competing occurrence without choosing one.
+  for (const { node, location } of all) {
+    const ancestors = all.filter(entry => location.startsWith(entry.location + '/'));
+    const owner = [...ancestors, { node }].reverse().find(entry =>
+      rules.sections[entry.node.title] || rules.optionalSections.includes(entry.node.title)
+      || Object.values(rules.records).some(rule => rule.section === entry.node.title)
+      || entry.node.title === 'MEDICAL PROBLEMS');
+    const section = node.title === 'EDUCATION INFORMATION' && !sections('SCHOOL INFORMATION').length
+      ? 'SCHOOL INFORMATION' : owner?.node.title || node.title;
+    const sameSection = rules.sections[node.title] || rules.optionalSections.includes(node.title);
+    const peers = sameSection ? sections(node.title) : [{ node, location }];
+    if (peers[0].node !== node) continue;
+    const fields = peers.flatMap(entry => entry.node.fields);
+    for (const label of new Set(fields.map(field => field.label))) {
+      const answer = resolveAnswers(fields.filter(field => field.label === label), formats.results);
+      if (!answer.conflict) continue;
+      issues.push({ section, ...(node.title !== section ? { record: node.title } : {}), location: peers.length > 1 ? null : location,
+        field: label, severity: 'error', code: 'conflict',
+        message: label + ' has conflicting answers. Correct the competing entries in the pasted intake.',
+        sources: answer.fields.map(sourceRange).filter(Boolean) });
     }
   }
-  return { issues, deferred: [...rules.deferred] };
+  for (const item of intake.unparsed) issue({ section: 'PARSING', location: null,
+    sources: [sourceRange(item)].filter(Boolean) }, null,
+    'Line ' + item.line + ' could not be assigned reliably. Correct its label or placement in the pasted intake.');
+  issues.push(...formats.issues);
+  return { issues, deferred: [...rules.deferred], formats: formats.results };
 }

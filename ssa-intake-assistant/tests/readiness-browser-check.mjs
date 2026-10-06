@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { completeSyntheticIntake } from './complete-intake.mjs';
 
 export const readinessIntake = completeSyntheticIntake()
-  .replace('**First Name:** Synthetic', '**First Name:** Synthetic.')
+  .replace('**First Name:** Synthetic', '**First Name:** 123')
   .replace('**Middle Name:** Synthetic', '**Middle Name:** Synthetic\n**Middle Name:** Different')
   .replace('**Currently working:** No', '**Currently working:** Yes')
   .replace('**Date of Birth:** 2000-01-01', '**Date of Birth:** 02/30/2000')
@@ -29,8 +29,20 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     const storage = await evaluate('JSON.stringify([localStorage, sessionStorage])');
     const history = await evaluate('JSON.stringify([location.href, history.state, history.length])');
     await evaluate(`window.clientWrites = 0; for (const method of ['setItem', 'removeItem', 'clear']) { const original = Storage.prototype[method]; Storage.prototype[method] = function(...args) { window.clientWrites++; return original.apply(this, args); }; } window.clientLogs = 0; for (const method of ['log','warn','error','info','debug']) console[method] = () => { window.clientLogs++; }; window.clientDb = 0; indexedDB.open = () => { window.clientDb++; throw Error('No client database'); };`);
+    const normalizedIntake = completeSyntheticIntake()
+      .replace('**First Name:** Synthetic', '**First Name:** sYNTHETIC.')
+      .replace('**Phone Number:** 202-555-0142', '**Phone Number:** (202) 555.0142');
+    await check(normalizedIntake);
+    assert(await evaluate("document.getElementById('intakeNormalizations').textContent.includes('Phone Number: 202-555-0142') && document.getElementById('intakeNormalizations').textContent.includes('First Name: Synthetic')"));
+    assert.equal(await evaluate("document.getElementById('intakeText').value"), normalizedIntake);
+    await click('Continue to SSA Intake Assistant');
+    await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
+    assert.equal((await counts()).blocked, 0);
+    assert(await evaluate("document.querySelector('.ready-fields [data-field-id=\"personal.phone-number\"]').textContent.includes('202-555-0142')"));
+    await click('Back to Intake Checker');
     await check(readinessIntake);
-    await evaluate("document.querySelector('#reviewItems .intake-reviewed').click(); document.querySelector('#validationIssues .intake-reviewed').click()");
+    await evaluate("document.querySelector('#reviewItems .intake-reviewed').click()");
+    assert(await evaluate("[...document.querySelectorAll('#validationIssues li[data-severity=error]')].every(row => !row.querySelector('.intake-reviewed'))"));
     const reviewHtml = await evaluate("document.getElementById('intakeResults').innerHTML");
     const start = network.length;
     await click('Continue to SSA Intake Assistant');
@@ -38,7 +50,7 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     assert.deepEqual(await counts(), { total: 121, ready: 117, blocked: 4, missing: 1, conflicts: 1 });
     assert(await evaluate("!document.querySelector('#ssaIntakeView input[type=checkbox]') && !document.querySelector('#ssaIntakeView .confirm-control')"));
     assert(await evaluate("document.querySelector('.ready-fields [data-field-id=\"personal.last-name\"]').textContent.includes('Synthetic')"));
-    assert(await evaluate("document.querySelector('[data-field-id=\"personal.first-name\"]').textContent.includes('validation error still requires correction')"));
+    assert(await evaluate("document.querySelector('[data-field-id=\"personal.first-name\"]').textContent.includes('must contain letters')"));
     assert(await evaluate("document.querySelector('[data-field-id=\"birth.date-of-birth\"]').textContent.includes('No valid calendar date')"));
     assert(await evaluate("!document.querySelector('[data-field-id=\"personal.middle-name\"] form') && !document.querySelector('[data-field-id^=\"unsupported.\"] form')"));
     await click('Back to Intake Checker');

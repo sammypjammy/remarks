@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 export async function checkReview({ evaluate, capture, width }) {
-  const text = "PERSONAL INFORMATION\nFirst Name: Synthetic\nLast Name: Example\nSocial Security Number: 900-00-0742\nEmail: synthetic@example.test\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nOTHER NAMES\nUsed other names in medical records: Yes\nMARRIAGE INFORMATION\nMarital Status: Separated\nFINANCIAL SUPPORT\nVeteran Benefits - Receive Veteran Benefits: Yes\nMEDICAL PROBLEMS\n" + Array.from({ length: 11 }, (_, i) => `Problem ${i + 1}: Synthetic condition`).join("\n") + "\nWORK HISTORY\nMost Recent Job\nStart Date: 2025-02-01\nEnd Date: 2025-04-30";
+  const text = "PERSONAL INFORMATION\nFirst Name: Synthetic\nLast Name: Example\nSocial Security Number: 900-00-0742\nEmail: synthetic@example.test\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nOTHER NAMES\nUsed other names in medical records: Yes\nMARRIAGE INFORMATION\nMarital Status: Separated\nFINANCIAL SUPPORT\nVeteran Benefits - Receive Veteran Benefits: Yes\nMEDICAL PROBLEMS\n" + Array.from({ length: 11 }, (_, i) => `Problem ${i + 1}: Synthetic condition ${i + 1}`).join("\n") + "\nDISABILITY INFORMATION\nOnset date of disability: 2020-01-01\nWORK HISTORY\nMost Recent Job\nStart Date: 2025-02-01\nEnd Date: 2025-04-30";
   const storage = await evaluate("JSON.stringify([localStorage, sessionStorage])");
   const check = async value => evaluate(`document.getElementById('intakeText').value = ${JSON.stringify(value)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   await check(text);

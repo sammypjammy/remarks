@@ -1,11 +1,13 @@
 import { validateIntake } from './validation.js';
 import { reviewIntake } from './review.js';
 import { createAcknowledgements } from './acknowledgements.js';
+import { incomeFields } from './review-fields.js';
+import { intakeRules } from './rules.js';
 import { sourceRange } from './parser.js';
 
 export function createIntakeSession(parsed) {
   const report = validateIntake(parsed);
-  const review = reviewIntake(parsed);
+  const review = reviewIntake(parsed, report.formats);
   return { parsed, report, review, revision: 0, edits: new Map(),
     validationState: createAcknowledgements(report.issues), reviewState: createAcknowledgements(review.items) };
 }
@@ -49,16 +51,23 @@ export function correctIntakeField(session, target, value) {
   session.edits.set(field, { ...before, changes: [...before.changes, { revision: session.revision, value }] });
   field.value = value.trim() || null;
   const report = validateIntake(session.parsed);
-  const review = reviewIntake(session.parsed);
+  const review = reviewIntake(session.parsed, report.formats);
   // Recheck same-scope dependent rules; don't carry old dismissals across a correction.
-  const affected = issue => issue.location === target.nodePath || issue.section === target.section && !issue.location;
+  const visitDates = ['First Visit Date', 'Last Visit Date'];
+  const affected = issue => (issue.location === target.nodePath || issue.section === target.section && !issue.location)
+    && (!issue.field || issue.field === target.label || visitDates.includes(issue.field) && visitDates.includes(target.label));
   const validationState = retainAcknowledgements(session.report.issues, session.validationState, report.issues, affected);
   // Review flags can depend on multiple fields/records: only unchanged unrelated flags survive.
   const reviewState = retainAcknowledgements(session.review.items, session.reviewState, review.items, item => {
-    const ranges = [target.range, sourceRange(node)].filter(Boolean);
-    if (item.range) return ranges.some(range => item.range.start === range.start && item.range.end === range.end);
-    return item.message === 'Receiving income' && target.section === 'FINANCIAL SUPPORT'
-      || item.message === 'More Than 10 Conditions' && target.section === 'MEDICAL PROBLEMS';
+    if (item.message.startsWith('Failed Work Attempt')) {
+      if (target.section === 'DISABILITY INFORMATION' && target.label === 'Onset date of disability') return true;
+      const range = sourceRange(node);
+      return target.section === 'WORK HISTORY' && ['Start Date', 'End Date'].includes(target.label)
+        && range && item.range?.start === range.start && item.range?.end === range.end;
+    }
+    if (item.range) return target.range && item.range.start === target.range.start && item.range.end === target.range.end;
+    return item.message === 'Receiving income' && target.section === 'FINANCIAL SUPPORT' && incomeFields.includes(target.label)
+      || item.message === 'More Than 10 Conditions' && target.section === 'MEDICAL PROBLEMS' && intakeRules.medicalProblemLabel.test(target.label);
   });
   Object.assign(session, { report, review, validationState, reviewState });
   return true;

@@ -53,6 +53,9 @@
 .ssa-workspace .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
 .ssa-workspace .review-field { min-width: 0; padding: 1rem; border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 7px; background: var(--panel-alt); }
 .ssa-workspace .status-missing, .ssa-workspace .status-conflict { border-left-color: var(--danger); }
+.ssa-readiness .blocked-field[data-severity="error"] { border-left: 4px solid var(--danger); padding-left: 12px; }
+.ssa-readiness .blocked-field[data-severity="warning"] { border-left: 4px solid #b77929; background: #fffaeb; padding-left: 12px; }
+[data-theme="dark"] .ssa-readiness .blocked-field[data-severity="warning"] { background: #292416; border-left-color: #ffd166; }
 .ssa-workspace .status-needs_review { border-left-color: #b77929; }
 .ssa-workspace .status-confirmed, .ssa-workspace .status-firm_standard { border-left-color: #39825b; }
 .ssa-workspace .field-title { display: flex; justify-content: space-between; gap: .6rem; margin-bottom: .5rem; }

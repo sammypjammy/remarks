@@ -12,11 +12,14 @@ const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, r
 function clearResults() {
   activeIntake = null;
   document.getElementById("intakeCorrections").replaceChildren();
+  document.querySelector('#intakeNormalizations ul').replaceChildren();
+  document.getElementById('intakeNormalizations').hidden = true;
   handoff.clear();
   document.getElementById("continueToSsa").hidden = true;
   results.hidden = true;
   document.getElementById("intakeEmpty").hidden = false;
   message.textContent = "";
+  delete message.dataset.severity;
   document.getElementById("validationIssues").replaceChildren();
   document.getElementById("validationSummary").textContent = "";
   delete document.getElementById("validationSummary").dataset.success;
@@ -47,11 +50,13 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   message.textContent = "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
     activeIntake = createIntakeSession(parsed);
+    renderNormalizations(activeIntake.report.formats);
     renderReview(activeIntake.review, activeIntake.reviewState);
     renderReport(activeIntake.report, partial, parsed, activeIntake.validationState);
     document.getElementById("continueToSsa").hidden = false;
     document.getElementById("validationReport").hidden = false;
   } else {
+    message.dataset.severity = "error";
     message.textContent = "The intake could not be reliably parsed: no sections were recognized. Validation was not run. Copy the intake again and review the pasted text.";
   }
   document.getElementById("intakeEmpty").hidden = true;
@@ -77,11 +82,14 @@ function renderReport(report, partial, parsed, state) {
     row.append(title, reason);
     const actions = document.createElement("div");
     actions.className = "issue-actions";
-    const range = issueSource(parsed, issue);
-    if (range) {
-      actions.append(locateButton(range, [issue.section, issue.record, issue.field].filter(Boolean).join(" / ")));
-    }
-    actions.append(reviewedButton(row, title.textContent, () => {
+    const ranges = issue.sources?.length ? issue.sources : [issueSource(parsed, issue)].filter(Boolean);
+    ranges.forEach((range, index) => {
+      const label = [issue.section, issue.record, issue.field].filter(Boolean).join(" / ");
+      const button = locateButton(range, label + (ranges.length > 1 ? ' / occurrence ' + (index + 1) : ''));
+      if (ranges.length > 1) button.textContent = 'Find answer ' + (index + 1);
+      actions.append(button);
+    });
+    if (issue.severity === 'warning') actions.append(reviewedButton(row, title.textContent, () => {
       state.review(issue);
       updateSummary();
     }, summary));
@@ -93,6 +101,19 @@ function renderReport(report, partial, parsed, state) {
     }
     list.append(row);
   }
+}
+
+function renderNormalizations(formats) {
+  const host = document.getElementById('intakeNormalizations');
+  const list = host.querySelector('ul');
+  list.replaceChildren();
+  for (const [field, result] of formats) {
+    if (result.error || result.value === field.value) continue;
+    const row = document.createElement('li');
+    row.textContent = `${field.label}: ${result.value}`;
+    list.append(row);
+  }
+  host.hidden = !list.children.length;
 }
 
 function reviewedButton(row, label, acknowledge, fallback) {
@@ -180,6 +201,7 @@ function applyCorrection(session, target, value) {
   for (const id of ['reviewClient', 'reviewItems', 'validationIssues']) document.getElementById(id).replaceChildren();
   renderReview(session.review, session.reviewState);
   renderReport(session.report, session.parsed.unparsed.length > 0, session.parsed, session.validationState);
+  renderNormalizations(session.report.formats);
   const corrections = document.getElementById('intakeCorrections');
   corrections.replaceChildren();
   const note = document.createElement('p');

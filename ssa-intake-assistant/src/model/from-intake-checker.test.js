@@ -33,9 +33,9 @@ test('catalog covers every existing fixed parser label, all 119 meanings and the
 test('contract version and IDs are stable across values, rechecking and unrelated section order', () => {
   const a = profile('PERSONAL INFORMATION\nFirst Name: Synthetic\nWORK HISTORY\nMost Recent Job\nStart Date: 2000-01-01');
   const b = profile('WORK HISTORY\nMost Recent Job\nStart Date: 2001-02-03\nPERSONAL INFORMATION\nFirst Name: Edited');
-  assert.equal(PROFILE_SCHEMA_VERSION, '1.0.0');
+  assert.equal(PROFILE_SCHEMA_VERSION, '2.0.0');
   assert.equal(a.schema, 'packard.intake-client-profile');
-  assert.equal(a.schemaVersion, '1.0.0');
+  assert.equal(a.schemaVersion, '2.0.0');
   assert(field(a, 'personal.first-name'));
   assert(field(b, 'personal.first-name'));
   assert(field(a, 'jobs.start-date@jobs-1'));
@@ -90,7 +90,7 @@ test('unknown labels, unparsed text, duplicate sections and uncertain booleans a
 });
 
 test('unresolved validation blocks only its own field; dismissing an error does not repair it', () => {
-  const state = session('PERSONAL INFORMATION\nFirst Name: Synthetic.\nLast Name: Example');
+  const state = session('PERSONAL INFORMATION\nFirst Name: 123\nLast Name: Example');
   state.report.issues.forEach(state.validationState.review);
   const result = fromIntakeChecker(state);
   assert.equal(field(result, 'personal.first-name').readiness, 'blocked');
@@ -123,7 +123,7 @@ test('a scoped warning can be acknowledged without changing its source date prec
 });
 
 test('corrections update the existing Checker session, revalidate and preserve original provenance', () => {
-  const state = session('PERSONAL INFORMATION\nFirst Name: Synthetic.\nEMPLOYMENT INFORMATION\nCurrently working: Yes');
+  const state = session('PERSONAL INFORMATION\nFirst Name: 123\nEMPLOYMENT INFORMATION\nCurrently working: Yes');
   state.review.items.forEach(state.reviewState.review);
   const original = state.parsed.sections[0].fields[0];
   const range = sourceRange(original);
@@ -135,10 +135,10 @@ test('corrections update the existing Checker session, revalidate and preserve o
   assert.equal(after.origin, 'employee_entered');
   assert.equal(after.employeeReview.status, 'employee_entered');
   assert.equal(after.employeeReview.edits[0].value, 'Edited');
-  assert.equal(after.sources[0].rawValue, 'Synthetic.');
+  assert.equal(after.sources[0].rawValue, '123');
   assert.deepEqual(after.sources[0].range, range);
   assert.equal(state.reviewState.remaining().length, 0, 'unrelated dismissal survives');
-  assert(correctIntakeField(state, after.correctionTarget, 'Still.Invalid'));
+  assert(correctIntakeField(state, after.correctionTarget, '456'));
   assert.equal(field(fromIntakeChecker(state), 'personal.first-name').readiness, 'blocked');
 });
 

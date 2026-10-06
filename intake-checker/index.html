@@ -22,7 +22,7 @@
         <div class="intake-input">
         <form id="intakeForm">
           <label for="intakeText">DeLorean intake text</label>
-          <p id="intakeHelp">Processed only in this browser. Nothing is sent or saved.</p>
+          <p id="intakeHelp">Processed in page memory. Copy buttons place selected information on your clipboard.</p>
           <textarea id="intakeText" rows="12" spellcheck="false" autocomplete="off" aria-describedby="intakeHelp" placeholder="Paste the copied intake here"></textarea>
           <div class="intake-actions">
             <button class="primary-btn" type="submit">Check Intake</button>
@@ -30,6 +30,7 @@
           </div>
         </form>
         <div id="intakeCorrections" aria-live="polite"></div>
+        <details id="intakeNormalizations" hidden><summary>Formatted answers (original intake preserved)</summary><ul></ul></details>
         <p id="intakeMessage" role="status" aria-live="polite"></p>
         </div>
         <section class="intake-output" aria-label="Intake results">
@@ -53,7 +54,7 @@
       </div>
       <section id="ssaIntakeView" hidden aria-label="SSA Intake Assistant"></section>
     </main>
-    <div data-app-footer data-app-version="Intake Checker v1.7.0"></div>
+    <div data-app-footer data-app-version="Intake Checker v1.8.0"></div>
     <script src="../shared/settings-storage.js"></script>
     <script src="../shared/app-shell.js"></script>
     <script type="module" src="./intake-checker.js"></script>

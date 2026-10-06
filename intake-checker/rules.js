@@ -21,8 +21,8 @@ export const intakeRules = {
     "MARRIAGE INFORMATION": { required: [], optional: ["Marital Status"] },
     "SCHOOL INFORMATION": {
       parent: "EDUCATION INFORMATION",
-      required: ["School City", "School State"],
-      optional: ["Highest Grade Completed", "School name where highest grade completed", "Country where school located", "School Address Line 1", "School Address Line 2", "School Zip Code", "School End Date", "School Phone Number", "Teacher Name"]
+      required: ["School City", "School State", "School name where highest grade completed"],
+      optional: ["Highest Grade Completed", "Country where school located", "School Address Line 1", "School Address Line 2", "School Zip Code", "School End Date", "School Phone Number", "Teacher Name"]
     },
     "CHILDREN INFORMATION": { required: [] }
   },

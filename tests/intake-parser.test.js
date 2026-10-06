@@ -56,7 +56,8 @@ test("plain parsing does not promote arbitrary uppercase text, unknown labels, o
   const parsed = parseIntake("MEDICAL PROVIDERS\nClinic 1\nNotes:\nPLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7\nClinic Name: Example");
   assert.equal(parsed.sections.length, 1);
   assert.equal(parsed.sections[0].subsections.length, 1);
-  assert.equal(parsed.sections[0].subsections[0].fields[0].value, "PLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7");
+  assert.equal(parsed.sections[0].subsections[0].fields[0].value, "PLEASE CALL TOMORROW");
+  assert.deepEqual(parsed.unparsed.map(item => item.text), ["Important detail:", "Unknown Record 7"]);
   assert.equal(parseIntake("ARBITRARY TITLE\nUnknown label:\nExample").sections.length, 0);
 });
 

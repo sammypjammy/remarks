@@ -1,4 +1,5 @@
 import { fieldDefinitions } from '../src/model/intake-contract.js';
+import { syntheticValue } from '../../tests/synthetic-intake-values.js';
 
 // Entirely generated synthetic data, never copied from client records.
 export function completeSyntheticIntake() {
@@ -10,7 +11,7 @@ export function completeSyntheticIntake() {
     const fields = section.get(key) || [];
     const value = definition.dataType === 'boolean' ? 'No' : definition.dataType === 'date'
       ? definition.label === 'Next Visit Date' ? '2099-01-01' : definition.label === 'Last Visit Date' || definition.label === 'End Date' ? '2001-01-01' : '2000-01-01'
-      : definition.label === 'Social Security Number' ? '000-12-3456' : definition.label === 'Email' ? 'synthetic@example.test' : 'Synthetic';
+      : syntheticValue(definition.label, 'Synthetic');
     fields.push(`**${definition.label}:** ${value}`);
     section.set(key, fields); sections.set(definition.section, section);
   }

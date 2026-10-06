@@ -15,7 +15,7 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. Nothing is sent or saved.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.2.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.3.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Ready fields need no additional confirmation.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
@@ -50,7 +50,8 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
 
 function BlockedField({ field, onSource, onCorrect }) {
   const [value, setValue] = useState(field.employeeReview.edits.at(-1)?.value ?? field.sources[0]?.rawValue ?? '');
-  return <details className="blocked-field" data-field-id={field.id}>
+  const warningOnly = field.blockingReasons.every(reason => reason.code === 'validation' && field.validation.issues.find(issue => issue.id === reason.issueId)?.severity === 'warning');
+  return <details className="blocked-field" data-field-id={field.id} data-severity={warningOnly ? 'warning' : 'error'}>
     <summary><strong>{field.label}</strong><span>{field.category}{field.recordId ? ` / ${field.recordId}` : ''}</span><span className="status-pill">{field.blockingReasons.some(reason => reason.code === 'conflict') ? 'Conflict' : field.blockingReasons.some(reason => reason.code === 'missing') ? 'Missing' : 'Blocked'}</span></summary>
     <ul>{field.blockingReasons.map((reason, index) => <li key={index}>{reason.message}</li>)}</ul>
     {field.sources.map((source, index) => <p key={index} className="notes">Source: {source.rawValue ?? 'Not provided'}{' '}
