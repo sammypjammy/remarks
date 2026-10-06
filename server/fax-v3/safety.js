@@ -22,10 +22,10 @@ export function text(value, limit, optional = false) {
   return value.trim();
 }
 export function validateSubmission(fields, pdf) {
-  const allowed = ['faxNumber','filename','fullSsn','recipientName','includeCoverSheet','coverPageText','idempotencyKey','retryOf','batchId'];
+  const allowed = ['faxNumber','filename','clientName','fullSsn','recipientName','includeCoverSheet','coverPageText','idempotencyKey','retryOf','batchId'];
   if (Object.keys(fields).some(k=>!allowed.includes(k)) || !uuid(fields.idempotencyKey) ||
       (fields.retryOf && !uuid(fields.retryOf)) || (fields.batchId!==undefined && !uuid(fields.batchId)) || !e164(fields.faxNumber) || !/^\d{3}-\d{2}-\d{4}$/.test(fields.fullSsn || '') ||
-      typeof fields.includeCoverSheet !== 'boolean') fail(400);
+      typeof fields.includeCoverSheet !== 'boolean' || typeof fields.clientName !== 'string' || fields.clientName.length>200 || !/^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u.test(fields.clientName.trim())) fail(400);
   const filename=text(fields.filename,255), recipientName=text(fields.recipientName || '',200,true);
   if (!/\.pdf$/i.test(filename) || !Buffer.isBuffer(pdf) || pdf.length<5 || pdf.length>4000000 || pdf.subarray(0,5).toString()!=='%PDF-') fail(400);
   if (typeof fields.coverPageText !== 'string') fail(400);

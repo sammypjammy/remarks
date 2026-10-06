@@ -48,10 +48,10 @@
 .composer-panel textarea { min-height: 76px; padding: 10px 12px; resize: vertical; line-height: 1.45; }
 .composer-panel input:focus, .composer-panel textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--focus-ring); }
 .composer-panel input:disabled, .composer-panel textarea:disabled { background: var(--surface-inset); color: var(--muted); }
-.destination-recipient-row { display: grid; grid-template-columns: minmax(0, 1fr) 158px; align-items: start; gap: 16px; }
+.destination-recipient-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); align-items: start; gap: 16px; }
 .destination-number-field { min-width: 0; }
 .destination-recipient-row .full-ssn-field { min-width: 0; }
-.destination-recipient-row .full-ssn-field #fullSsn { width: 132px; }
+.destination-recipient-row .full-ssn-field #fullSsn { width: 100%; }
 .field-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 8px; }
 .destination-action-buttons { display: flex; align-items: center; gap: 5px; }
 .compact-btn { min-height: 36px; padding: 7px 11px; border-radius: 9px; font-size: 0.8rem; }
@@ -73,7 +73,7 @@
 .save-contact-fields .secondary-btn { white-space: nowrap; }
 
 .full-ssn-field label { display: block; margin-bottom: 7px; color: var(--text); font-size: 0.84rem; font-weight: 750; }
-.full-ssn-field #fullSsn { width: 132px; font-variant-numeric: tabular-nums; letter-spacing: 0.08em; text-align: center; }
+.full-ssn-field #fullSsn { width: 100%; font-variant-numeric: tabular-nums; }
 .cover-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .cover-toggle input { width: 18px; height: 18px; flex: 0 0 auto; margin: 3px 0 0; accent-color: var(--accent); }
 .cover-toggle span { display: grid; gap: 2px; }

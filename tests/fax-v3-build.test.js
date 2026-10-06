@@ -46,8 +46,8 @@ test('ordinary and Production builds make v3 canonical without the acceptance sw
     const welcome = await readFile(welcomeScript, 'utf8');
     const sharedSettings = await readFile('dist/shared/settings-storage.js', 'utf8');
     assert.match(faxHtml, /Connect RingCentral/);
-    assert.match(faxHtml, /Fax Sender v3\.3\.1/);
-    assert.match(faxHtml, /id="fullSsn"[^>]*pattern="\[0-9\]\{3\}-\[0-9\]\{2\}-\[0-9\]\{4\}"[^>]*required/);
+    assert.match(faxHtml, /Fax Sender v3\.4\.0/);
+    assert.match(faxHtml, /id="fullSsn"[^>]*placeholder="FirstName LastName 000-00-0000"[^>]*required/);
     assert.match(faxHtml, /id="autofillComments"[^>]*checked/);
     assert.doesNotMatch(faxHtml, /id="coverOptions"|id="commentField"|id="comment"/);
     assert.doesNotMatch(faxHtml, /Clearing the composer preserves this history\.|Used for history and receipt filenames only\./);
