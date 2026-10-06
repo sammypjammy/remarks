@@ -39,6 +39,14 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     await evaluate("document.querySelector('.parsing-issues button').click()");
     assert.equal(await evaluate("intakeText.value.slice(intakeText.selectionStart, intakeText.selectionEnd)"), 'Unmapped question: Synthetic answer');
     assert.equal(await evaluate('intakeText.value'), scopedText);
+    const documentText = 'Print as PDF\nIntake Form\nSynthetic Example\nGenerated on October 5, 2026 at 5:33 PM\n\nPERSONAL INFORMATION\nFirst Name:\nSynthetic\nDISABILITY INFORMATION\nFiled for disability in the past:\nNo\nOnset date of disability:\n2000-01-01';
+    await check(documentText); await click('Continue to SSA Intake Assistant');
+    await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
+    assert(await evaluate("!document.querySelector('.parsing-issues')"));
+    assert(await evaluate('!!document.querySelector(' + JSON.stringify('.ready-fields [data-field-id="disability.onset-date-of-disability"]') + ')'));
+    assert(await evaluate("[...document.querySelectorAll('.blocked-field')].some(row => row.textContent.includes('Filed for disability in the past') && row.textContent.includes('Not mapped yet') && row.textContent.includes('No intake correction is required'))"));
+    await click('Back to Intake Checker');
+    assert.equal(await evaluate('intakeText.value'), documentText);
     const normalizedIntake = completeSyntheticIntake()
       .replace('**First Name:** Synthetic', '**First Name:** sYNTHETIC.')
       .replace('**Phone Number:** 202-555-0142', '**Phone Number:** (202) 555.0142');

@@ -16,7 +16,7 @@ Supported format:
 
 Summary counts identify numbered Clinic, Hospital, Doctor, Medical Provider, Medication, and Job headings, plus Most Recent Job and Previous Job. Unknown categories are omitted rather than reported as zero. Counts are records, not deduplicated people. Client names use unambiguous First Name/Last Name fields under PERSONAL INFORMATION.
 
-Limitations: unknown plain-text labels/headings, tables, HTML, and multiple fields on the same line are not supported. A standalone bold line within a free-text answer is interpreted as a section; other unmarked continuation text is treated as part of the previous value. Answers exactly matching known headings or labels can be ambiguous; review the pasted source text.
+Limitations: unknown same-line plain questions/headings, tables, HTML, and multiple fields on the same line are not mapped. Standalone plain question labels inside a section are retained as unsupported fields. A standalone bold line within a free-text answer is interpreted as a section; other unmarked continuation text is treated as part of the previous value. Answers exactly matching known headings or labels can be ambiguous; review the pasted source text.
 
 ## Intake Checker v1.5 validation
 
@@ -54,7 +54,7 @@ The parser stores original UTF-16 field and heading ranges in a WeakMap keyed by
 
 Find in Intake focuses the textarea and selects the source range without changing text. A temporary, invisible measuring element estimates wrapped line position and is immediately removed. Selection is exact; scroll centering can vary slightly with browser typography, wrapping, or zoom. Editing clears results and locate callbacks, and Clear removes all content/selection state.
 
-## SSA preparation (v1.9.0)
+## SSA preparation (v1.10.0)
 
 Continue to SSA Intake Assistant exposes the existing parsed fields, validation, source locations, and review decisions through the versioned in-memory client-profile contract. The dashboard summarizes readiness without a duplicate confirmation step. General Reviewed dismissals do not alter answers.
 
@@ -83,11 +83,13 @@ Separate jobs, providers, children and spouses are never merged by name. Repeate
 
 Recognized repeating records are validated at every nesting depth, including beneath another recognized record. Required answers are never borrowed from a parent or sibling. Existing current-year job address, provider visit-date and marriage-detail conditions also apply to nested records. Children remain optional; unknown leaf structures retain review warnings. Original record paths and source locations are preserved.
 
-Unknown plain colon labels are retained as unparsed text instead of appended to the preceding answer. Each unparsed line produces a red, source-linked parsing error; unsupported input with no recognized sections shows a red message without invented validation results. Ordinary multiline free text is preserved. Ambiguous colon lines require source review rather than guessed assignment.
+Standalone question labels ending in a colon inside a recognized section are retained with their following answers, even when not mapped. Unknown same-line colon questions remain unparsed instead of appended to the preceding answer. Each unparsed line produces a red, source-linked parsing error; unsupported input with no recognized sections shows a red message without invented validation results. Ordinary multiline free text is preserved. Ambiguous colon lines require source review rather than guessed assignment.
 
 Reversed provider visit dates flag both First Visit Date and Last Visit Date in red. Same-month dates lacking day precision keep the yellow order-review warning. No/false for Have you ever worked exempts last-work requirements, including grouped missing-section requirements transferred to the profile.
 
 Corrections re-evaluate all rules in memory. Changes to onset or job dates reset affected failed-work dismissals; unrelated flags remain dismissed. First/last visit changes reset date-order review; unrelated provider changes preserve it. Medical-answer and income-receipt changes reset their respective review flags, while an income amount edit alone does not reset the general income flag.
 
-## Scoped parsing review (v1.9.0)
+## Scoped parsing review (v1.10.0)
 Unparsed lines retain the containing parser node in page-memory metadata. The validator exposes its path, line number and original range. Unclear text blocks that section/record and descendants in the profile; sibling records and other sections remain independently eligible. Text outside recognized sections stays an unresolved requirement, without invalidating established answers. No label or answer is guessed.
+
+The observed export prefix (Print as PDF, Intake Form, display-name line, Generated on timestamp, then PERSONAL INFORMATION) is recognized as document metadata. It remains in the original textarea and is never used to fill answers. Source offsets are unchanged. Only this structured prefix is recognized; arbitrary prefaces remain reviewable. Standalone unknown labels are preserved structurally, without adding validation or SSA question mappings.

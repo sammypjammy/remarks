@@ -67,7 +67,7 @@ export function fromIntakeChecker(session) {
     if (encoded.missing) blockingReasons.push({ code: 'missing', message: encoded.reason });
     if (conflict) blockingReasons.push({ code: 'conflict', message: 'Competing values for the same field. Resolve them in the pasted intake.' });
     if (unsupported || ambiguousScope || encoded.ambiguous) {
-      blockingReasons.push({ code: 'ambiguous', message: unsupported ? 'Intake Checker retains this field but has no established mapping for this label and source context.' : ambiguousScope ? 'Repeated or ambiguous source sections do not establish a unique subject.' : encoded.reason });
+      blockingReasons.push({ code: 'ambiguous', message: unsupported ? 'This question is preserved from the intake but is not mapped yet. It is not a parsing error and cannot be used for SSA filling.' : ambiguousScope ? 'Repeated or ambiguous source sections do not establish a unique subject.' : encoded.reason });
     }
     // Dismissal is not a repair. An error still present in the validator stays blocked.
     const unresolved = issues.filter(issue => issue.severity === 'error' || !issue.acknowledged);
@@ -127,7 +127,7 @@ export function fromIntakeChecker(session) {
   }
   return {
     schema: 'packard.intake-client-profile', schemaVersion: PROFILE_SCHEMA_VERSION, revision: session.revision || 0,
-    source: { kind: 'intake-checker', toolVersion: '1.9.0' }, fields,
+    source: { kind: 'intake-checker', toolVersion: '1.10.0' }, fields,
     validationIssues, reviewDecisions,
     requirements: validationIssues.filter(issue => !associatedIssues.has(issue.id)),
     unparsed: parsed.unparsed.map(item => ({ ...item })), deferred: [...report.deferred],

@@ -73,7 +73,7 @@ Contract versioning uses semantic versions: changing IDs, types, readiness meani
 
 ## Not currently established by Intake Checker
 
-Exact mappings are absent for date work stopped, total earnings, prior-marriage duration rules, comprehensive SSI/financial assets, citizenship questions, medical test/hospital details beyond the provider records, medication doses/frequencies, and arbitrary fields within firm-only, specialized-training, special-education, wages, workers' compensation and additional-employment sections. Those headings may be recognized without establishing field meanings. Unknown bold fields are retained but blocked; unknown plain colon labels remain unparsed and produce red parsing errors instead of being appended to the preceding answer. Ordinary multiline continuation text remains unchanged. No new question mappings are added.
+Exact mappings are absent for date work stopped, total earnings, prior-marriage duration rules, comprehensive SSI/financial assets, citizenship questions, medical test/hospital details beyond the provider records, medication doses/frequencies, and arbitrary fields within firm-only, specialized-training, special-education, wages, workers' compensation and additional-employment sections. Those headings may be recognized without establishing field meanings. Unknown bold fields are retained but blocked; standalone plain labels ending in a colon within recognized sections are preserved with following answers as unsupported fields. Unknown same-line plain colon questions remain unparsed. Ordinary multiline continuation text remains unchanged. No new question mappings are added.
 
 ## Privacy
 

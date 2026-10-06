@@ -16,7 +16,7 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. Nothing is sent or saved.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.4.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.5.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Ready fields need no additional confirmation.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
@@ -58,7 +58,7 @@ function BlockedField({ field, onSource, onCorrect }) {
   const [value, setValue] = useState(field.employeeReview.edits.at(-1)?.value ?? field.sources[0]?.rawValue ?? '');
   const warningOnly = field.blockingReasons.every(reason => reason.code === 'validation' && field.validation.issues.find(issue => issue.id === reason.issueId)?.severity === 'warning');
   return <details className="blocked-field" data-field-id={field.id} data-severity={warningOnly ? 'warning' : 'error'}>
-    <summary><strong>{field.label}</strong><span>{field.category}{field.recordId ? ` / ${field.recordId}` : ''}</span><span className="status-pill">{field.blockingReasons.some(reason => reason.code === 'conflict') ? 'Conflict' : field.blockingReasons.some(reason => reason.code === 'missing') ? 'Missing' : 'Blocked'}</span></summary>
+    <summary><strong>{field.label}</strong><span>{field.category}{field.recordId ? ` / ${field.recordId}` : ''}</span><span className="status-pill">{field.category === 'unsupported' ? 'Not mapped yet' : field.blockingReasons.some(reason => reason.code === 'conflict') ? 'Conflict' : field.blockingReasons.some(reason => reason.code === 'missing') ? 'Missing' : 'Blocked'}</span></summary>
     <ul>{field.blockingReasons.map((reason, index) => <li key={index}>{reason.message}
       {field.validation.issues.find(issue => issue.id === reason.issueId && issue.code === 'parsing')?.sources.map((range, sourceIndex) =>
         <button key={sourceIndex} type="button" className="button quiet" onClick={() => onSource(range)}>Find unrecognized text</button>)}
@@ -70,6 +70,6 @@ function BlockedField({ field, onSource, onCorrect }) {
       <label htmlFor={'correct-' + field.id}>Correct {field.label}</label>
       <input id={'correct-' + field.id} value={value} onChange={event => setValue(event.target.value)} autoComplete="off" />
       <button className="button primary" type="submit">Apply correction</button>
-    </form> : <p>Resolve this field in the pasted intake. No answer will be guessed.</p>}
+    </form> : <p>{field.category === 'unsupported' ? 'No intake correction is required just because this question is not mapped yet. Its original answer is preserved.' : 'Resolve this field in the pasted intake. No answer will be guessed.'}</p>}
   </details>;
 }
