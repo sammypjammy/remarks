@@ -28,7 +28,7 @@ export function parsePageSelection(value) {
 export function makeSplits(selections) {
   return selections.map((selection, index) => {
     const pages = parsePageSelection(selection);
-    return { label: `Piece ${index + 1} · pages ${selection.trim()}`, suffix: `piece-${index + 1}`, pages };
+    return { label: `Piece ${index + 1} · pages ${selection.trim()}`, selection: selection.trim(), pages };
   });
 }
 

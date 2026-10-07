@@ -1,5 +1,6 @@
 import { zipSync } from 'fflate';
 import { splitContract, makeSplits } from './splits.js';
+import { documentName, uniqueDocumentName } from './names.js';
 
 const input = document.getElementById('contractFiles');
 const results = document.getElementById('contractResults');
@@ -9,6 +10,7 @@ const pieceCount = document.getElementById('pieceCount');
 const pieceFields = document.getElementById('pieceFields');
 const setupError = document.getElementById('setupError');
 let documents = [];
+let usedNames = new Set();
 let selections = ['1-4', '5-7', '10', '11'];
 
 for (let count = 1; count <= 12; count++) {
@@ -21,6 +23,7 @@ pieceCount.value = String(selections.length);
 
 function clearOutputs() {
   documents = [];
+  usedNames = new Set();
   results.replaceChildren();
   downloadAll.disabled = true;
   status.textContent = 'Choose contracts to begin.';
@@ -89,11 +92,7 @@ function download(bytes, name, type) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-function safeBase(name) {
-  return name.replace(/\.pdf$/i, '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'contract';
-}
-
-function addContract(file, result, batchIndex) {
+function addContract(file, result) {
   const section = document.createElement('section');
   section.className = 'splitter-contract panel';
   const heading = document.createElement('div');
@@ -105,7 +104,6 @@ function addContract(file, result, batchIndex) {
   heading.append(title, count);
   section.append(heading);
   const list = document.createElement('ul');
-  const base = safeBase(file.name);
   for (const item of result.results) {
     const row = document.createElement('li');
     const label = document.createElement('span');
@@ -117,7 +115,7 @@ function addContract(file, result, batchIndex) {
       missing.textContent = `Unavailable — missing ${item.missingPages.length === 1 ? 'page' : 'pages'} ${item.missingPages.join(', ')}`;
       row.append(missing);
     } else {
-      const name = `${base}-${item.range.suffix}.pdf`;
+      const name = uniqueDocumentName(documentName(file.name, item.range.selection), usedNames);
       const button = document.createElement('button');
       button.className = 'secondary-btn';
       button.type = 'button';
@@ -125,7 +123,7 @@ function addContract(file, result, batchIndex) {
       button.setAttribute('aria-label', `Download ${item.range.label} from ${file.name}`);
       button.addEventListener('click', () => download(item.bytes, name, 'application/pdf'));
       row.append(button);
-      documents.push({ name: `${String(batchIndex + 1).padStart(2, '0')}-${name}`, bytes: item.bytes });
+      documents.push({ name, bytes: item.bytes });
     }
     list.append(row);
   }
@@ -144,11 +142,11 @@ input.addEventListener('change', async () => {
   pieceFields.querySelectorAll('input').forEach(field => { field.disabled = true; });
   status.textContent = `Processing ${files.length} ${files.length === 1 ? 'contract' : 'contracts'}…`;
   let failed = 0;
-  for (const [index, file] of files.entries()) {
+  for (const file of files) {
     try {
       if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) throw new Error('Choose a PDF file.');
       const result = await splitContract(await file.arrayBuffer(), splits);
-      addContract(file, result, index);
+      addContract(file, result);
     } catch {
       failed++;
       const message = document.createElement('p');

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { PDFDocument } from 'pdf-lib';
 import { unzipSync, zipSync } from 'fflate';
 import { splitContract, SPLITS, makeSplits, parsePageSelection } from '../contract-splitter/splits.js';
+import { documentName, uniqueDocumentName } from '../contract-splitter/names.js';
 
 async function fixture(count) {
   const pdf = await PDFDocument.create();
@@ -60,4 +61,13 @@ test('custom pieces report missing pages and reject invalid selections', async (
   for (const invalid of ['', '0', '3-1', '1,,3', '1, 1', '2-x']) {
     assert.throws(() => parsePageSelection(invalid));
   }
+});
+
+test('downloads use the source name and selected pages without collisions', () => {
+  assert.equal(documentName('DocumentName.pdf', '1-4'), 'DocumentName 1-4.pdf');
+  assert.equal(documentName('DocumentName.pdf', '10'), 'DocumentName 10.pdf');
+  assert.equal(documentName('DocumentName.pdf', '1 - 4,7, 10'), 'DocumentName 1-4, 7, 10.pdf');
+  const used = new Set();
+  assert.equal(uniqueDocumentName('DocumentName 1-4.pdf', used), 'DocumentName 1-4.pdf');
+  assert.equal(uniqueDocumentName('DocumentName 1-4.pdf', used), 'DocumentName 1-4 (2).pdf');
 });
