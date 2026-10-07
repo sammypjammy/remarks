@@ -12,11 +12,11 @@ const canonical = () => createClientData(createIntakeSession(parseIntake(complet
 
 test('canonical Checker data projects only exact ready practice questions', () => {
   const data = canonical(), profile = canonicalPracticeProfile(data);
-  const ids = mappings.filter(mapping => mapping.definitionId).map(mapping => mapping.recordCategory === 'spouse'
+  const ids = mappings.filter(mapping => mapping.definitionId && mapping.recordCategory !== 'priorSpouses').map(mapping => mapping.recordCategory === 'spouse'
     ? `${mapping.definitionId}@current-spouse` : mapping.definitionId).concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
-  assert.equal(profile.schemaVersion, '3.0.0');
+  assert.equal(profile.schemaVersion, '3.1.0');
   assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 51);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
@@ -328,23 +328,84 @@ Clergy/Public Official`;
   assert(canonicalPracticeProfile(data).fields.some(field => field.definitionId === 'spouse.first-name'));
 });
 
-test('previous spouses stay unsupported and do not block one actual Current Spouse handoff', () => {
-  const input = completeSyntheticIntake().replace(
-    '\n## SCHOOL INFORMATION',
-    '\nPrevious Spouse\nFirst Name: Fictional Former\nLast Name: Example Former\n\n## SCHOOL INFORMATION'
-  );
-  const state = createIntakeSession(parseIntake(input));
-  const data = createClientData(state);
-  const previous = data.scopes.find(scope => scope.title === 'Previous Spouse');
-  assert(previous);
-  assert(!previous.recordTypes.includes('spouse'));
-  assert(data.fields.filter(field => field.scopeId === previous.id).every(field => !field.supported));
-  assert(!state.report.issues.some(issue => issue.message === 'Only one Current Spouse record is supported.'));
+test('no previous-spouse records means no prior section metadata or prior-marriage handoff', () => {
+  const profile = canonicalPracticeProfile(canonical());
+  assert.deepEqual(profile.priorSpouseRecords, []);
+  assert(!profile.fields.some(field => field.definitionId.startsWith('priorSpouses.')));
+  assert(!planPractice(profile).some(item => item.recordCategory === 'priorSpouses'));
+});
+
+test('numbered prior spouses remain independent of Current Spouse and map only exact ready values', () => {
+  const input = completeSyntheticIntake().replace('\n## SCHOOL INFORMATION', `
+Previous Spouse 1
+First Name: Former One
+Middle Name: Middle One
+Name at Birth: Birth One
+Marriage Date: 2001-02-03
+Marriage End Date: 2005-06-07
+Prior spouse died since marriage ended: Yes
+Previous Spouse 2
+First Name: Former Two
+Name at Birth: Birth Two
+Marriage Date: 2010-11-12
+Prior spouse died since marriage ended: No
+Previous Spouse 3
+First Name: Former Three
+Prior spouse died since marriage ended: Unknown
+
+## SCHOOL INFORMATION`);
+  const data = createClientData(createIntakeSession(parseIntake(input)));
   data.validationIssues.forEach(issue => { issue.dismissed = true; });
   data.reviewItems.forEach(item => { item.reviewed = true; });
   const profile = canonicalPracticeProfile(data);
+  assert.deepEqual(profile.priorSpouseRecords, ['prior-spouse-1', 'prior-spouse-2', 'prior-spouse-3']);
   assert.equal(profile.fields.find(field => field.id === 'spouse.first-name@current-spouse')?.value, 'Synthetic');
-  assert(!profile.fields.some(field => field.value === 'Fictional Former' || field.value === 'Example Former'));
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.first-name@prior-spouse-1')?.value, 'Former One');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.first-name@prior-spouse-2')?.value, 'Former Two');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.middle-name@prior-spouse-1')?.value, 'Middle One');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.name-at-birth@prior-spouse-1')?.value, 'Birth One');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.name-at-birth@prior-spouse-2')?.value, 'Birth Two');
+  assert.notEqual(profile.fields.find(field => field.definitionId === 'priorSpouses.middle-name')?.value,
+    profile.fields.find(field => field.definitionId === 'priorSpouses.name-at-birth')?.value);
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.prior-spouse-died-since-marriage-ended@prior-spouse-1')?.value, 'Yes');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.prior-spouse-died-since-marriage-ended@prior-spouse-2')?.value, 'No');
+  assert.equal(profile.fields.find(field => field.id === 'priorSpouses.prior-spouse-died-since-marriage-ended@prior-spouse-3')?.value, 'Unknown');
+  const practicePlan = planPractice(profile);
+  assert.equal(practicePlan.find(item => item.target === 'prior-first-name' && item.recordId === 'prior-spouse-1')?.value, 'Former One');
+  assert.equal(practicePlan.find(item => item.target === 'prior-first-name' && item.recordId === 'prior-spouse-2')?.value, 'Former Two');
+  assert.equal(practicePlan.find(item => item.target === 'prior-middle-name' && item.recordId === 'prior-spouse-2')?.status, 'pause');
+  const projected = projectReady(profile);
+  assert.deepEqual(projected.priorSpouseRecords, profile.priorSpouseRecords);
+  assert(projected.fields.every(field => field.readiness === 'ready' && field.blockingReasons.length === 0));
+  assert(JSON.stringify(projected).includes('Middle One'));
+  assert(JSON.stringify(projected).includes('Birth One'));
+  assert(!projected.fields.some(field => field.definitionId === 'spouse.first-name' && field.value === 'Former One'));
+});
+
+test('prior spouse missing, unsupported, ambiguous, and invalid values do not transfer', () => {
+  const input = completeSyntheticIntake().replace('\n## SCHOOL INFORMATION', `
+Previous Spouse 1
+First Name: Former One
+First Name: Different Former
+Marriage Date: 01/2001
+Marriage End Date: 02/30/2005
+Prior spouse died since marriage ended: Maybe
+Unapproved Field: Do not transfer
+
+## SCHOOL INFORMATION`);
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  data.validationIssues.forEach(issue => { issue.dismissed = true; });
+  data.reviewItems.forEach(item => { item.reviewed = true; });
+  const profile = canonicalPracticeProfile(data);
+  assert.deepEqual(profile.priorSpouseRecords, ['prior-spouse-1']);
+  assert(!profile.fields.some(field => field.definitionId === 'priorSpouses.first-name'));
+  assert(!profile.fields.some(field => field.definitionId === 'priorSpouses.marriage-date'));
+  assert(!profile.fields.some(field => field.definitionId === 'priorSpouses.marriage-end-date'));
+  assert(!profile.fields.some(field => field.definitionId === 'priorSpouses.prior-spouse-died-since-marriage-ended'));
+  assert(!profile.fields.some(field => field.value === 'Do not transfer'));
+  assert(planPractice(profile).filter(item => item.recordCategory === 'priorSpouses').every(item => item.status === 'pause'));
+  assert.equal(projectReady(profile).priorSpouseRecords.length, 1);
+  assert(!projectReady(profile).fields.some(field => field.definitionId.startsWith('priorSpouses.')));
 });
 
 test('child first and last names retain separate repeating record identities', () => {

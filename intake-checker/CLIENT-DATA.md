@@ -1,14 +1,14 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.14.0.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.15.0.
 
 ## Coverage audit
 
 The audit examined `parser.js`, `rules.js`, `formats.js`, `validation.js`, `review.js`, `review-fields.js`, `answers.js`, `medical-problems.js`, `source-location.js`, `acknowledgements.js`, `session.js`, the Checker UI, and the former SSA catalog/adapter. It also reconciled the parser, format, validation, review, duplicate, nested-record, source-location, acknowledgement, document-header and SSA adapter tests. Only generated synthetic fixtures were used.
 
-There are **120 fixed field definitions across 21 categories**, plus an unbounded numbered medical-problem family. Six repeating record types are vehicles, providers, medications, jobs, spouse details and children. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 120.
+There are **138 fixed field definitions across 22 categories**, plus an unbounded numbered medical-problem family. Seven repeating record types are vehicles, providers, medications, jobs, Current Spouse, Previous Spouse and children. Previous Spouse N records have their own supported field IDs and retain a record heading source even when individual values are absent. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 138.
 
-The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's existing `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.0.0 SSA projection and automation behavior are not the canonical client-data schema. No SSA rules, schema version or automation were expanded.
+The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.1.0 SSA practice projection is not the canonical client-data schema. Only ready prior-spouse values are eligible for the synthetic practice extension; no live SSA interaction or automation is present.
 
 ## Object structure
 
@@ -27,7 +27,7 @@ The catalog now resides in `field-catalog.js`; the parser uses it for the existi
 | `derived` | Existing display summary, review identifier/email, and exact-text distinct medical-problem count; explicitly not independently validated answers |
 | `coverage` | Catalog count, parsed/current/preserved occurrence counts, scope/field/definition counts, unmapped fields and unparsed lines |
 
-Each field has a stable `definitionId`, scope-qualified `id`, `scopeId`, `recordId` when repeating, label, category, declared type, supported/parsed flags, typed value, `valueStatus`, date precision, origin, validation references and review references. `occurrences` preserves every competing/identical source, original value, current value, formatted value, formatting result, exact range and employee correction ledger. Field values are never used in identifiers. Unknown labels are URI-encoded, not reduced to collision-prone slugs.
+Each field has a stable `definitionId`, scope-qualified `id`, `scopeId`, `recordId` when repeating, label, category, declared type, supported/parsed flags, typed value, `valueStatus`, date precision, origin, validation references and review references. Prior-spouse fields also carry the actual record heading's `recordSource`, including when the value is missing. `occurrences` preserves every competing/identical source, original value, current value, formatted value, formatting result, exact range and employee correction ledger. Field values are never used in identifiers. Unknown labels are URI-encoded, not reduced to collision-prone slugs.
 
 Definition IDs retain existing meanings such as `personal.first-name`, `disability.onset-date-of-disability` and `employment.when-did-you-last-work`. Scope IDs combine exact heading text and same-heading sibling ordinals. They remain stable across review, value corrections and unrelated-section insertion. Reordering identically named records or changing headings in a new pasted intake may change instance IDs; they are not permanent client/record IDs. Numbered medical slots stay separate even when answers match. Identical answers are only deduplicated in the existing derived distinct-problem count. Snapshot issue/review IDs are references within that snapshot, not durable IDs across revalidation.
 
@@ -54,7 +54,7 @@ Allowed types are `text`, `boolean` and `date`. Explicit Yes/True and No/False a
 | Employment last-work exemption only for explicit No/false to ever worked | Existing issue outcome, separate ever-worked/currently-working/last-work fields | `validation.js`; `tests/intake-audit-fixes.test.js` |
 | Job required fields; address only when End Date is in current local calendar year | Per-record values and existing required issues; no new date policy | `validation.js`; `tests/intake-validation.test.js` |
 | Provider clinic or doctor name; Last Visit required when First Visit supplied; first/last order; same-month precision review; Next Visit current/future month | Per-record missing/error/warning issues with actual acknowledgement state | `validation.js`; `tests/intake-validation.test.js`, `tests/intake-audit-fixes.test.js` |
-| Married requires Current Spouse details; duplicate errors apply only to multiple Current Spouse records; previous-spouse fields remain unsupported | Actual marriage scopes and issues; previous spouses do not satisfy or enter the Current Spouse handoff | `validation.js`; `tests/intake-validation.test.js`, `tests/ssa-canonical-practice.test.mjs` |
+| Married requires Current Spouse details; duplicate errors apply only to multiple Current Spouse records; numbered previous spouses remain separate | Actual marriage scopes and issues; prior-spouse fields do not satisfy Current Spouse requirements or enter its handoff | `validation.js`; `tests/intake-validation.test.js`, `tests/ssa-canonical-practice.test.mjs` |
 | Medication name required; child first/last names are supported repeating fields; children and vehicles optional; unknown record structures warn | Actual nested groups and all fields preserved with source ranges, record identity and validation state | `rules.js`, `validation.js`, `client-data.js`; `tests/intake-nested-records.test.js`, `tests/intake-client-data.test.js` |
 | At least one numbered medical problem; exact-text distinct count | Every slot/source retained and existing derived distinct count | `medical-problems.js`, `validation.js`; `tests/intake-audit-fixes.test.js` |
 | Letters/spaces and title case for configured names/places; numbers allowed in addresses; phone 10 digits, SSN 9, ZIP 5; email syntax; strict dates/month precision; amount format; unchanged other free text | Existing format output and errors, original source beside it | `formats.js`, `values.js`; `tests/intake-formats.test.js` |
@@ -182,6 +182,24 @@ The following rows reconcile every registered definition to its category, source
 | spouse | spouse.type-of-marriage | MARRIAGE INFORMATION | Type of Marriage | text | Repeating |
 | spouse | spouse.maiden-name | MARRIAGE INFORMATION | Maiden Name | text | Repeating |
 | spouse | spouse.social-security-number | MARRIAGE INFORMATION | Social Security Number | text | Repeating |
+| priorSpouses | priorSpouses.first-name | MARRIAGE INFORMATION | First Name | text | Repeating |
+| priorSpouses | priorSpouses.middle-name | MARRIAGE INFORMATION | Middle Name | text | Repeating |
+| priorSpouses | priorSpouses.last-name | MARRIAGE INFORMATION | Last Name | text | Repeating |
+| priorSpouses | priorSpouses.name-at-birth | MARRIAGE INFORMATION | Name at Birth | text | Repeating |
+| priorSpouses | priorSpouses.social-security-number | MARRIAGE INFORMATION | Social Security Number | text | Repeating |
+| priorSpouses | priorSpouses.birth-country | MARRIAGE INFORMATION | Birth Country | text | Repeating |
+| priorSpouses | priorSpouses.birth-city | MARRIAGE INFORMATION | Birth City | text | Repeating |
+| priorSpouses | priorSpouses.birth-state | MARRIAGE INFORMATION | Birth State | text | Repeating |
+| priorSpouses | priorSpouses.age | MARRIAGE INFORMATION | Age | text | Repeating |
+| priorSpouses | priorSpouses.city-of-marriage | MARRIAGE INFORMATION | City of Marriage | text | Repeating |
+| priorSpouses | priorSpouses.state-of-marriage | MARRIAGE INFORMATION | State of Marriage | text | Repeating |
+| priorSpouses | priorSpouses.type-of-marriage | MARRIAGE INFORMATION | Type of Marriage | text | Repeating |
+| priorSpouses | priorSpouses.marriage-date | MARRIAGE INFORMATION | Marriage Date | date | Repeating |
+| priorSpouses | priorSpouses.how-marriage-ended | MARRIAGE INFORMATION | How Marriage Ended | text | Repeating |
+| priorSpouses | priorSpouses.marriage-end-date | MARRIAGE INFORMATION | Marriage End Date | date | Repeating |
+| priorSpouses | priorSpouses.city-where-marriage-ended | MARRIAGE INFORMATION | City where marriage ended | text | Repeating |
+| priorSpouses | priorSpouses.state-where-marriage-ended | MARRIAGE INFORMATION | State where marriage ended | text | Repeating |
+| priorSpouses | priorSpouses.prior-spouse-died-since-marriage-ended | MARRIAGE INFORMATION | Prior spouse died since marriage ended | text | Repeating |
 | children | children.first-name | CHILDREN INFORMATION | First Name | text | Repeating |
 | children | children.last-name | CHILDREN INFORMATION | Last Name | text | Repeating |
 | providers | providers.last-visit-date | MEDICAL PROVIDERS | Last Visit Date | date | Repeating |

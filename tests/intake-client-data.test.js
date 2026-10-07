@@ -13,11 +13,12 @@ import { readFileSync } from 'node:fs';
 const session = text => createIntakeSession(parseIntake(text));
 const field = (data, id) => data.fields.find(item => item.definitionId === id);
 function allFieldsFixture() {
-  const groups = new Map(), records = { vehicles: 'Vehicle 1', providers: 'Clinic 1', medications: 'Medication 1', jobs: 'Job 1', spouse: 'Current Spouse', children: 'Child 1' };
+  const groups = new Map(), records = { vehicles: 'Vehicle 1', providers: 'Clinic 1', medications: 'Medication 1', jobs: 'Job 1', spouse: 'Current Spouse', priorSpouses: 'Previous Spouse 1', children: 'Child 1' };
   for (const definition of fieldDefinitions) {
     const key = definition.section + (definition.record ? '/' + definition.category : '');
     const group = groups.get(key) || { section: definition.section, heading: definition.record ? records[definition.category] : null, fields: [] };
-    const value = definition.dataType === 'boolean' ? 'No' : definition.label === 'Next Visit Date' ? '2099-01-01' : syntheticValue(definition.label, 'Synthetic');
+    const value = definition.label === 'Prior spouse died since marriage ended' ? 'Unknown'
+      : definition.dataType === 'boolean' ? 'No' : definition.label === 'Next Visit Date' ? '2099-01-01' : syntheticValue(definition.label, 'Synthetic');
     group.fields.push(`${definition.label}: ${value}`); groups.set(key, group);
   }
   // Group records under the SAME root when singleton and record definitions coexist.
@@ -31,8 +32,8 @@ function allFieldsFixture() {
 }
 
 test('catalog includes every configured field and every supplemental parser/review label with stable unique IDs', () => {
-  assert.equal(fieldDefinitions.length, 120);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 120);
+  assert.equal(fieldDefinitions.length, 138);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 138);
   for (const [section, rule] of Object.entries(intakeRules.sections)) for (const label of [...rule.required, ...(rule.optional || [])]) {
     assert(fieldDefinitions.some(item => item.section === section && item.label === label && !item.record), `${section} / ${label}`);
   }
@@ -42,14 +43,14 @@ test('catalog includes every configured field and every supplemental parser/revi
   for (const label of [...reviewFields, 'Last Visit Date', 'Have you ever worked', 'Used other names in medical records', 'Other first name', 'Other last name', 'Remarks/Comments']) assert(fieldDefinitions.some(item => item.label === label), label);
 });
 
-test('complete synthetic intake represents all 120 definitions and every parsed occurrence exactly once', () => {
+test('complete synthetic intake represents all 138 definitions and every parsed occurrence exactly once', () => {
   const state = session(allFieldsFixture()), before = JSON.stringify(state.parsed);
   const data = createClientData(state);
   assert.equal(data.schema, CLIENT_DATA_SCHEMA); assert.equal(data.schemaVersion, '1.0.0');
   assert.equal(CLIENT_DATA_VERSION, '1.0.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
   for (const definition of fieldDefinitions) assert(data.fields.some(item => item.definitionId === definition.id && item.parsed), definition.id);
-  assert.equal(data.coverage.parsedOccurrences, 121);
-  assert.equal(data.coverage.preservedOccurrences, 121);
+  assert.equal(data.coverage.parsedOccurrences, 139);
+  assert.equal(data.coverage.preservedOccurrences, 139);
   assert.equal(data.coverage.unmappedFields, 0);
   assert.equal(new Set(data.fields.map(item => item.id)).size, data.fields.length);
   assert.equal(JSON.stringify(state.parsed), before);
@@ -143,6 +144,49 @@ Last Name: Example Two`;
   }
   assert.equal(data.coverage.unmappedFields, 0);
   assert.equal(data.unparsed.length, 0);
+});
+
+test('numbered previous spouses preserve each actual record, fields, source locations, Unknown, and corrections', () => {
+  const text = `MARRIAGE INFORMATION
+Marital Status: Single
+Previous Spouse 1
+First Name: Former One
+Middle Name: Initial
+Name at Birth: Birth Name
+Prior spouse died since marriage ended: UNKNOWN
+Previous Spouse 2
+First Name: Former Two`;
+  const state = session(text);
+  const data = createClientData(state);
+  const first = data.fields.find(item => item.definitionId === 'priorSpouses.first-name'
+    && data.scopes.find(scope => scope.id === item.recordId)?.title === 'Previous Spouse 1');
+  const second = data.fields.find(item => item.definitionId === 'priorSpouses.first-name'
+    && data.scopes.find(scope => scope.id === item.recordId)?.title === 'Previous Spouse 2');
+  assert(first && second);
+  assert.notEqual(first.recordId, second.recordId);
+  assert.equal(first.supported, true);
+  assert.equal(second.supported, true);
+  assert.equal(first.value, 'Former One');
+  assert.equal(second.value, 'Former Two');
+  assert.notEqual(first.recordId, second.recordId);
+  const recordFields = data.fields.filter(item => item.category === 'priorSpouses');
+  assert.equal(recordFields.length, 36);
+  assert(recordFields.filter(item => item.recordId === first.recordId).every(item => item.recordSource?.start != null && item.recordSource?.end != null));
+  assert.equal(recordFields.find(item => item.definitionId === 'priorSpouses.middle-name')?.value, 'Initial');
+  assert.equal(recordFields.find(item => item.definitionId === 'priorSpouses.name-at-birth')?.value, 'Birth Name');
+  assert.equal(recordFields.find(item => item.definitionId === 'priorSpouses.prior-spouse-died-since-marriage-ended')?.value, 'Unknown');
+  assert(recordFields.some(item => item.valueStatus === 'missing' && item.recordId === second.recordId));
+
+  const profile = fromIntakeChecker(state);
+  const before = profile.fields.find(item => item.definitionId === 'priorSpouses.first-name' && item.recordId === 'priorSpouses-1');
+  assert.equal(before.sources[0].rawValue, 'Former One');
+  assert(before.recordSource?.start != null);
+  assert.equal(correctIntakeField(state, before.correctionTarget, 'Corrected Name'), true);
+  const corrected = fromIntakeChecker(state).fields.find(item => item.id === before.id);
+  assert.equal(corrected.sources[0].rawValue, 'Former One');
+  assert.equal(corrected.value, 'Corrected Name');
+  assert.equal(corrected.employeeReview.edits.at(-1).value, 'Corrected Name');
+  assert.equal(corrected.recordSource.start, before.recordSource.start);
 });
 
 test('all validation and review decisions remain intact and dismissals never change the underlying value', () => {
@@ -246,10 +290,11 @@ test('all review families retain exact dependencies without treating acknowledge
   assert(createClientData(state).reviewItems.every(item => item.reviewed));
 });
 
-test('unsupported prior spouse meanings are preserved without relabeling them as current spouse answers', () => {
-  const data = createClientData(session('MARRIAGE INFORMATION\n#### Prior Spouse\nFirst Name: Synthetic\nMarriage Date: 2000-01-01'));
+test('numbered prior spouse names and dates are supported without relabeling them as current spouse answers', () => {
+  const data = createClientData(session('MARRIAGE INFORMATION\nPrevious Spouse 1\nFirst Name: Synthetic\nMarriage Date: 2000-01-01'));
   assert(!data.fields.some(item => item.definitionId === 'spouse.first-name'));
-  assert(data.fields.some(item => item.label === 'First Name' && !item.supported && item.value === 'Synthetic'));
+  assert(data.fields.some(item => item.definitionId === 'priorSpouses.first-name' && item.supported && item.value === 'Synthetic'));
+  assert(data.fields.some(item => item.definitionId === 'priorSpouses.marriage-date' && item.supported && item.value === '2000-01-01'));
 });
 
 test('audit inventory matches all Checker-owned definitions and canonical modules have no automatic data transport/storage', () => {

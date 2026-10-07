@@ -2,7 +2,7 @@ import { intakeRules } from './rules.js';
 import { reviewFields } from './review-fields.js';
 
 // This catalog describes EXISTING labels; it does not change what the parser accepts.
-export const INTAKE_CHECKER_VERSION = '1.14.0';
+export const INTAKE_CHECKER_VERSION = '1.15.0';
 export const FIELD_TYPES = Object.freeze(['text', 'boolean', 'date']);
 const sectionIds = {
   'PERSONAL INFORMATION': 'personal', 'BIRTH INFORMATION': 'birth',
@@ -16,6 +16,7 @@ const booleans = new Set([
   ...reviewFields.filter(label => /Receive |Borrowing Money - Borrowing Money|Other Support -/.test(label)),
 ]);
 function typeFor(label) {
+  if (label === 'Prior spouse died since marriage ended') return 'text';
   if (booleans.has(label) || label.startsWith('Can ')) return 'boolean';
   if (/date/i.test(label) || label === 'When did you last work') return 'date';
   // The Checker establishes strings, not numeric units, currencies or enumerations.

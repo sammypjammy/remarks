@@ -33,14 +33,16 @@ try {
     if(e.method==='Runtime.exceptionThrown')errors.push('Runtime failure');
   };
   const cdp=(method,params={})=>new Promise((resolve,reject)=>{pending.set(++id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
-  const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails,'Synthetic evaluation failed');return r.result.value;};
+  const evaluate=async expression=>{const r=await cdp('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});assert(!r.exceptionDetails,r.exceptionDetails?.exception?.description||'Synthetic evaluation failed');return r.result.value;};
   await cdp('Page.enable');await cdp('Runtime.enable');await cdp('Network.enable');
+  await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"Object.defineProperty(window,'chrome',{configurable:true,value:{runtime:{onConnectExternal:{addListener(listener){window.practiceConnect=listener;}}}}});"});
   for(const width of [1280,390]) {
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
     await cdp('Page.navigate',{url:origin+'/practice.html'});
     await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length === 54"));
-    assert(await evaluate("[...document.querySelectorAll('#practice > .practice-section > h2')].map(h=>h.textContent).join('|')==='Applicant’s Name|Social Security Number (SSN)|Date of Birth|Sex|Is the applicant blind?|In the last 14 months, SGA?|Other Names|Marriage Information — Current Spouse|Prior Marriages|Children'"));
-    assert(await evaluate("[...document.querySelectorAll('#practice .mapping-note')].length===3"));
+    assert(await evaluate("[...document.querySelectorAll('#practice > .practice-section > h2')].map(h=>h.textContent).join('|')==='Applicant’s Name|Social Security Number (SSN)|Date of Birth|Sex|Is the applicant blind?|In the last 14 months, SGA?|Other Names|Marriage Information — Current Spouse|Children'"));
+    assert(await evaluate("[...document.querySelectorAll('#practice .mapping-note')].length===2"));
+    assert(await evaluate("!document.querySelector('[data-prior-record]')"));
     await evaluate("window.writes=0; for(const name of ['setItem','removeItem','clear']) Storage.prototype[name]=()=>{window.writes++}; indexedDB.open=()=>{window.writes++}; for(const name of ['log','warn','error','info','debug']) console[name]=()=>{window.writes++}");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     assert(await evaluate("document.getElementById('fill').disabled && document.getElementById('demo').textContent.includes('not your intake')"));
@@ -67,6 +69,48 @@ try {
     assert.equal(await evaluate('window.writes'),0);assert.equal(network.length,start);
     const shot=await cdp('Page.captureScreenshot',{format:'png'});await writeFile(join(directory,`practice-${width}.png`),Buffer.from(shot.data,'base64'));
     await evaluate("document.getElementById('clear').click()");assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
+    await evaluate("document.getElementById('receive').click()");
+    await evaluate(`(() => {
+      const port = window.testPort = {
+        name:'packard-synthetic-practice-v1',
+        sender:{url:'http://127.0.0.1:5173/intake-checker/',origin:'http://127.0.0.1:5173',frameId:0,tab:{id:4}},
+        onMessage:{addListener(fn){this.listener=fn},removeListener(){}},
+        onDisconnect:{addListener(fn){this.listener=fn},removeListener(){}},
+        postMessage(packet){if(packet.type==='challenge')this.receiver=packet.receiver},
+        disconnect(){}
+      };
+      const records=['prior-spouse-1','prior-spouse-2'];
+      const field=(definitionId,recordId,value,dataType='text',precision=null)=>({
+        id:definitionId+'@'+recordId,definitionId,recordId,value,dataType,precision,
+        readiness:'ready',blockingReasons:[]
+      });
+      const profile={
+        schema:'packard.intake-client-profile',schemaVersion:'3.1.0',
+        priorSpouseRecords:records,
+        fields:[
+          field('priorSpouses.first-name',records[0],'Former One'),
+          field('priorSpouses.middle-name',records[0],'Middle One'),
+          field('priorSpouses.name-at-birth',records[0],'Birth One'),
+          field('priorSpouses.marriage-date',records[0],'2001-02-03','date','day'),
+          field('priorSpouses.prior-spouse-died-since-marriage-ended',records[0],'Unknown'),
+          field('priorSpouses.first-name',records[1],'Former Two'),
+          field('priorSpouses.prior-spouse-died-since-marriage-ended',records[1],'No')
+        ]
+      };
+      window.practiceConnect(port);
+      port.onMessage.listener({type:'profile',receiver:port.receiver,session:'22222222-2222-2222-2222-222222222222',profile});
+    })()`);
+    assert(await evaluate("document.querySelectorAll('[data-prior-record]').length===2"));
+    assert(await evaluate("[...document.querySelectorAll('[data-prior-record]')].every(section=>section.querySelectorAll('[data-practice-field]').length===18)"));
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-middle-name]') !== document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-name-at-birth]')"));
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-2] [data-practice-field=prior-middle-name]').nextElementSibling.textContent==='Not provided'"));
+    await evaluate("document.getElementById('fill').click()");
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-first-name]').value==='Former One' && document.querySelector('[data-prior-record=prior-spouse-2] [data-practice-field=prior-first-name]').value==='Former Two'"));
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-name-at-birth]').value==='Birth One' && document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-middle-name]').value==='Middle One'"));
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-spouse-died]').value==='Unknown' && document.querySelector('[data-prior-record=prior-spouse-2] [data-practice-field=prior-spouse-died]').value==='No'"));
+    assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-marriage-date]').value==='2001-02-03'"));
+    await evaluate("document.getElementById('clear').click()");
+    assert(await evaluate("!document.querySelector('[data-prior-record]') && document.getElementById('fill').disabled"));
     await evaluate("document.getElementById('demo').click();window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}))");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));

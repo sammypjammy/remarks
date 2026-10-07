@@ -9,6 +9,7 @@ button, a { padding: 10px 16px; color: white; background: #326c4e; border: 0; bo
 button:disabled { opacity: .5; cursor: not-allowed; }
 #practice { display: grid; gap: 12px; }
 .practice-section, .prior-practice { border: 1px solid #bfd4c8; border-radius: 7px; background: #fff; padding: 12px; }
+.prior-field-status { color: #5c6f64; font-size: .78rem; }
 .practice-section h2 { margin: 0 0 10px; }
 .mapping-note { margin: -3px 0 10px; color: #5c6f64; font-size: .82rem; }
 .practice-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }

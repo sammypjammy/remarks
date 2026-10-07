@@ -6,6 +6,7 @@ export function completeSyntheticIntake() {
   const sections = new Map();
   const headings = { vehicles: 'Vehicle 1', providers: 'Clinic 1', medications: 'Medication 1', jobs: 'Most Recent Job', spouse: 'Current Spouse', children: 'Child 1' };
   for (const definition of fieldDefinitions) {
+    if (definition.category === 'priorSpouses') continue;
     const section = sections.get(definition.section) || new Map();
     const key = definition.record ? definition.category : '';
     const fields = section.get(key) || [];

@@ -10,18 +10,27 @@ export const tokenValid = value => typeof value === 'string' && /^[a-f0-9-]{36}$
 
 // A narrow projection: never copy original text, sources, notes, review logs or auth.
 export function projectReady(profile) {
-  if (profile?.schema !== 'packard.intake-client-profile' || profile.schemaVersion !== schemaVersion || !Array.isArray(profile.fields)) return null;
+  if (profile?.schema !== 'packard.intake-client-profile' || profile.schemaVersion !== schemaVersion
+      || !Array.isArray(profile.fields) || !Array.isArray(profile.priorSpouseRecords)) return null;
+  const priorRecords = profile.priorSpouseRecords;
+  if (!priorRecords.every((recordId, index) => typeof recordId === 'string' && /^prior-spouse-[1-9]\d*$/.test(recordId)
+      && priorRecords.indexOf(recordId) === index)) return null;
   const fields = [];
   for (const mapping of mappings.filter(item => item.definitionId)) {
-    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
-    const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
-    if (matches.length !== 1) continue;
-    const field = matches[0];
-    if (field.recordId !== recordId || field.id !== (recordId ? `${mapping.definitionId}@${recordId}` : mapping.definitionId)
-      || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length
-      || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean'
-        : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)) continue;
-    fields.push({ id: field.id, definitionId: field.definitionId, recordId, dataType: field.dataType, value: field.value, precision: ['day','month'].includes(field.precision) ? field.precision : null, readiness: 'ready', blockingReasons: [] });
+    const recordIds = mapping.recordCategory === 'spouse' ? ['current-spouse']
+      : mapping.recordCategory === 'priorSpouses' ? priorRecords : [null];
+    for (const recordId of recordIds) {
+      const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
+      if (matches.length !== 1) continue;
+      const field = matches[0];
+      if (field.recordId !== recordId || field.id !== (recordId ? `${mapping.definitionId}@${recordId}` : mapping.definitionId)
+        || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length
+        || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean'
+          : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)
+        || mapping.allowedValues && !mapping.allowedValues.includes(field.value)) continue;
+      fields.push({ id: field.id, definitionId: field.definitionId, recordId, dataType: field.dataType, value: field.value,
+        precision: ['day','month'].includes(field.precision) ? field.precision : null, readiness: 'ready', blockingReasons: [] });
+    }
   }
   for (const field of profile.fields) {
     if (!childDefinitionIds.includes(field.definitionId) || !/^child-([1-9]|[12]\d|30)$/.test(field.recordId)
@@ -32,7 +41,7 @@ export function projectReady(profile) {
     fields.push({ id: field.id, definitionId: field.definitionId, recordId: field.recordId,
       dataType: 'text', value: field.value, precision: null, readiness: 'ready', blockingReasons: [] });
   }
-  return { schema: profile.schema, schemaVersion, fields };
+  return { schema: profile.schema, schemaVersion, fields, priorSpouseRecords: [...priorRecords] };
 }
 
 export function trustedSender(sender) {

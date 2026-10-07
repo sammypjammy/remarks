@@ -74,6 +74,15 @@ test('schema-only limitations never produce attention without Checker issues', (
   assert.equal(reviewPresentation({ ...profile, fields }).blocked.length, 0);
 });
 
+test('missing optional prior-spouse values remain visible on their record without duplicate attention tasks', () => {
+  const s = session('MARRIAGE INFORMATION\nPrevious Spouse 1\nFirst Name: Former');
+  const profile = fromIntakeChecker(s);
+  const prior = profile.fields.filter(field => field.category === 'priorSpouses');
+  assert.equal(prior.length, 18);
+  assert(prior.some(field => field.label === 'Marriage End Date' && field.value === null));
+  assert(!reviewPresentation(profile).blocked.some(field => field.category === 'priorSpouses'));
+});
+
 test('a passing Checker intake with optional blanks needs no SSA review', async () => {
   const { completeSyntheticIntake } = await import('../../tests/complete-intake.mjs');
   const text = completeSyntheticIntake().replace('**Middle Name:** Synthetic', '**Middle Name:** Not provided').replace('**Suffix:** Synthetic', '**Suffix:** Not provided').replace('**Nickname:** Synthetic', '**Nickname:** Not provided') + '\n## CUSTOM\n**Unmapped question:** Synthetic';

@@ -22,10 +22,19 @@
 .ssa-readiness .blocked-field form label { flex-basis: 100%; }
 .ssa-readiness .blocked-field form input { flex: 1 1 200px; min-width: 0; max-width: 100%; padding: .65rem; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
 .ssa-readiness .ready-fields li { margin: .6rem 0; }
+.ssa-readiness .prior-spouse-record { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.ssa-readiness .prior-spouse-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-top: .75rem; }
+.ssa-readiness .prior-spouse-field { min-width: 0; padding: .7rem; border: 1px solid var(--border); border-radius: 7px; overflow-wrap: anywhere; }
+.ssa-readiness .prior-spouse-field h5 { margin: 0 0 .35rem; }
+.ssa-readiness .prior-spouse-field p { margin: .25rem 0; }
+.ssa-readiness .prior-spouse-field form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.ssa-readiness .prior-spouse-field form label { flex-basis: 100%; }
+.ssa-readiness .prior-spouse-field form input { flex: 1 1 200px; min-width: 0; padding: .65rem; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font: inherit; }
 @media (max-width: 640px) {
   .ssa-readiness .readiness-header { align-items: stretch; flex-direction: column; }
   .ssa-readiness .readiness-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ssa-readiness .blocked-field summary > span { display: block; margin: .3rem 0 0; }
+  .ssa-readiness .prior-spouse-fields { grid-template-columns: 1fr; }
 }
 .ssa-workspace { color: var(--text); }
 .ssa-workspace *, .ssa-workspace *::before, .ssa-workspace *::after { box-sizing: border-box; }

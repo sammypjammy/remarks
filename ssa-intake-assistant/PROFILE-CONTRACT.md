@@ -1,29 +1,31 @@
-# Intake client-profile contract 3.0.0
+# Intake client-profile contract 3.1.0
 
-This is the in-memory `packard.intake-client-profile` contract consumed by the Intake Checker handoff in SSA Intake Assistant v1.3.0. Its version is independent of both tool versions and of the legacy direct-PDF Phase 1 profile. The direct-PDF route retains its existing local review workflow; it is not automatically eligible for the future extension.
+This is the in-memory `packard.intake-client-profile` contract consumed by the Intake Checker handoff in SSA Intake Assistant. Its version is independent of both tool versions and of the legacy direct-PDF profile. The direct-PDF route retains its existing local review workflow; it is not automatically eligible for the practice extension.
 
 ## Audit and coverage
 
-The audit covers `intake-checker/parser.js`, `rules.js`, `validation.js`, `review.js`, `review-fields.js`, `source-location.js`, and `acknowledgements.js`. The parser recognizes 110 distinct fixed plain labels. Their section/record-specific meanings produce 120 field definitions across 21 categories, plus the unbounded numbered medical-problem family. The full catalog below is the contract snapshot; tests compare the implementation against the existing parser configuration and exercise every definition.
+The audit covers `intake-checker/parser.js`, `rules.js`, `validation.js`, `review.js`, `review-fields.js`, `source-location.js`, and `acknowledgements.js`. The parser recognizes 116 distinct fixed plain labels. Their section/record-specific meanings produce 138 field definitions across 22 categories, plus the unbounded numbered medical-problem family. The full catalog below is the contract snapshot; tests compare the implementation against the parser configuration and exercise every definition.
 
 The parser also accepts arbitrary bold field labels and headings, including nested records. Every parsed field is retained in the profile. Unknown labels, labels in unsupported contexts, and unknown record meanings receive an opaque `unsupported` ID and remain blocked. A recognized heading alone does not establish answers. This release adds `BlindOrHaveLowVision` as one supported Checker boolean label.
 
-Present source fields are included even when blank. Missing required fields reported by the existing validator are represented with null values. Optional fields absent from the source and hypothetical repeated records are not invented. Section/record requirements that cannot be assigned to a particular field remain in `requirements`. Unparsed lines and deferred validator limitations remain in the profile. Consequently an intake's field count varies; 120 is the number of fixed definitions, not a promised count of answers in every intake.
+Present source fields are included even when blank. Missing required fields reported by the existing validator are represented with null values. Optional fields absent from the source and hypothetical repeated records are not invented. Actual numbered prior-spouse records receive their field definitions, including absent values, so the Assistant can display the complete record without guessing. Section/record requirements that cannot be assigned to a particular field remain in `requirements`. Unparsed lines and deferred validator limitations remain in the profile. Consequently an intake's field count varies; 138 is the number of fixed definitions, not a promised count of answers in every intake.
 
 ## Structure
 
 ```text
 {
   schema: "packard.intake-client-profile",
-  schemaVersion: "3.0.0",
+  schemaVersion: "3.1.0",
+  priorSpouseRecords: ["prior-spouse-1"],
   revision: integer,
-  source: { kind: "intake-checker", toolVersion: "1.8.0" },
+  source: { kind: "intake-checker", toolVersion: "1.15.0" },
   fields: [{
     id, definitionId, recordId, category, label,
     dataType: "text" | "boolean" | "date",
     value: string | boolean | null,
     precision: "day" | "month" | null,
     sources: [{ section, record, nodePath, label, range, rawValue }],
+    recordSource: { start, end } | null,
     origin: "parsed" | "absent" | "employee_entered",
     validation: { status: "no_issues" | "unresolved" | "acknowledged", issues },
     employeeReview: {
@@ -42,7 +44,7 @@ Present source fields are included even when blank. Missing required fields repo
 }
 ```
 
-`text` uses Checker-owned format results for scoped names, places, addresses, phone numbers, SSNs, ZIPs, emails and amounts. The original parsed candidate remains in sources.rawValue; normalization does not manufacture an employee edit or confirmation. Unknown/free-text answers are unchanged. The Checker, not the adapter, validates formats. Contract 3.0.0 changes readiness semantics from a global unparsed-text block to scoped parsing requirements. Versions 1.0.0 and 2.0.0 are no longer accepted by readyFields(). Normalized value encoding is unchanged from 2.0.0. `boolean` accepts only explicit Yes/No/true/false; qualified or uncertain answers are blocked. `date` uses Intake Checker's existing `parseCalendarDate`: day precision becomes YYYY-MM-DD, month precision becomes YYYY-MM. No missing day is invented. Unsupported or impossible calendar dates become missing, retaining the raw source. Type encoding is not a second business validator.
+`text` uses Checker-owned format results for scoped names, places, addresses, phone numbers, SSNs, ZIPs, emails and amounts. The original parsed candidate remains in sources.rawValue; normalization does not manufacture an employee edit or confirmation. Unknown/free-text answers are unchanged. The Checker, not the adapter, validates formats. Contract 3.0.0 changes readiness semantics from a global unparsed-text block to scoped parsing requirements. Contract 3.1.0 adds actual numbered prior-spouse record identities; only exact ready field values accompany those IDs to the synthetic extension. `Prior spouse died since marriage ended` is text with the explicit values Yes, No, or Unknown; missing remains missing. Versions 1.0.0 and 2.0.0 are no longer accepted by readyFields(). Normalized value encoding is unchanged from 2.0.0. `boolean` accepts only explicit Yes/No/true/false; qualified or uncertain answers are blocked. `date` uses Intake Checker's existing `parseCalendarDate`: day precision becomes YYYY-MM-DD, month precision becomes YYYY-MM. No missing day is invented. Unsupported or impossible calendar dates become missing, retaining the raw source. Type encoding is not a second business validator.
 
 `range` is a nullable `{start, end}` pair of UTF-16 offsets into the original pasted text (including CRLF). Repeated candidates keep their own source ranges and raw values. Corrections keep original provenance, including original nulls, and append employee-entered values in the edit ledger. An answer added where no source exists has a null range. Profile objects contain plain data; the owning Checker session's mutable state and edit Map are not an extension payload.
 
@@ -65,7 +67,7 @@ The dashboard permits corrections only for a known unambiguous target. It calls 
 
 Singleton IDs equal their catalog definition IDs, such as `personal.first-name`. Repeating IDs append `@` and a session record key, such as `providers.phone-number@providers-2`. Medical problems use `medical-problems.problem@problem-1`. Record keys follow the source order within their category, remain stable across Back, and must not be treated as cross-intake person IDs or inferred chronological rank. Medical exact-text duplicates share the first occurrence's key and retain every source; corrections can merge or split those groups while other original medical occurrence keys remain unchanged. Unsupported IDs use source node/field positions and are never fillable.
 
-A future mapping must reference an exact `definitionId`, select the intended `recordId`, verify a supported schema version, and consume only `readiness: ready` fields with no blocking reasons and non-null values. The local `readyFields()` projection accepts only schema 3.0.0. A mapping must also check the SSA question's actual meaning, required precision and accepted representation. A month-only answer cannot satisfy a full-date question. Unsupported, absent, ambiguous, or differently worded questions must pause for an employee; no fallback to a similarly named answer is allowed.
+A mapping must reference an exact `definitionId`, select the intended `recordId`, verify a supported schema version, and consume only `readiness: ready` fields with no blocking reasons and non-null values. The local `readyFields()` projection accepts only schema 3.1.0. A mapping must also check the practice question's documented meaning, required precision and accepted representation. A month-only answer cannot satisfy a full-date question. Unsupported, absent, ambiguous, or differently worded questions must pause for an employee; no fallback to a similarly named answer is allowed.
 
 Disability onset (`disability.onset-date-of-disability`), last worked (`employment.when-did-you-last-work`), and individual job start/end dates are independent. There is no established date-work-stopped definition. It is never derived from onset, last worked, or a job end date. Alternate Phone and Secondary Phone also remain distinct source answers until a future mapping establishes equivalence.
 
@@ -73,7 +75,7 @@ Contract versioning uses semantic versions: changing IDs, types, readiness meani
 
 ## Not currently established by Intake Checker
 
-Exact mappings are absent for date work stopped, total earnings, prior-marriage duration rules, comprehensive SSI/financial assets, citizenship questions, medical test/hospital details beyond the provider records, medication doses/frequencies, and arbitrary fields within firm-only, specialized-training, special-education, wages, workers' compensation and additional-employment sections. Those headings may be recognized without establishing field meanings. Unknown bold fields are retained but blocked; standalone plain labels ending in a colon within recognized sections are preserved with following answers as unsupported fields. Unknown same-line plain colon questions remain unparsed. Ordinary multiline continuation text remains unchanged. No new question mappings are added.
+Exact mappings are absent for date work stopped, total earnings, prior-marriage duration/conditional rules, comprehensive SSI/financial assets, citizenship questions, medical test/hospital details beyond the provider records, medication doses/frequencies, and arbitrary fields within firm-only, specialized-training, special-education, wages, workers' compensation and additional-employment sections. Numbered prior spouses have exact catalog fields and corresponding synthetic practice mappings; other meanings are not inferred. Those headings may be recognized without establishing additional field meanings. Unknown bold fields are retained but blocked; standalone plain labels ending in a colon within recognized sections are preserved with following answers as unsupported fields. Unknown same-line plain colon questions remain unparsed. Ordinary multiline continuation text remains unchanged. No live SSA question mapping or interaction is added.
 
 ## Privacy
 
@@ -186,6 +188,24 @@ The table below is checked by the contract tests. Category-specific duplicate la
 | spouse.type-of-marriage | MARRIAGE INFORMATION / record | Type of Marriage | text |
 | spouse.maiden-name | MARRIAGE INFORMATION / record | Maiden Name | text |
 | spouse.social-security-number | MARRIAGE INFORMATION / record | Social Security Number | text |
+| priorSpouses.first-name | MARRIAGE INFORMATION / record | First Name | text |
+| priorSpouses.middle-name | MARRIAGE INFORMATION / record | Middle Name | text |
+| priorSpouses.last-name | MARRIAGE INFORMATION / record | Last Name | text |
+| priorSpouses.name-at-birth | MARRIAGE INFORMATION / record | Name at Birth | text |
+| priorSpouses.social-security-number | MARRIAGE INFORMATION / record | Social Security Number | text |
+| priorSpouses.birth-country | MARRIAGE INFORMATION / record | Birth Country | text |
+| priorSpouses.birth-city | MARRIAGE INFORMATION / record | Birth City | text |
+| priorSpouses.birth-state | MARRIAGE INFORMATION / record | Birth State | text |
+| priorSpouses.age | MARRIAGE INFORMATION / record | Age | text |
+| priorSpouses.city-of-marriage | MARRIAGE INFORMATION / record | City of Marriage | text |
+| priorSpouses.state-of-marriage | MARRIAGE INFORMATION / record | State of Marriage | text |
+| priorSpouses.type-of-marriage | MARRIAGE INFORMATION / record | Type of Marriage | text |
+| priorSpouses.marriage-date | MARRIAGE INFORMATION / record | Marriage Date | date |
+| priorSpouses.how-marriage-ended | MARRIAGE INFORMATION / record | How Marriage Ended | text |
+| priorSpouses.marriage-end-date | MARRIAGE INFORMATION / record | Marriage End Date | date |
+| priorSpouses.city-where-marriage-ended | MARRIAGE INFORMATION / record | City where marriage ended | text |
+| priorSpouses.state-where-marriage-ended | MARRIAGE INFORMATION / record | State where marriage ended | text |
+| priorSpouses.prior-spouse-died-since-marriage-ended | MARRIAGE INFORMATION / record | Prior spouse died since marriage ended | text |
 | children.first-name | CHILDREN INFORMATION / record | First Name | text |
 | children.last-name | CHILDREN INFORMATION / record | Last Name | text |
 | providers.last-visit-date | MEDICAL PROVIDERS / record | Last Visit Date | date |
@@ -210,4 +230,4 @@ The table below is checked by the contract tests. Category-specific duplicate la
 
 ## Chrome synthetic practice consumer
 
-SSA v1.19.0 projects exact Checker answers into the Chrome practice contract for extension 0.8.1. The Checker parser recognizes the observed “Blind or have low vision” label as BlindOrHaveLowVision and preserves other observed medical labels as unsupported fields. Staff approved Gender to Sex and BlindOrHaveLowVision Yes to blindness Yes for this pilot. One unambiguous actual Current Spouse record supplies eight exact fields; previous-spouse records remain unsupported and cannot supply those fields. Actual child records supply first and last names. Recent SGA, prior marriages, spouse DOB and unsupported child questions stay blank. Contract 3.0.0 remains unchanged; repeating fields use its existing recordId. The employee must affirm fictional intake data before transfer. Source text, provenance, review metadata and authentication are excluded. No live SSA access is included.
+SSA v1.20.0 projects exact Checker answers into the Chrome practice contract. The Checker parser recognizes the observed “Blind or have low vision” label as BlindOrHaveLowVision and preserves other observed medical labels as unsupported fields. Staff approved Gender to Sex and BlindOrHaveLowVision Yes to blindness Yes for this pilot. One unambiguous actual Current Spouse record supplies its exact mapped fields. Numbered prior-spouse records have separate conditional practice sections; every listed field is shown for each actual record, missing values stay Not provided, and only individually ready values are projected. Middle Name and Name at Birth are separate; the death status accepts only explicit Yes/No/Unknown. Actual child records supply first and last names. Recent SGA, spouse DOB and unsupported child questions stay blank. Contract 3.1.0 preserves prior-spouse record IDs as metadata, without transferring source text, provenance, review metadata or corrections. The employee must affirm fictional intake data before transfer. No live SSA access is included.

@@ -12,10 +12,28 @@ export const readinessIntake = completeSyntheticIntake()
   .replace('**Middle Name:** Synthetic', '**Middle Name:** Synthetic\n**Middle Name:** Different')
   .replace('**Currently working:** No', '**Currently working:** Yes')
   .replace('**Date of Birth:** 2000-01-01', '**Date of Birth:** 02/30/2000')
+  .replace('\n## SCHOOL INFORMATION', `
+Previous Spouse 1
+First Name: Fictional Former
+Middle Name: Middle Former
+Name at Birth: Birth Former
+Prior spouse died since marriage ended: Unknown
+Previous Spouse 2
+First Name: Fictional Former Two
+
+## SCHOOL INFORMATION`)
   + '\n## CUSTOM\n**Unmapped question:** <img src=x onerror=alert(1)>';
 
 export async function checkReadiness({ cdp, evaluate, visit, click, check, until, network, origin, directory }) {
   const expected = clientFilingText(createClientData(createIntakeSession(parseIntake(readinessIntake))));
+  const priorOne = expected.match(/\[MARRIAGE INFORMATION \/ Previous Spouse 1\]\n([\s\S]*?)(?=\n\n|$)/)?.[1];
+  const priorTwo = expected.match(/\[MARRIAGE INFORMATION \/ Previous Spouse 2\]\n([\s\S]*?)(?=\n\n|$)/)?.[1];
+  assert(priorOne && priorTwo);
+  assert.equal(priorOne.split('\n').length, 18);
+  assert.equal(priorTwo.split('\n').length, 18);
+  assert(priorOne.includes('MiddleName: Middle Former') && priorOne.includes('NameAtBirth: Birth Former'));
+  assert(priorOne.includes('SocialSecurityNumber: Not provided') && priorOne.includes('PriorSpouseDiedSinceMarriageEnded: Unknown'));
+  assert(priorTwo.includes('FirstName: Fictional Former Two') && priorTwo.includes('MarriageEndDate: Not provided'));
   for (const width of [1280, 390]) {
     await cdp('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width === 390 });
     await visit('/intake-checker/');

@@ -13,18 +13,18 @@ const session = text => createIntakeSession(parseIntake(text));
 const field = (profile, id) => profile.fields.find(item => item.id === id);
 const profile = text => fromIntakeChecker(session(text));
 
-test('catalog covers every existing fixed parser label, all 120 meanings and the medical problem family', () => {
+test('catalog covers every existing fixed parser label, all 138 meanings and the medical problem family', () => {
   const knownLabels = new Set(fieldDefinitions.map(item => item.label));
   const rules = [...Object.values(intakeRules.sections), ...Object.values(intakeRules.records)];
   for (const label of [...rules.flatMap(rule => [...(rule.required || []), ...(rule.optional || []), ...(rule.currentYearAddress || [])]), ...reviewFields,
     'Last Visit Date', 'Have you ever worked', 'Used other names in medical records', 'Other first name', 'Other last name', 'Remarks/Comments']) assert(knownLabels.has(label));
-  assert.equal(fieldDefinitions.length, 120);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 120);
+  assert.equal(fieldDefinitions.length, 138);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 138);
   const result = profile(completeSyntheticIntake());
   assert.equal(result.fields.length, 121);
   assert.equal(result.fields.filter(item => item.sources.length).length, 121);
   assert.equal(readyFields(result).length, 121);
-  for (const definition of fieldDefinitions) {
+  for (const definition of fieldDefinitions.filter(item => item.category !== 'priorSpouses')) {
     assert(result.fields.some(item => item.definitionId === definition.id));
     assert(FIELD_TYPES.includes(definition.dataType));
   }
@@ -33,9 +33,9 @@ test('catalog covers every existing fixed parser label, all 120 meanings and the
 test('contract version and IDs are stable across values, rechecking and unrelated section order', () => {
   const a = profile('PERSONAL INFORMATION\nFirst Name: Synthetic\nWORK HISTORY\nMost Recent Job\nStart Date: 2000-01-01');
   const b = profile('WORK HISTORY\nMost Recent Job\nStart Date: 2001-02-03\nPERSONAL INFORMATION\nFirst Name: Edited');
-  assert.equal(PROFILE_SCHEMA_VERSION, '3.0.0');
+  assert.equal(PROFILE_SCHEMA_VERSION, '3.1.0');
   assert.equal(a.schema, 'packard.intake-client-profile');
-  assert.equal(a.schemaVersion, '3.0.0');
+  assert.equal(a.schemaVersion, '3.1.0');
   assert(field(a, 'personal.first-name'));
   assert(field(b, 'personal.first-name'));
   assert(field(a, 'jobs.start-date@jobs-1'));
@@ -142,6 +142,32 @@ test('corrections update the existing Checker session, revalidate and preserve o
   assert.equal(field(fromIntakeChecker(state), 'personal.first-name').readiness, 'blocked');
 });
 
+test('actual numbered prior spouses render every catalog field with missing values and record sources', () => {
+  const result = profile(`MARRIAGE INFORMATION
+Previous Spouse 1
+First Name: Former One
+Middle Name: Given Middle
+Name at Birth: Birth Name
+Previous Spouse 2
+First Name: Former Two`);
+  const fields = result.fields.filter(item => item.category === 'priorSpouses');
+  assert.equal(fields.length, 36);
+  const records = new Map();
+  for (const item of fields) {
+    const group = records.get(item.recordId) || [];
+    group.push(item); records.set(item.recordId, group);
+    assert(item.recordSource?.start != null && item.recordSource?.end != null);
+    assert.equal(item.category, 'priorSpouses');
+  }
+  assert.deepEqual([...records.keys()], ['priorSpouses-1', 'priorSpouses-2']);
+  assert.equal(records.get('priorSpouses-1').length, 18);
+  assert.equal(records.get('priorSpouses-2').length, 18);
+  assert.equal(field(result, 'priorSpouses.middle-name@priorSpouses-1').value, 'Given Middle');
+  assert.equal(field(result, 'priorSpouses.name-at-birth@priorSpouses-1').value, 'Birth Name');
+  assert.equal(field(result, 'priorSpouses.marriage-end-date@priorSpouses-1').value, null);
+  assert.equal(field(result, 'priorSpouses.marriage-end-date@priorSpouses-1').readiness, 'blocked');
+});
+
 test('correcting missing fields preserves original null and can add an absent required section', () => {
   const state = session('PERSONAL INFORMATION\nFirst Name: Not provided');
   const before = field(fromIntakeChecker(state), 'personal.first-name');
@@ -191,8 +217,8 @@ test('profile and correction code use no persistence, navigation or client-data 
 
 test('documented schema catalog matches every stable ID, scope and type', () => {
   const documentation = readFileSync(new URL('../../PROFILE-CONTRACT.md', import.meta.url), 'utf8');
-  const rows = documentation.split(/\r?\n/).filter(line => /^\| [a-z-]+\.[a-z0-9-]+ \|/.test(line));
-  assert.equal(rows.length, 120);
+  const rows = documentation.split(/\r?\n/).filter(line => /^\| [A-Za-z-]+\.[a-z0-9-]+ \|/.test(line));
+  assert.equal(rows.length, 138);
   assert.deepEqual(rows, fieldDefinitions.map(item => `| ${item.id} | ${item.section}${item.record ? ' / record' : ''} | ${item.label} | ${item.dataType} |`));
 });
 

@@ -180,6 +180,27 @@ First Name: Fictional Former`, "MARRIAGE INFORMATION");
   assert.equal(duplicateIssues[0].record, "Current Spouse");
 });
 
+test("numbered prior-spouse records are optional and never satisfy or duplicate Current Spouse", () => {
+  const former = `MARRIAGE INFORMATION
+Marital Status: Married
+Previous Spouse 1
+First Name: Former One
+Type of Marriage:
+Previous Spouse 2
+First Name: Former Two`;
+  const issues = scoped(former, "MARRIAGE INFORMATION");
+  assert(issues.some(issue => issue.message === "Current Spouse record is required when Marital Status is Married."));
+  assert(!issues.some(issue => issue.message === "Only one Current Spouse record is supported."));
+  assert(!issues.some(issue => issue.record?.startsWith('Previous Spouse') && issue.field === 'Type of Marriage'));
+
+  const current = `Current Spouse
+${fields(intakeRules.records.spouse.required)}`;
+  const twoCurrent = `${former}\n${current}\n${current}`;
+  const duplicate = scoped(twoCurrent, "MARRIAGE INFORMATION").filter(issue => issue.message === "Only one Current Spouse record is supported.");
+  assert.equal(duplicate.length, 1);
+  assert.equal(duplicate[0].record, 'Current Spouse');
+});
+
 test("blank marital status alone is optional", () => {
   assert.equal(scoped("**MARRIAGE INFORMATION**\n**Marital Status:**", "MARRIAGE INFORMATION").length, 0);
 });

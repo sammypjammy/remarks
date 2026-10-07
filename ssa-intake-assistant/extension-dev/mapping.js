@@ -1,5 +1,5 @@
 // These are invented practice questions, NOT verified SSA selectors or meanings.
-export const schemaVersion = '3.0.0';
+export const schemaVersion = '3.1.0';
 export const mappings = Object.freeze([
   ['first-name', 'First name', 'personal.first-name', 'text'],
   ['last-name', 'Last name', 'personal.last-name', 'text'],
@@ -55,23 +55,53 @@ export const mappings = Object.freeze([
   ['onset', 'Disability onset (month accepted)', 'disability.onset-date-of-disability', 'date', 'month'],
   ['last-worked', 'Last day worked (full date)', 'employment.when-did-you-last-work', 'date'],
   ['work-stopped', 'Date work stopped — not mapped', null, 'date'],
-].map(([target, label, definitionId, type, precision = 'day', recordCategory = null]) => Object.freeze({ target, label, definitionId, type, precision, recordCategory })));
+  ['prior-first-name', 'First Name', 'priorSpouses.first-name', 'text', 'day', 'priorSpouses'],
+  ['prior-middle-name', 'Middle Name', 'priorSpouses.middle-name', 'text', 'day', 'priorSpouses'],
+  ['prior-last-name', 'Last Name', 'priorSpouses.last-name', 'text', 'day', 'priorSpouses'],
+  ['prior-name-at-birth', 'Name at Birth', 'priorSpouses.name-at-birth', 'text', 'day', 'priorSpouses'],
+  ['prior-ssn', 'Social Security Number', 'priorSpouses.social-security-number', 'text', 'day', 'priorSpouses'],
+  ['prior-birth-country', 'Birth Country', 'priorSpouses.birth-country', 'text', 'day', 'priorSpouses'],
+  ['prior-birth-city', 'Birth City', 'priorSpouses.birth-city', 'text', 'day', 'priorSpouses'],
+  ['prior-birth-state', 'Birth State', 'priorSpouses.birth-state', 'text', 'day', 'priorSpouses'],
+  ['prior-age', 'Age', 'priorSpouses.age', 'text', 'day', 'priorSpouses'],
+  ['prior-marriage-city', 'City of Marriage', 'priorSpouses.city-of-marriage', 'text', 'day', 'priorSpouses'],
+  ['prior-marriage-state', 'State of Marriage', 'priorSpouses.state-of-marriage', 'text', 'day', 'priorSpouses'],
+  ['prior-marriage-type', 'Type of Marriage', 'priorSpouses.type-of-marriage', 'text', 'day', 'priorSpouses'],
+  ['prior-marriage-date', 'Marriage Date', 'priorSpouses.marriage-date', 'date', 'day', 'priorSpouses'],
+  ['prior-how-marriage-ended', 'How Marriage Ended', 'priorSpouses.how-marriage-ended', 'text', 'day', 'priorSpouses'],
+  ['prior-marriage-end-date', 'Marriage End Date', 'priorSpouses.marriage-end-date', 'date', 'day', 'priorSpouses'],
+  ['prior-ended-city', 'City where marriage ended', 'priorSpouses.city-where-marriage-ended', 'text', 'day', 'priorSpouses'],
+  ['prior-ended-state', 'State where marriage ended', 'priorSpouses.state-where-marriage-ended', 'text', 'day', 'priorSpouses'],
+  ['prior-spouse-died', 'Prior spouse died since marriage ended', 'priorSpouses.prior-spouse-died-since-marriage-ended', 'text', 'day', 'priorSpouses', ['Yes', 'No', 'Unknown']],
+].map(([target, label, definitionId, type, precision = 'day', recordCategory = null, allowedValues = null]) =>
+  Object.freeze({ target, label, definitionId, type, precision, recordCategory, allowedValues })));
 
 export const childDefinitionIds = Object.freeze(['children.first-name', 'children.last-name']);
 
 export function planPractice(profile) {
-  const supported = profile?.schema === 'packard.intake-client-profile' && profile.schemaVersion === schemaVersion && Array.isArray(profile.fields);
-  return mappings.map(mapping => {
+  const supported = profile?.schema === 'packard.intake-client-profile' && profile.schemaVersion === schemaVersion
+    && Array.isArray(profile.fields) && Array.isArray(profile.priorSpouseRecords);
+  const priorRecords = profile?.priorSpouseRecords;
+  const validPriorRecords = Array.isArray(priorRecords) && priorRecords.every((recordId, index) =>
+    typeof recordId === 'string' && /^prior-spouse-[1-9]\d*$/.test(recordId)
+      && priorRecords.indexOf(recordId) === index);
+  const plannedMappings = mappings.flatMap(mapping => mapping.recordCategory === 'priorSpouses'
+    ? validPriorRecords ? priorRecords.map(recordId => ({ ...mapping, recordId })) : [{ ...mapping, recordId: null, invalidRecords: true }]
+    : [mapping]);
+  return plannedMappings.map(mapping => {
     const pause = reason => ({ ...mapping, status: 'pause', reason });
     if (!supported) return pause('Unsupported profile contract.');
+    if (mapping.invalidRecords) return pause('Prior-spouse record identities are invalid.');
     if (!mapping.definitionId) return pause('No exact Checker field. Employee input required; no answer will be guessed.');
-    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
+    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse'
+      : mapping.recordCategory === 'priorSpouses' ? mapping.recordId : null;
     const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
     if (candidates.length !== 1) return pause('No unique matching answer.');
     const field = candidates[0];
     if (field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.value == null) return pause('No ready answer. Leave blank for employee input if needed.');
     if (field.dataType !== mapping.type || (mapping.type === 'boolean'
       ? typeof field.value !== 'boolean' : typeof field.value !== 'string' || !field.value.trim())) return pause('Answer type does not match this question.');
+    if (mapping.allowedValues && !mapping.allowedValues.includes(field.value)) return pause('Answer is outside the exact supported choices.');
     if (mapping.type === 'date' && (!['day', 'month'].includes(field.precision) || (mapping.precision === 'day' && field.precision !== 'day'))) return pause('A complete date is needed. No day will be guessed.');
     return { ...mapping, status: 'ready', value: field.value, fieldId: field.id };
   });
@@ -82,12 +112,18 @@ export function fillPractice(profile, root) {
   if (root?.dataset?.practice !== 'packard-synthetic-v1') return [];
   return planPractice(profile).map(item => {
     if (item.status !== 'ready') return item;
-    const targets = root.querySelectorAll(`[data-practice-field="${item.target}"]`);
+    const selector = item.recordId
+      ? `[data-practice-field="${item.target}"][data-practice-record="${item.recordId}"]`
+      : `[data-practice-field="${item.target}"]`;
+    const targets = root.querySelectorAll(selector);
     const input = targets[0];
     const validTarget = item.type === 'boolean'
       ? input?.tagName === 'SELECT' && input.options?.length === 3
         && ['','yes','no'].every((value, index) => input.options[index].value === value)
-      : input?.tagName === 'INPUT' && input.type === 'text' && !input.readOnly;
+      : item.allowedValues
+        ? input?.tagName === 'SELECT' && input.options?.length === item.allowedValues.length + 1
+          && input.options[0].value === '' && item.allowedValues.every((value, index) => input.options[index + 1].value === value)
+        : input?.tagName === 'INPUT' && input.type === 'text' && !input.readOnly;
     if (targets.length !== 1 || !validTarget || input.disabled) return { ...item, status: 'pause', reason: 'Practice page changed. Target unavailable.' };
     if (input.value) return { ...item, status: 'pause', reason: 'Existing answer preserved.' };
     input.value = item.type === 'boolean' ? item.value ? 'yes' : 'no' : item.value;

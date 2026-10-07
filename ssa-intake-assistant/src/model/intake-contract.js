@@ -1,6 +1,6 @@
 // Compatibility projection metadata; Intake Checker owns all field definitions.
 export { fieldDefinitions, medicalProblemDefinition, FIELD_TYPES } from '../../../intake-checker/field-catalog.js';
-export const PROFILE_SCHEMA_VERSION = '3.0.0';
+export const PROFILE_SCHEMA_VERSION = '3.1.0';
 export function profileSummary(profile) {
   const fields = profile.fields;
   return {

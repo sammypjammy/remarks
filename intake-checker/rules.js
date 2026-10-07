@@ -46,6 +46,15 @@ export const intakeRules = {
       required: ["First Name", "Last Name", "Marriage Date", "Birth Country", "Birth City", "Birth State", "Age", "City of Marriage", "State of Marriage", "Type of Marriage"],
       optional: ["Maiden Name", "Social Security Number"]
     },
+    priorSpouses: {
+      section: "MARRIAGE INFORMATION", heading: /^Previous Spouse [1-9]\d*$/,
+      required: [], optional: [
+        "First Name", "Middle Name", "Last Name", "Name at Birth", "Social Security Number",
+        "Birth Country", "Birth City", "Birth State", "Age", "City of Marriage", "State of Marriage",
+        "Type of Marriage", "Marriage Date", "How Marriage Ended", "Marriage End Date",
+        "City where marriage ended", "State where marriage ended", "Prior spouse died since marriage ended"
+      ]
+    },
     // Child N is an explicit plain-text heading; other headings are recognized only by their fields.
     children: { section: "CHILDREN INFORMATION", heading: /^Child(?: \d+)?$/, required: [], recognition: ["First Name", "Last Name"], allowEmptyRecords: true, otherFieldsOptional: true }
   },
@@ -53,7 +62,7 @@ export const intakeRules = {
     "PERSONAL INFORMATION": ["First Name", "Middle Name", "Last Name", "Suffix", "Nickname"],
     "SECURITY QUESTIONS": ["Mother - First Name", "Mother - Maiden Name", "Father - First Name", "Father - Last Name"],
     "OTHER NAMES": ["Other first name", "Other last name"],
-    "MARRIAGE INFORMATION": ["First Name", "Last Name", "Maiden Name"],
+    "MARRIAGE INFORMATION": ["First Name", "Middle Name", "Last Name", "Maiden Name", "Name at Birth"],
     "CHILDREN INFORMATION": ["First Name", "Last Name"],
     "MEDICAL PROVIDERS": ["Doctor First Name", "Doctor Last Name"],
     "SCHOOL INFORMATION": ["Teacher Name"]
@@ -61,7 +70,7 @@ export const intakeRules = {
   medicalProblemLabel: /^Problem (?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|[1-9]\d*)$/,
   // TODO: Activate >10-year prior-marriage rules only after exact DeLorean labels are supplied.
   deferred: [
-    "Prior-marriage duration and required details are not checked yet: exact DeLorean field labels are needed.",
+    "Prior-marriage duration and conditional requiredness are not checked yet: exact business rules are needed.",
     "Total Earnings is not checked yet: no exact supported Total Earnings field exists in the current DeLorean parser/schema."
   ]
 };

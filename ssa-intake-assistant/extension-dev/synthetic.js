@@ -1,4 +1,6 @@
 // Intentionally fictional, fixed data. No import, paste, upload or messaging channel.
+import { schemaVersion } from './mapping.js';
+
 export function syntheticProfile() {
   const values = [
     ['personal.first-name', 'Synthetic', 'text'],
@@ -55,7 +57,7 @@ export function syntheticProfile() {
     ['disability.onset-date-of-disability', '2020-03', 'date', 'month'],
     ['employment.when-did-you-last-work', '2020-02', 'date', 'month'],
   ];
-  return { schema: 'packard.intake-client-profile', schemaVersion: '3.0.0', fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
+  return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
     id: recordId ? `${definitionId}@${recordId}` : definitionId, definitionId, recordId,
     value, dataType, precision, readiness: value === null ? 'blocked' : 'ready',
     blockingReasons: value === null ? [{ code: 'missing' }] : [],

@@ -29,7 +29,9 @@ test('practice layout follows the supplied section order and leaves unsupported 
   const rows = formSections.flatMap(section => section.rows);
   assert.equal(rows.find(row => row.label === 'Other First Name').target, 'other-first-name');
   assert.equal(rows.find(row => row.label === 'Other Middle Name').target, 'other-middle-name');
-  assert(formSections.find(section => section.title === 'Prior Marriages').rows.every(row => row.target === null));
+  assert.equal(formSections.find(section => section.title === 'Prior Marriages').rows.length, 18);
+  assert.equal(rows.find(row => row.target === 'prior-name-at-birth').label, 'Name at Birth');
+  assert.equal(rows.find(row => row.target === 'prior-spouse-died').label, 'Prior spouse died since marriage ended');
   assert.equal(rows.find(row => row.target === 'applicant-blind').label, 'Answer from MEDICAL INFORMATION / BlindOrHaveLowVision');
   assert.equal(rows.find(row => row.target === 'gender').label, 'Answer from PERSONAL INFORMATION / Gender');
   assert.equal(rows.find(row => row.key === 'recent-sga').target, null);

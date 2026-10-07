@@ -2,6 +2,7 @@
 export function reviewPresentation(profile) {
   const blocked = [], ignored = [];
   for (const field of profile.fields.filter(field => field.readiness === 'blocked')) {
+    if (field.category === 'priorSpouses') continue;
     const unresolved = field.validation.issues.filter(issue => !issue.acknowledged);
     // Fillability is not a second employee review rulebook.
     if (!unresolved.length) {

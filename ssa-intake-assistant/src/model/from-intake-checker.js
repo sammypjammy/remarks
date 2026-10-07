@@ -15,9 +15,10 @@ function flatten(nodes, parentPath = '', ancestors = []) {
 }
 
 // Contract encoding only. All business validation comes from Intake Checker.
-function encode(value, type) {
+function encode(value, type, definitionId = null) {
   const raw = String(value ?? '').trim();
-  if (isMissing(value) || !cleanExtractedValue(value) || /^(?:[-—–?]+|null|undefined|nan|not applicable|not available|tbd|select(?: one| an option)?|choose(?: one| an option)?)$/i.test(raw)) {
+  const explicitUnknown = definitionId === 'priorSpouses.prior-spouse-died-since-marriage-ended' && /^unknown$/i.test(raw);
+  if (isMissing(value) || (!explicitUnknown && !cleanExtractedValue(value)) || /^(?:[-—–?]+|null|undefined|nan|not applicable|not available|tbd|select(?: one| an option)?|choose(?: one| an option)?)$/i.test(raw)) {
     return { value: null, precision: null, missing: true, reason: 'No established answer: blank or placeholder.' };
   }
   if (type === 'date') {
@@ -43,7 +44,7 @@ export function fromIntakeChecker(session) {
   const claimed = new Set(), associatedIssues = new Set();
   const fields = [];
 
-  function addField(definition, nodes, { recordId = null, ambiguousScope = false, unsupported = false, label = definition.label, providedCandidates = null } = {}) {
+  function addField(definition, nodes, { recordId = null, ambiguousScope = false, unsupported = false, label = definition.label, providedCandidates = null, includeAbsent = false } = {}) {
     const candidates = providedCandidates || nodes.flatMap(entry => entry.node.fields.filter(field => field.label === label).map(field => ({ entry, field })));
     const issues = validationIssues.filter(issue => {
       if (issue.code === 'parsing') return issue.scopePath && nodes.some(entry => entry.path === issue.scopePath || entry.path.startsWith(issue.scopePath + '/'));
@@ -57,11 +58,11 @@ export function fromIntakeChecker(session) {
     // Do not invent optional answers or hypothetical repeat records.
     const rule = definition.record ? intakeRules.records[definition.category] : intakeRules.sections[definition.section];
     const requiredBySection = issues.some(issue => !issue.field && (issue.requiredFields || rule?.required || []).includes(label));
-    if (!candidates.length && !issues.some(issue => issue.field === label) && !requiredBySection) return;
+    if (!includeAbsent && !candidates.length && !issues.some(issue => issue.field === label) && !requiredBySection) return;
     candidates.forEach(({ field }) => claimed.add(field));
     issues.forEach(issue => associatedIssues.add(issue.id));
-    const encodings = candidates.map(({ field }) => encode(report.formats.get(field)?.value ?? field.value, definition.dataType));
-    const encoded = encodings[0] || encode(null, definition.dataType);
+    const encodings = candidates.map(({ field }) => encode(report.formats.get(field)?.value ?? field.value, definition.dataType, definition.id));
+    const encoded = encodings[0] || encode(null, definition.dataType, definition.id);
     // Keep contradictory source answers, including missing versus supplied, visible.
     const conflict = resolveAnswers(candidates.map(({ field }) => field), report.formats).conflict;
     const blockingReasons = [];
@@ -86,6 +87,7 @@ export function fromIntakeChecker(session) {
     fields.push({
       id: recordId ? `${definition.id}@${recordId}` : definition.id,
       definitionId: definition.id, recordId, category: definition.category, label,
+      ...(definition.category === 'priorSpouses' ? { recordSource: sourceRange(nodes[0]?.node) } : {}),
       dataType: definition.dataType, value: conflict ? null : encoded.value, precision: encoded.precision,
       sources, origin: edits.length ? 'employee_entered' : candidates.length ? 'parsed' : 'absent',
       validation: { status: unresolved.length ? 'unresolved' : issues.length ? 'acknowledged' : 'no_issues', issues },
@@ -112,7 +114,9 @@ export function fromIntakeChecker(session) {
     ));
     records.forEach((entry, index) => {
       for (const definition of fieldDefinitions.filter(definition => definition.record && definition.category === category)) {
-        addField(definition, [entry], { recordId: `${category}-${index + 1}`, ambiguousScope: roots.length > 1 || category === 'spouse' && records.length > 1 });
+        addField(definition, [entry], { recordId: `${category}-${index + 1}`,
+          ambiguousScope: roots.length > 1 || category === 'spouse' && records.length > 1,
+          includeAbsent: category === 'priorSpouses' });
       }
     });
   }

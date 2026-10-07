@@ -21,6 +21,7 @@ add('FINANCIAL SUPPORT', ['Veteran Benefits - Monthly amount', 'Retirement/Pensi
 
 export function formatKind(section, label) {
   if (!labelsBySection.get(section)?.has(label)) return null;
+  if (label === 'Prior spouse died since marriage ended') return 'yes-no-unknown';
   if (intakeRules.personNameFields[section]?.includes(label)) return 'name';
   if (/Phone/.test(label)) return 'phone';
   if (label === 'Social Security Number') return 'ssn';
@@ -40,6 +41,11 @@ export function formatIntakeValue(section, label, source) {
   if (!kind || isMissing(source)) return { kind, value: source, error: null };
   const raw = String(source).trim();
   const invalid = message => ({ kind, value: source, error: message });
+  if (kind === 'yes-no-unknown') {
+    const value = new Map([['yes', 'Yes'], ['no', 'No'], ['unknown', 'Unknown']]).get(raw.toLowerCase());
+    return value ? { kind, value, error: null }
+      : invalid(`${label} must be Yes, No, or Unknown when provided.`);
+  }
   if (['name', 'place', 'address'].includes(kind)) {
     const allowed = kind === 'address' ? /[^\p{L}\p{M}\d\s]/gu : /[^\p{L}\p{M}\s]/gu;
     const value = titleCase(raw.normalize('NFC').replace(allowed, '').replace(/\s+/g, ' ').trim());

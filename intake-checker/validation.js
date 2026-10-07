@@ -132,7 +132,9 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
     const context = contextFor("MARRIAGE INFORMATION", root);
     const marriageFields = new Set([...spouse.required, ...spouse.optional]);
     const marriageEntries = flatten(root.node.subsections, root.location);
-    const previousSpouses = marriageEntries.filter(entry => spouse.unsupportedHeadings?.test(entry.node.title));
+    const priorSpouseHeading = rules.records.priorSpouses?.heading;
+    const previousSpouses = marriageEntries.filter(entry =>
+      spouse.unsupportedHeadings?.test(entry.node.title) || priorSpouseHeading?.test(entry.node.title));
     for (const entry of marriageEntries) {
       if (previousSpouses.some(previous => entry.location === previous.location || entry.location.startsWith(previous.location + "/"))) continue;
       if (entry.node.fields.some(field => marriageFields.has(field.label)) && !values(entry.node, "Type of Marriage").length) {

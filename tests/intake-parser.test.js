@@ -76,6 +76,25 @@ First Name: Former`;
   assert.deepEqual(parsed.unparsed, []);
 });
 
+test("numbered previous-spouse headings are recognized only under marriage information", () => {
+  const parsed = parseIntake(`MARRIAGE INFORMATION
+Previous Spouse 1
+First Name: Former One
+Previous Spouse 2
+First Name: Former Two
+Previous Spouse 3
+First Name: Former Three
+CHILDREN INFORMATION
+Previous Spouse 4
+First Name: Not a spouse record`);
+  assert.deepEqual(parsed.sections[0].subsections.map(node => node.title), [
+    'Previous Spouse 1', 'Previous Spouse 2', 'Previous Spouse 3'
+  ]);
+  assert.equal(parsed.sections[0].subsections[1].fields[0].value, 'Former Two');
+  assert.deepEqual(parsed.sections[1].subsections, []);
+  assert.equal(parsed.unparsed.some(item => item.text.includes('Previous Spouse 4')), true);
+});
+
 test("plain parsing does not promote arbitrary uppercase text, unknown labels, or unknown records", () => {
   const parsed = parseIntake("MEDICAL PROVIDERS\nClinic 1\nNotes:\nPLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7\nClinic Name: Example");
   assert.equal(parsed.sections.length, 1);

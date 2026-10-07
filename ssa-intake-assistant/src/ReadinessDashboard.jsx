@@ -11,6 +11,13 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
     missing: blocked.filter(field => field.blockingReasons.some(reason => reason.code === 'missing')).length,
     conflicts: blocked.filter(field => field.blockingReasons.some(reason => reason.code === 'conflict')).length };
   const ready = profile.fields.filter(field => field.readiness === 'ready');
+  const priorSpouses = [...profile.fields.reduce((records, field) => {
+    if (field.category === 'priorSpouses' && field.recordId) {
+      const fields = records.get(field.recordId) || [];
+      fields.push(field); records.set(field.recordId, fields);
+    }
+    return records;
+  }, new Map()).entries()];
   const [message, setMessage] = useState('');
   function correct(id, value) {
     window.dispatchEvent(new Event('packard-ssa-revoke'));
@@ -20,7 +27,7 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. No client-data uploads or saved profiles.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.10.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.20.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Only unresolved Intake Checker issues need attention here.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>
@@ -54,12 +61,46 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
       <summary>Other Intake Checker requirements</summary>
       <ul>{requirements.map(issue => <li key={issue.id}>{issue.section}{issue.record ? ` / ${issue.record}` : ''}: {issue.message}{issue.acknowledged ? ' (Reviewed in Intake Checker)' : ''}</li>)}</ul>
     </details>}
+    {priorSpouses.length > 0 && <section className="review-card prior-marriages" aria-labelledby="prior-marriages-title">
+      <h3 id="prior-marriages-title">Previous marriages ({priorSpouses.length})</h3>
+      <p>Each numbered prior-spouse record is separate from Current Spouse. Missing answers are not inferred.</p>
+      {priorSpouses.map(([recordId, fields], index) => <article className="prior-spouse-record" key={recordId} data-prior-spouse-record={recordId}>
+        <h4>Previous Spouse {index + 1}</h4>
+        {fields[0]?.recordSource && <button type="button" className="button quiet" onClick={() => onSource(fields[0].recordSource)}>Find record heading in Intake</button>}
+        <div className="prior-spouse-fields">{fields.map(field => <PriorSpouseField key={field.id} field={field} onSource={onSource} onCorrect={correct} />)}</div>
+      </article>)}
+    </section>}
     <details className="review-card">
       <summary>Remaining Intake Checker notices ({reviews.length})</summary>
       <p>General review flags do not change answers or automatically block valid fields.</p>
       <ul>{reviews.map(item => <li key={item.id}>{item.message} — {item.acknowledged ? 'Reviewed / dismissed' : 'Not reviewed'}</li>)}</ul>
     </details>
   </div>;
+}
+
+function PriorSpouseField({ field, onSource, onCorrect }) {
+  const [value, setValue] = useState(field.employeeReview.edits.at(-1)?.value ?? field.sources[0]?.rawValue ?? '');
+  const currentValue = field.value !== null ? display(field)
+    : field.blockingReasons.some(reason => reason.code === 'missing') ? 'Not provided' : 'No established answer';
+  const status = field.readiness === 'ready' ? 'Ready'
+    : field.blockingReasons.some(reason => reason.code === 'conflict') ? 'Conflict'
+      : field.validation.status === 'unresolved' ? 'Needs correction' : 'Not provided / not ready';
+  return <article className="prior-spouse-field" data-field-id={field.id}>
+    <h5>{field.label}</h5>
+    <p>Current value: <strong>{currentValue}</strong></p>
+    <p>Validation: {field.validation.status} · {status}</p>
+    {field.sources.map((source, index) => <p key={index}>Original value: {source.rawValue ?? 'Not provided'}{' '}
+      {source.range && <button type="button" className="button quiet" onClick={() => onSource(source.range)}>Find value in Intake</button>}</p>)}
+    {!field.sources.length && field.recordSource && <p>Field location: absent from this record.{' '}
+      <button type="button" className="button quiet" onClick={() => onSource(field.recordSource)}>Find record heading</button></p>}
+    {field.employeeReview.edits.map((edit, index) => <p className="notes" key={`${edit.revision}-${index}`}>Employee correction {index + 1}: {edit.value || 'Not provided'}</p>)}
+    {field.validation.issues.map(issue => <p className="notes" key={issue.id}>{issue.message}</p>)}
+    {field.correctionTarget && field.readiness === 'blocked' && <form onSubmit={event => { event.preventDefault(); onCorrect(field.id, value); }}>
+      <label htmlFor={'prior-correct-' + field.id}>Correct {field.label}</label>
+      <input id={'prior-correct-' + field.id} value={value} onChange={event => setValue(event.target.value)} autoComplete="off" />
+      <button className="button primary" type="submit">Apply correction</button>
+    </form>}
+  </article>;
 }
 
 function BlockedField({ field, onSource, onCorrect }) {
