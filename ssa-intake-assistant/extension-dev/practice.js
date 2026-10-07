@@ -6,8 +6,13 @@ const root = document.getElementById('practice');
 for (const mapping of mappings) {
   const label = document.createElement('label');
   label.textContent = mapping.label;
-  const input = document.createElement('input');
-  input.type = 'text'; input.autocomplete = 'off'; input.dataset.practiceField = mapping.target;
+  const input = document.createElement(mapping.type === 'boolean' ? 'select' : 'input');
+  if (mapping.type === 'boolean') {
+    for (const [value, text] of [['','Select an answer'],['yes','Yes'],['no','No']]) {
+      const option = document.createElement('option'); option.value = value; option.textContent = text; input.append(option);
+    }
+  } else input.type = 'text';
+  input.autocomplete = 'off'; input.dataset.practiceField = mapping.target;
   label.append(input); root.append(label);
 }
 const results = document.getElementById('results');
@@ -28,7 +33,7 @@ function clear() {
   document.getElementById('fill').textContent = 'Fill synthetic answers';
 }
 function clearAnswers() {
-  root.querySelectorAll('input').forEach(input => { input.value = ''; });
+  root.querySelectorAll('input,select').forEach(input => { input.value = ''; });
   results.replaceChildren(); status.textContent = 'Practice cleared. Nothing saved.';
 }
 document.getElementById('receive').addEventListener('click', () => {

@@ -8,6 +8,6 @@ p { line-height: 1.5; }
 button, a { padding: 10px 16px; color: white; background: #326c4e; border: 0; border-radius: 6px; cursor: pointer; display: inline-block; }
 #practice { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
-input { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid #aac6b7; border-radius: 5px; font: inherit; }
+input, select { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid #aac6b7; border-radius: 5px; font: inherit; background: white; }
 li { margin: 5px 0; font-size: .9rem; }
 @media (max-width: 550px) { #practice { grid-template-columns: 1fr; } main { padding: 14px; } }

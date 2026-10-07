@@ -16,7 +16,7 @@ export function projectReady(profile) {
     const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId);
     if (matches.length !== 1) continue;
     const field = matches[0];
-    if (field.recordId != null || field.id !== mapping.definitionId || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.dataType !== mapping.type || typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500) continue;
+    if (field.recordId != null || field.id !== mapping.definitionId || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean' : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)) continue;
     fields.push({ id: field.id, definitionId: field.definitionId, recordId: null, dataType: field.dataType, value: field.value, precision: ['day','month'].includes(field.precision) ? field.precision : null, readiness: 'ready', blockingReasons: [] });
   }
   return { schema: profile.schema, schemaVersion, fields };

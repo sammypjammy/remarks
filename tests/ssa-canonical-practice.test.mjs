@@ -16,7 +16,7 @@ test('canonical Checker data projects only exact ready practice questions', () =
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
   assert.equal(profile.schemaVersion, '3.0.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 15);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 32);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -88,4 +88,79 @@ test('birthplace and mailing address retain separate exact Checker values withou
   const mailingState = data.fields.find(field => field.definitionId === 'address.mailing-address-state');
   data.fields.push({ ...mailingState });
   assert(!canonicalPracticeProfile(data).fields.some(field => field.id === mailingState.definitionId));
+});
+
+test('physical address fields use only physical sources and never borrow mailing values', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Physical Address - Street Address:** Synthetic', '**Physical Address - Street Address:** 456 Fictional Avenue')
+    .replace('**Physical Address - City:** Synthetic', '**Physical Address - City:** Another City');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  const physicalIds = ['address.physical-address-street-address', 'address.physical-address-street-address-2',
+    'address.physical-address-city', 'address.physical-address-state', 'address.physical-address-zipcode'];
+  const profile = canonicalPracticeProfile(data);
+  for (const id of physicalIds) {
+    const source = data.fields.find(field => field.definitionId === id);
+    const transferred = profile.fields.find(field => field.id === id);
+    assert(transferred, id);
+    assert.equal(transferred.value, source.value);
+  }
+  assert.notEqual(profile.fields.find(field => field.id === 'address.physical-address-city').value,
+    profile.fields.find(field => field.id === 'address.mailing-address-city').value);
+  const street = data.fields.find(field => field.definitionId === physicalIds[0]);
+  street.valueStatus = 'missing'; street.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === street.definitionId));
+  assert(canonicalPracticeProfile(data).fields.some(field => field.id === 'address.mailing-address-street-address'));
+  const line2 = data.fields.find(field => field.definitionId === physicalIds[1]);
+  line2.valueStatus = 'conflict'; line2.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === line2.definitionId));
+});
+
+test('remaining personal details use exact singleton IDs and blocked values do not transfer', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Alternate Phone:** 202-555-0142', '**Alternate Phone:** 202-555-0143')
+    .replace('**Secondary Phone:** 202-555-0142', '**Secondary Phone:** 202-555-0144');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  const ids = ['personal.gender','personal.social-security-number','personal.suffix',
+    'personal.nickname','personal.alternate-phone','personal.secondary-phone'];
+  const profile = canonicalPracticeProfile(data);
+  for (const id of ids) {
+    const source = data.fields.find(field => field.definitionId === id);
+    assert.equal(profile.fields.find(field => field.id === id)?.value, source.value, id);
+  }
+  assert.notEqual(profile.fields.find(field => field.id === 'personal.alternate-phone').value,
+    profile.fields.find(field => field.id === 'personal.secondary-phone').value);
+  const ssn = data.fields.find(field => field.definitionId === 'personal.social-security-number');
+  ssn.valueStatus = 'missing'; ssn.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === ssn.definitionId));
+  assert(data.fields.some(field => field.definitionId === 'spouse.social-security-number'),
+    'a spouse SSN exists but cannot replace the client SSN');
+  const alternate = data.fields.find(field => field.definitionId === 'personal.alternate-phone');
+  alternate.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === alternate.definitionId));
+  const nickname = data.fields.find(field => field.definitionId === 'personal.nickname');
+  data.fields.push({ ...nickname });
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === nickname.definitionId));
+});
+
+test('language answers preserve real booleans including No and leave unknown answers blocked', () => {
+  const data = canonical(), profile = canonicalPracticeProfile(data);
+  const ids = ['language.preferred-language','language.can-speak-and-understand-english',
+    'language.can-read-simple-english-messages','language.can-write-simple-english-messages',
+    'language.can-read-simple-messages-in-preferred-language',
+    'language.can-write-simple-messages-in-preferred-language'];
+  for (const id of ids) {
+    const source = data.fields.find(field => field.definitionId === id);
+    assert.equal(profile.fields.find(field => field.id === id)?.value, source.value, id);
+  }
+  assert.equal(profile.fields.find(field => field.id === ids[1]).value, false);
+  const unreadable = data.fields.find(field => field.definitionId === ids[2]);
+  unreadable.valueStatus = 'ambiguous'; unreadable.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === unreadable.definitionId));
+  const writing = data.fields.find(field => field.definitionId === ids[3]);
+  writing.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === writing.definitionId));
+  const speaking = data.fields.find(field => field.definitionId === ids[1]);
+  speaking.value = 'No';
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === speaking.definitionId),
+    'a string is never coerced into a boolean');
 });

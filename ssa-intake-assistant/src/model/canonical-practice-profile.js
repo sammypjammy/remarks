@@ -17,8 +17,9 @@ export function canonicalPracticeProfile(data) {
     if (candidates.length !== 1) continue;
     const field = candidates[0];
     if (!field.supported || field.recordId !== null || field.dataType !== mapping.type
-        || field.valueStatus !== 'value' || typeof field.value !== 'string'
-        || !field.value.trim() || field.value.length > 500
+        || field.valueStatus !== 'value'
+        || (mapping.type === 'boolean' ? typeof field.value !== 'boolean'
+          : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)
         || field.validation?.hasErrors !== false || !Array.isArray(field.validation?.unresolvedIssueIds)
         || field.validation.unresolvedIssueIds.length
         || (mapping.type === 'date' && (field.precision !== 'day' && field.precision !== 'month'

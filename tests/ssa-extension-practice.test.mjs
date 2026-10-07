@@ -13,17 +13,36 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && !d.record));
   const plan = planPractice(fromIntakeChecker(createIntakeSession(parseIntake(completeSyntheticIntake()))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 15);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 32);
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
 });
-test('synthetic practice fills thirteen answers and pauses on missing, partial and unsupported answers', () => {
+test('synthetic practice fills thirty answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 13);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 30);
   assert.equal(plan.find(item => item.target === 'birth-city').value, 'Example City');
   assert.equal(plan.find(item => item.target === 'mailing-city').value, 'Sample City');
+  assert.equal(plan.find(item => item.target === 'physical-city').value, 'Another City');
+  assert.equal(plan.find(item => item.target === 'ssn').value, '000-12-3456');
+  assert.equal(plan.find(item => item.target === 'alternate-phone').value, '202-555-0143');
+  assert.equal(plan.find(item => item.target === 'secondary-phone').value, '202-555-0144');
+  assert.equal(plan.find(item => item.target === 'speak-english').value, true);
+  assert.equal(plan.find(item => item.target === 'read-english').value, false);
   assert.equal(plan.find(item => item.target === 'onset').value, '2020-03');
   assert.equal(plan.find(item => item.target === 'last-worked').status, 'pause');
   assert.equal(JSON.stringify(p), before);
+});
+test('boolean practice answers fill only exact empty Yes/No selects and preserve employee choices', () => {
+  const select = { tagName:'SELECT', value:'', disabled:false,
+    options:[{value:''},{value:'yes'},{value:'no'}] };
+  const root = { dataset:{practice:'packard-synthetic-v1'}, querySelectorAll:selector =>
+    selector.includes('read-english') ? [select] : [] };
+  assert.equal(fillPractice(syntheticProfile(), root).find(item => item.target === 'read-english').status, 'filled');
+  assert.equal(select.value, 'no');
+  select.value = 'yes';
+  assert.equal(fillPractice(syntheticProfile(), root).find(item => item.target === 'read-english').status, 'pause');
+  assert.equal(select.value, 'yes');
+  select.value = ''; select.options[2].value = 'other';
+  assert.equal(fillPractice(syntheticProfile(), root).find(item => item.target === 'read-english').status, 'pause');
 });
 test('ignoring a Checker error hides a task but cannot authorize filling an invalid answer', () => {
   const session = createIntakeSession(parseIntake('PERSONAL INFORMATION\nFirst Name: 123'));
