@@ -1,11 +1,11 @@
 import { PDFDocument } from 'pdf-lib';
 
-// Inclusive, one-based page ranges. Change this list to update every output.
-export const SPLITS = Object.freeze([
-  Object.freeze({ label: 'Pages 1–4', suffix: 'pages-1-4', start: 1, end: 4 }),
-  Object.freeze({ label: 'Pages 5–7', suffix: 'pages-5-7', start: 5, end: 7 }),
-  Object.freeze({ label: 'Page 10', suffix: 'page-10', start: 10, end: 10 }),
-  Object.freeze({ label: 'Page 11', suffix: 'page-11', start: 11, end: 11 })
+// Inclusive, one-based pages. This is the single source of truth for the preset.
+export const INTAKE_CONTRACT_PIECES = Object.freeze([
+  Object.freeze({ name: '1696', selection: '1-4' }),
+  Object.freeze({ name: '1693', selection: '5-7' }),
+  Object.freeze({ name: '3288', selection: '10' }),
+  Object.freeze({ name: '827', selection: '11' })
 ]);
 
 export function parsePageSelection(value) {
@@ -25,19 +25,21 @@ export function parsePageSelection(value) {
   return pages;
 }
 
-export function makeSplits(selections) {
-  return selections.map((selection, index) => {
+export function makeSplits(pieces) {
+  return pieces.map((piece, index) => {
+    const { selection, name = '' } = typeof piece === 'string' ? { selection: piece } : piece;
     const pages = parsePageSelection(selection);
-    return { label: `Piece ${index + 1} · pages ${selection.trim()}`, selection: selection.trim(), pages };
+    const displayName = name.trim() || `Piece ${index + 1}`;
+    return { label: `${displayName} · pages ${selection.trim()}`, name: name.trim(), selection: selection.trim(), pages };
   });
 }
 
-export async function splitContract(bytes, splits = SPLITS) {
+export async function splitContract(bytes, splits = makeSplits(INTAKE_CONTRACT_PIECES)) {
   const source = await PDFDocument.load(bytes);
   const pageCount = source.getPageCount();
   const results = [];
   for (const range of splits) {
-    const selectedPages = range.pages || Array.from({ length: range.end - range.start + 1 }, (_, i) => range.start + i);
+    const selectedPages = range.pages;
     const missingPages = selectedPages.filter(page => page > pageCount);
     if (missingPages.length) {
       results.push({ range, missing: true, missingPages });

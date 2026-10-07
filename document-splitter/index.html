@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Splitter | Packard Toolkit</title>
+  <link rel="icon" type="image/png" href="../shared/favicon.png" />
+  <link rel="stylesheet" href="../shared/style.css" />
+  <link rel="stylesheet" href="../shared/footer.css" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-page="document-splitter">
+  <div data-app-header></div><div data-app-menu></div>
+  <main class="app-shell splitter-page">
+    <section class="page-intro"><h1>Document Splitter</h1><p class="subtitle">Choose a document type, then select one or more PDFs.</p></section>
+    <section class="splitter-setup panel" aria-labelledby="setupTitle">
+      <div class="splitter-setup-heading"><div><h2 id="setupTitle">Choose your pieces</h2><p id="setupDescription">Intake Contracts creates four ready-named PDFs.</p></div><label for="documentType">Document type <select id="documentType"><option value="intake">Intake Contracts</option><option value="other">Other</option></select></label></div>
+      <div id="otherControls" class="splitter-other-controls" hidden><label for="pieceCount">Number of pieces <select id="pieceCount" aria-label="Number of pieces"></select></label></div>
+      <div id="pieceFields" class="splitter-piece-fields"></div>
+      <p id="otherHint" class="splitter-hint" hidden>Example: <strong>1-4, 7, 10</strong> puts those pages together in one piece. Leave a piece name blank to use its page numbers. The same setup applies to every PDF.</p>
+      <p id="setupError" class="splitter-validation" role="alert" hidden></p>
+    </section>
+    <section class="splitter-upload panel" aria-label="Upload PDFs">
+      <label class="splitter-picker" for="documentFiles"><strong>Choose PDFs</strong><span>Select one or more files. Splitting starts automatically.</span></label>
+      <input id="documentFiles" type="file" accept="application/pdf,.pdf" multiple aria-describedby="privacyNote" />
+      <p id="privacyNote">Files stay in this browser tab. Nothing is uploaded or saved to an account.</p>
+    </section>
+    <section class="splitter-results" aria-labelledby="resultsTitle">
+      <div class="splitter-heading"><div><h2 id="resultsTitle">Generated documents</h2><p id="splitterStatus" role="status" aria-live="polite">Choose PDFs to begin.</p></div><button id="downloadAll" class="primary-btn" type="button" disabled>Download All (.zip)</button></div>
+      <div id="documentResults"></div>
+    </section>
+  </main>
+  <div data-app-footer data-app-version="Document Splitter v1.3.0"></div>
+  <script src="../shared/settings-storage.js"></script><script src="../shared/app-shell.js"></script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

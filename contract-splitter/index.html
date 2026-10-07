@@ -1,36 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Contract Splitter | Packard Toolkit</title>
-  <link rel="icon" type="image/png" href="../shared/favicon.png" />
-  <link rel="stylesheet" href="../shared/style.css" />
-  <link rel="stylesheet" href="../shared/footer.css" />
-  <link rel="stylesheet" href="./styles.css" />
+  <title>Document Splitter | Packard Toolkit</title>
+  <script>location.replace('../document-splitter/' + location.search + location.hash);</script>
 </head>
-<body data-page="contract-splitter">
-  <div data-app-header></div><div data-app-menu></div>
-  <main class="app-shell splitter-page">
-    <section class="page-intro"><h1>Contract Splitter</h1><p class="subtitle">Choose the pieces you need, then select your contract PDFs.</p></section>
-    <section class="splitter-setup panel" aria-labelledby="setupTitle">
-      <div class="splitter-setup-heading"><div><h2 id="setupTitle">Choose your pieces</h2><p>Enter page numbers or ranges for each PDF you want to make.</p></div><label for="pieceCount">Number of pieces <select id="pieceCount" aria-label="Number of pieces"></select></label></div>
-      <div id="pieceFields" class="splitter-piece-fields"></div>
-      <p class="splitter-hint">Example: <strong>1-4, 7, 10</strong> puts those pages together in one piece. The same setup applies to every contract.</p>
-      <p id="setupError" class="splitter-validation" role="alert" hidden></p>
-    </section>
-    <section class="splitter-upload panel" aria-label="Upload contracts">
-      <label class="splitter-picker" for="contractFiles"><strong>Choose PDF contracts</strong><span>Select one or more files. Splitting starts automatically.</span></label>
-      <input id="contractFiles" type="file" accept="application/pdf,.pdf" multiple aria-describedby="privacyNote" />
-      <p id="privacyNote">Files stay in this browser tab. Nothing is uploaded or saved to an account.</p>
-    </section>
-    <section class="splitter-results" aria-labelledby="resultsTitle">
-      <div class="splitter-heading"><div><h2 id="resultsTitle">Generated documents</h2><p id="splitterStatus" role="status" aria-live="polite">Choose contracts to begin.</p></div><button id="downloadAll" class="primary-btn" type="button" disabled>Download All (.zip)</button></div>
-      <div id="contractResults"></div>
-    </section>
-  </main>
-  <div data-app-footer data-app-version="Contract Splitter v1.2.0"></div>
-  <script src="../shared/settings-storage.js"></script><script src="../shared/app-shell.js"></script>
-  <script type="module" src="./main.js"></script>
-</body>
+<body><p>Document Splitter has moved. <a href="../document-splitter/">Open Document Splitter</a>.</p></body>
 </html>

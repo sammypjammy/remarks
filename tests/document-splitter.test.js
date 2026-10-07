@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PDFDocument } from 'pdf-lib';
 import { unzipSync, zipSync } from 'fflate';
-import { splitContract, SPLITS, makeSplits, parsePageSelection } from '../contract-splitter/splits.js';
-import { documentName, uniqueDocumentName } from '../contract-splitter/names.js';
+import { splitContract, INTAKE_CONTRACT_PIECES, makeSplits, parsePageSelection } from '../document-splitter/splits.js';
+import { documentName, uniqueDocumentName } from '../document-splitter/names.js';
 
 async function fixture(count) {
   const pdf = await PDFDocument.create();
@@ -20,14 +20,14 @@ test('all four outputs preserve the exact source pages', async () => {
   for (const { range, bytes, missing } of results) {
     assert.equal(missing, undefined);
     const output = await PDFDocument.load(bytes);
-    assert.equal(output.getPageCount(), range.end - range.start + 1);
+    assert.equal(output.getPageCount(), range.pages.length);
     output.getPages().forEach((page, index) => {
-      assert.equal(page.getWidth(), 200 + range.start + index);
-      assert.equal(page.getHeight(), 300 + range.start + index);
+      assert.equal(page.getWidth(), 200 + range.pages[index]);
+      assert.equal(page.getHeight(), 300 + range.pages[index]);
     });
   }
   const zipped = unzipSync(zipSync(Object.fromEntries(results.map((item, i) => [`${i}.pdf`, item.bytes]))));
-  assert.equal(Object.keys(zipped).length, SPLITS.length);
+  assert.equal(Object.keys(zipped).length, INTAKE_CONTRACT_PIECES.length);
   for (const bytes of Object.values(zipped)) await PDFDocument.load(bytes);
 });
 
@@ -67,7 +67,25 @@ test('downloads use the source name and selected pages without collisions', () =
   assert.equal(documentName('DocumentName.pdf', '1-4'), 'DocumentName 1-4.pdf');
   assert.equal(documentName('DocumentName.pdf', '10'), 'DocumentName 10.pdf');
   assert.equal(documentName('DocumentName.pdf', '1 - 4,7, 10'), 'DocumentName 1-4, 7, 10.pdf');
+  assert.equal(documentName('DocumentName.pdf', '1-4', '1696'), 'DocumentName 1696.pdf');
+  assert.equal(documentName('DocumentName.pdf', '1-4', 'Medical/Records'), 'DocumentName Medical_Records.pdf');
   const used = new Set();
   assert.equal(uniqueDocumentName('DocumentName 1-4.pdf', used), 'DocumentName 1-4.pdf');
   assert.equal(uniqueDocumentName('DocumentName 1-4.pdf', used), 'DocumentName 1-4 (2).pdf');
+});
+
+test('Intake Contracts preset maps each page selection to its output name', async () => {
+  const expected = [
+    ['1-4', '1696'], ['5-7', '1693'], ['10', '3288'], ['11', '827']
+  ];
+  assert.deepEqual(INTAKE_CONTRACT_PIECES.map(({ selection, name }) => [selection, name]), expected);
+  const { results } = await splitContract(await fixture(11), makeSplits(INTAKE_CONTRACT_PIECES));
+  assert.deepEqual(results.map(({ range }) => documentName('Client.pdf', range.selection, range.name)),
+    ['Client 1696.pdf', 'Client 1693.pdf', 'Client 3288.pdf', 'Client 827.pdf']);
+});
+
+test('Other pieces can use distinct names or fall back to page selections', () => {
+  const ranges = makeSplits([{ selection: '2-3', name: 'First' }, { selection: '8', name: '' }]);
+  assert.equal(documentName('File.pdf', ranges[0].selection, ranges[0].name), 'File First.pdf');
+  assert.equal(documentName('File.pdf', ranges[1].selection, ranges[1].name), 'File 8.pdf');
 });

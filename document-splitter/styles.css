@@ -4,24 +4,33 @@
 .splitter-setup h2 { color: var(--text); font-size: 1.15rem; }
 .splitter-setup-heading p, .splitter-hint { margin-top: 5px; color: var(--muted); font-size: .88rem; line-height: 1.5; }
 .splitter-setup-heading label { display: grid; gap: 6px; color: var(--text); font-size: .85rem; font-weight: 700; white-space: nowrap; }
-#pieceCount, .splitter-piece input { min-height: 42px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-inset); color: var(--text); padding: 9px 12px; }
+#documentType, #pieceCount, .splitter-piece input { min-height: 42px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-inset); color: var(--text); padding: 9px 12px; }
+#documentType { min-width: 180px; }
 #pieceCount { min-width: 100px; }
+.splitter-other-controls { display: flex; justify-content: flex-end; margin-top: 18px; }
+.splitter-other-controls[hidden] { display: none; }
+.splitter-other-controls label { display: grid; gap: 6px; color: var(--text); font-size: .85rem; font-weight: 700; }
 .splitter-piece-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
-.splitter-piece { display: grid; gap: 6px; min-width: 0; color: var(--text); font-size: .87rem; font-weight: 700; }
+.splitter-piece { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--panel-alt); color: var(--text); font-size: .87rem; }
+.splitter-piece strong { font-size: .94rem; }
+.splitter-piece label { display: grid; gap: 5px; font-weight: 700; }
 .splitter-piece input { width: 100%; font-weight: 400; }
+.splitter-preset-piece { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 17px 18px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--panel-alt); color: var(--text); }
+.splitter-preset-piece strong { font-size: 1rem; }
+.splitter-preset-piece span { color: var(--muted); font-size: .88rem; }
 .splitter-hint { margin-top: 14px; }
 .splitter-validation { margin-top: 12px; color: var(--danger); font-size: .87rem; }
 .splitter-upload { margin-top: 24px; padding: 24px; }
 .splitter-picker { display: grid; gap: 4px; color: var(--text); }
 .splitter-picker strong { font-size: 1rem; }
 .splitter-picker span, #privacyNote { color: var(--muted); font-size: .88rem; line-height: 1.5; }
-#contractFiles { display: block; width: 100%; margin: 16px 0 10px; color: var(--text); }
-#contractFiles::file-selector-button { margin-right: 14px; padding: 10px 14px; border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 700; cursor: pointer; }
+#documentFiles { display: block; width: 100%; margin: 16px 0 10px; color: var(--text); }
+#documentFiles::file-selector-button { margin-right: 14px; padding: 10px 14px; border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 700; cursor: pointer; }
 .splitter-results { margin-top: 30px; }
 .splitter-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .splitter-heading h2 { color: var(--text); font-size: 1.25rem; }
 .splitter-heading p { margin-top: 5px; font-size: .88rem; }
-#contractResults { display: grid; gap: 14px; }
+#documentResults { display: grid; gap: 14px; }
 .splitter-contract { padding: 20px 24px; min-width: 0; }
 .splitter-contract-heading { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .splitter-contract h3 { color: var(--text); overflow-wrap: anywhere; }

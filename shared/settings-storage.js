@@ -41,7 +41,7 @@
     Object.freeze({ id: "fax", label: "Fax Sender", path: "fax-sender/" }),
     Object.freeze({ id: "intake", label: "Intake Checker", path: "intake-checker/" }),
     Object.freeze({ id: "ssa-intake", label: "SSA Intake Assistant", path: "ssa-intake-assistant/" }),
-    Object.freeze({ id: "contract-splitter", label: "Contract Splitter", path: "contract-splitter/" })
+    Object.freeze({ id: "contract-splitter", label: "Document Splitter", path: "document-splitter/" })
   ]);
   const HOMEPAGE_VERSION = 1;
   const NAVIGATION_SECTIONS = Object.freeze([

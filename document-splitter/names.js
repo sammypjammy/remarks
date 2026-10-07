@@ -1,7 +1,8 @@
-export function documentName(sourceName, selection) {
-  const base = sourceName.replace(/\.pdf$/i, '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'contract';
+export function documentName(sourceName, selection, pieceName = '') {
+  const base = sourceName.replace(/\.pdf$/i, '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'document';
   const pages = selection.replace(/\s*-\s*/g, '-').replace(/\s*,\s*/g, ', ').trim();
-  return `${base} ${pages}.pdf`;
+  const suffix = pieceName.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || pages;
+  return `${base} ${suffix}.pdf`;
 }
 
 export function uniqueDocumentName(name, used) {
