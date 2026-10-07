@@ -90,7 +90,9 @@ Pay Frequency: Monthly`;
   const jobs = data.scopes.filter(scope => scope.recordTypes.includes('jobs'));
   assert.equal(jobs.length, 2);
   assert(jobs.every(scope => scope.parsed && scope.source && scope.fieldIds.length));
-  const mapped = ['jobs.employer', 'jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode', 'jobs.start-date', 'jobs.end-date'];
+  const mapped = ['jobs.job-title', 'jobs.employer', 'jobs.business-type', 'jobs.address', 'jobs.city', 'jobs.state',
+    'jobs.zipcode', 'jobs.hours-per-day', 'jobs.days-per-week', 'jobs.rate-of-pay', 'jobs.pay-frequency',
+    'jobs.start-date', 'jobs.end-date'];
   for (const definitionId of mapped) {
     const matches = data.fields.filter(item => item.definitionId === definitionId);
     assert.equal(matches.length, 2, definitionId);

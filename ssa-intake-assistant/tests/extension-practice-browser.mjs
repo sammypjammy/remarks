@@ -49,8 +49,11 @@ try {
     assert(await evaluate("document.getElementById('fill').disabled && document.getElementById('demo').textContent.includes('not your intake')"));
     const start=network.length;
     await evaluate("document.getElementById('demo').click()");
-    assert(await evaluate("document.getElementById('status').textContent.startsWith('57 filled; 12 paused')"));
+    assert(await evaluate("document.getElementById('status').textContent.startsWith('63 filled; 12 paused')"));
     assert(await evaluate("document.querySelectorAll('[data-employment-record]').length===1"));
+    assert(await evaluate("document.querySelectorAll('[data-employment-record=job-1] [data-practice-field]').length===19"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-job-title]').value==='Example Job Title' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-business-type]').value==='Example Business Type'"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-hours-per-day]').value==='8' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-days-per-week]').value==='5' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-rate-of-pay]').value==='$20.00' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-pay-frequency]').value==='Weekly'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value==='Example Company'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-month]').value==='01' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-year]').value==='2010'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-end-month]').value==='06' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-end-year]').value==='2015'"));
@@ -91,7 +94,7 @@ try {
         readiness:'ready',blockingReasons:[]
       });
       const profile={
-        schema:'packard.intake-client-profile',schemaVersion:'3.2.0',
+        schema:'packard.intake-client-profile',schemaVersion:'3.3.0',
         priorSpouseRecords:records,
         jobRecords:['job-1','job-2'],
         fields:[
@@ -103,9 +106,17 @@ try {
           field('priorSpouses.first-name',records[1],'Former Two'),
           field('priorSpouses.prior-spouse-died-since-marriage-ended',records[1],'No'),
           field('jobs.employer','job-1','Synthetic Recent Employer'),
+          field('jobs.job-title','job-1','Synthetic Recent Title'),
+          field('jobs.business-type','job-1','Synthetic Recent Business'),
+          field('jobs.hours-per-day','job-1','8'),
+          field('jobs.days-per-week','job-1','5'),
+          field('jobs.rate-of-pay','job-1','$20.00'),
+          field('jobs.pay-frequency','job-1','Weekly'),
           field('jobs.start-date','job-1','2010-01-02','date','day'),
           field('jobs.end-date','job-1','2015-06-07','date','day'),
           field('jobs.employer','job-2','Synthetic Previous Employer'),
+          field('jobs.job-title','job-2','Synthetic Previous Title'),
+          field('jobs.business-type','job-2','Synthetic Previous Business'),
           field('jobs.city','job-2','Example Previous City'),
           field('jobs.start-date','job-2','2010-01','date','month')
         ]
@@ -123,7 +134,12 @@ try {
     assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-spouse-died]').value==='Unknown' && document.querySelector('[data-prior-record=prior-spouse-2] [data-practice-field=prior-spouse-died]').value==='No'"));
     assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-marriage-date]').value==='2001-02-03'"));
     assert(await evaluate("document.querySelectorAll('[data-employment-record]').length===2"));
+    assert(await evaluate("[...document.querySelectorAll('[data-employment-record]')].every(section=>section.querySelectorAll('[data-practice-field]').length===19)"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value==='Synthetic Recent Employer' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-employer]').value==='Synthetic Previous Employer'"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-job-title]').value==='Synthetic Recent Title' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-job-title]').value==='Synthetic Previous Title'"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-business-type]').value==='Synthetic Recent Business' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-business-type]').value==='Synthetic Previous Business'"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-hours-per-day]').value==='8' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-days-per-week]').value==='5' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-rate-of-pay]').value==='$20.00' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-pay-frequency]').value==='Weekly'"));
+    assert(await evaluate("document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-hours-per-day]').nextElementSibling.textContent==='Not provided' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-pay-frequency]').nextElementSibling.textContent==='Not provided'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-month]').value==='01' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-year]').value==='2010'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-city]').value==='Example Previous City' && document.querySelector('[data-employment-record=job-2] [data-practice-placeholder=employment-start-month]').value==='' && document.querySelector('[data-employment-record=job-2] [data-practice-placeholder=employment-start-year]').value===''"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-2025]').value==='' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-not-ended]').value===''"));

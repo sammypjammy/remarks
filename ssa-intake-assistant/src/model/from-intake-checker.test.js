@@ -33,9 +33,9 @@ test('catalog covers every existing fixed parser label, all 138 meanings and the
 test('contract version and IDs are stable across values, rechecking and unrelated section order', () => {
   const a = profile('PERSONAL INFORMATION\nFirst Name: Synthetic\nWORK HISTORY\nMost Recent Job\nStart Date: 2000-01-01');
   const b = profile('WORK HISTORY\nMost Recent Job\nStart Date: 2001-02-03\nPERSONAL INFORMATION\nFirst Name: Edited');
-  assert.equal(PROFILE_SCHEMA_VERSION, '3.2.0');
+  assert.equal(PROFILE_SCHEMA_VERSION, '3.3.0');
   assert.equal(a.schema, 'packard.intake-client-profile');
-  assert.equal(a.schemaVersion, '3.2.0');
+  assert.equal(a.schemaVersion, '3.3.0');
   assert(field(a, 'personal.first-name'));
   assert(field(b, 'personal.first-name'));
   assert(field(a, 'jobs.start-date@jobs-1'));

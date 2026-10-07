@@ -18,9 +18,9 @@ test('canonical Checker data projects only exact ready practice questions', () =
     .concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
-  assert.equal(profile.schemaVersion, '3.2.0');
+  assert.equal(profile.schemaVersion, '3.3.0');
   assert.deepEqual(profile.jobRecords, ['job-1']);
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 58);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 64);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -80,7 +80,7 @@ test('employment appears only for actual jobs and each exact ready record maps i
   assert(!noJobsProfile.fields.some(field => field.definitionId.startsWith('jobs.')));
   assert(!planPractice(noJobsProfile).some(item => item.recordCategory === 'jobs'));
 
-  const multipleJobsInput = completeSyntheticIntake().replace('\n## CHILDREN INFORMATION', `
+  const multipleJobsInput = completeSyntheticIntake().replace('**Job Title:** Synthetic', '**Job Title:** Fictional Recent Title').replace('\n## CHILDREN INFORMATION', `
 Previous Job
 Job Title: Synthetic
 Employer: Fictional Previous Company
@@ -107,13 +107,22 @@ First Name: Fictional Former
   data.reviewItems.forEach(item => { item.reviewed = true; });
   const profile = canonicalPracticeProfile(data);
   assert.deepEqual(profile.jobRecords, ['job-1', 'job-2']);
+  assert.equal(profile.fields.find(field => field.id === 'jobs.job-title@job-1')?.value, 'Fictional Recent Title');
+  assert.equal(profile.fields.find(field => field.id === 'jobs.job-title@job-2')?.value, 'Synthetic');
   assert.equal(profile.fields.find(field => field.id === 'jobs.employer@job-1')?.value, 'Synthetic');
   assert.equal(profile.fields.find(field => field.id === 'jobs.employer@job-2')?.value, 'Fictional Previous Company');
   assert.equal(profile.fields.find(field => field.id === 'jobs.start-date@job-2')?.value, '2001-02-03');
   assert.equal(profile.fields.find(field => field.id === 'jobs.end-date@job-2')?.value, '2009-12-31');
   assert.equal(planPractice(profile).find(item => item.target === 'employment-start-date' && item.recordId === 'job-2').value, '2001-02-03');
   assert.deepEqual(projectReady(profile).jobRecords, profile.jobRecords);
-  assert.equal(projectReady(profile).fields.filter(field => field.recordId === 'job-1' || field.recordId === 'job-2').length, 14);
+  assert.equal(projectReady(profile).fields.filter(field => field.recordId === 'job-1' || field.recordId === 'job-2').length, 26);
+  for (const [definitionId, value] of [
+    ['jobs.job-title', 'Synthetic'], ['jobs.business-type', 'Example'], ['jobs.hours-per-day', '8'],
+    ['jobs.days-per-week', '5'], ['jobs.rate-of-pay', '$10.00'], ['jobs.pay-frequency', 'Monthly'],
+  ]) {
+    assert.equal(profile.fields.find(field => field.definitionId === definitionId && field.recordId === 'job-2')?.value, value);
+    assert.equal(planPractice(profile).find(item => item.definitionId === definitionId && item.recordId === 'job-2')?.value, value);
+  }
   assert(profile.fields.some(field => field.id === 'spouse.first-name@current-spouse'));
   assert(profile.fields.some(field => field.id === 'children.first-name@child-1'));
   assert(profile.fields.some(field => field.id.startsWith('priorSpouses.first-name@prior-spouse-1')));
@@ -151,6 +160,36 @@ test('employment fields reject missing, invalid, ambiguous, conflicting, unresol
   const invalidField = invalidData.fields.find(item => item.definitionId === 'jobs.start-date');
   assert.equal(invalidField.valueStatus, 'invalid');
   assert(!canonicalPracticeProfile(invalidData).fields.some(item => item.id === 'jobs.start-date@job-1'));
+});
+
+test('all added job fields reject non-ready Checker values and preserve valid corrections', () => {
+  const added = ['jobs.job-title', 'jobs.business-type', 'jobs.hours-per-day', 'jobs.days-per-week',
+    'jobs.rate-of-pay', 'jobs.pay-frequency'];
+  for (const definitionId of added) {
+    for (const valueStatus of ['missing', 'invalid', 'ambiguous', 'conflict']) {
+      const data = canonical();
+      const field = data.fields.find(item => item.definitionId === definitionId);
+      field.valueStatus = valueStatus;
+      field.value = null;
+      assert(!canonicalPracticeProfile(data).fields.some(item =>
+        item.definitionId === definitionId && item.recordId === 'job-1'), `${definitionId}: ${valueStatus}`);
+    }
+  }
+
+  const session = createIntakeSession(parseIntake(completeSyntheticIntake()));
+  const data = createClientData(session);
+  const title = data.fields.find(item => item.definitionId === 'jobs.job-title');
+  const scope = data.scopes.find(item => item.id === title.scopeId);
+  assert(correctIntakeField(session, {
+    nodePath: scope.nodePath, section: 'WORK HISTORY', label: 'Job Title', range: title.occurrences[0].source,
+  }, 'Corrected Synthetic Title'));
+  const correctedData = createClientData(session);
+  const correctedField = correctedData.fields.find(item => item.definitionId === 'jobs.job-title');
+  assert.equal(correctedField.occurrences[0].originalValue, 'Synthetic');
+  assert.equal(correctedField.occurrences[0].currentValue, 'Corrected Synthetic Title');
+  assert.equal(correctedField.origin, 'employee_entered');
+  assert.equal(canonicalPracticeProfile(correctedData).fields.find(item =>
+    item.definitionId === 'jobs.job-title' && item.recordId === 'job-1')?.value, 'Corrected Synthetic Title');
 });
 
 test('valid employee corrections to employment fields stay in memory and enter only the exact job handoff', () => {

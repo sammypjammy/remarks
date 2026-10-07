@@ -23,7 +23,7 @@ function harness() {
 test('projection sends only mapped ready values with no source, review, credentials or unknown fields',()=>{
   const p=syntheticProfile();p.credentials='synthetic-secret';p.fields[0].sources=[{rawValue:'synthetic source'}];p.fields[0].employeeReview={edits:[]};
   const projected=projectReady(p);
-  assert.equal(projected.fields.length,58);assert.deepEqual(projected.jobRecords,['job-1']);assert(!JSON.stringify(projected).includes('synthetic-secret'));assert(!JSON.stringify(projected).includes('sources'));
+  assert.equal(projected.fields.length,64);assert.deepEqual(projected.jobRecords,['job-1']);assert(!JSON.stringify(projected).includes('synthetic-secret'));assert(!JSON.stringify(projected).includes('sources'));
   assert.equal(projected.fields.find(field=>field.id==='jobs.employer@job-1').value,'Example Company');
   assert.equal(projected.fields.find(field=>field.id==='language.can-read-simple-english-messages').value,false);
   p.fields[0].readiness='blocked';assert(!projectReady(p).fields.some(f=>f.id==='personal.first-name'));

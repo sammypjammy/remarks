@@ -1,6 +1,6 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.16.0.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.17.0.
 
 ## Coverage audit
 
@@ -8,7 +8,7 @@ The audit examined `parser.js`, `rules.js`, `formats.js`, `validation.js`, `revi
 
 There are **138 fixed field definitions across 22 categories**, plus an unbounded numbered medical-problem family. Seven repeating record types are vehicles, providers, medications, jobs, Current Spouse, Previous Spouse and children. Previous Spouse N records have their own supported field IDs and retain a record heading source even when individual values are absent. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 138.
 
-The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.2.0 SSA practice projection is not the canonical client-data schema. Only exact ready employment values and prior-spouse values are eligible for the synthetic practice extension; no live SSA interaction or automation is present.
+The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.3.0 SSA practice projection is not the canonical client-data schema. Exact ready work-history values are eligible for the synthetic practice extension; no live SSA interaction or automation is present.
 
 ## Object structure
 

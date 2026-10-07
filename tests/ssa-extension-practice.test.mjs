@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { mappings, planPractice, fillPractice, schemaVersion } from '../ssa-intake-assistant/extension-dev/mapping.js';
 import { syntheticProfile } from '../ssa-intake-assistant/extension-dev/synthetic.js';
-import { formSections } from '../ssa-intake-assistant/extension-dev/practice-layout.js';
+import { formSections, employmentRows } from '../ssa-intake-assistant/extension-dev/practice-layout.js';
 import { PROFILE_SCHEMA_VERSION, fieldDefinitions } from '../ssa-intake-assistant/src/model/intake-contract.js';
 import { parseIntake } from '../intake-checker/parser.js';
 import { createIntakeSession } from '../intake-checker/session.js';
@@ -16,10 +16,15 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && d.record === !!m.recordCategory));
   const plan = planPractice(canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 58);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 64);
   for (const target of ['other-middle-name', 'other-suffix']) assert.equal(plan.find(item => item.target === target).status, 'pause');
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
   assert.equal(plan.find(item => item.target === 'employment-employer' && item.recordId === 'job-1').value, 'Synthetic');
+  for (const [target, value] of [
+    ['employment-job-title', 'Synthetic'], ['employment-business-type', 'Synthetic'],
+    ['employment-hours-per-day', 'Synthetic'], ['employment-days-per-week', 'Synthetic'],
+    ['employment-rate-of-pay', '$10.00'], ['employment-pay-frequency', 'Synthetic'],
+  ]) assert.equal(plan.find(item => item.target === target && item.recordId === 'job-1').value, value);
   assert.equal(plan.find(item => item.target === 'employment-2025' && item.recordId === 'job-1').status, 'pause');
 });
 test('practice layout follows the supplied section order and leaves unsupported questions unmapped', () => {
@@ -37,10 +42,17 @@ test('practice layout follows the supplied section order and leaves unsupported 
   assert.equal(rows.find(row => row.target === 'applicant-blind').label, 'Answer from MEDICAL INFORMATION / BlindOrHaveLowVision');
   assert.equal(rows.find(row => row.target === 'gender').label, 'Answer from PERSONAL INFORMATION / Gender');
   assert.equal(rows.find(row => row.key === 'recent-sga').target, null);
+  assert.deepEqual(employmentRows.filter(row => row.target && [
+    'employment-job-title', 'employment-business-type', 'employment-hours-per-day',
+    'employment-days-per-week', 'employment-rate-of-pay', 'employment-pay-frequency',
+  ].includes(row.target)).map(row => row.target), [
+    'employment-job-title', 'employment-business-type', 'employment-hours-per-day',
+    'employment-days-per-week', 'employment-rate-of-pay', 'employment-pay-frequency',
+  ]);
 });
 test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 55);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 61);
   assert.equal(plan.find(item => item.target === 'applicant-blind').value, true);
   assert.equal(plan.find(item => item.target === 'current-spouse-first').value, 'Fictional');
   assert.equal(plan.find(item => item.target === 'other-first-name').value, 'Alternate');

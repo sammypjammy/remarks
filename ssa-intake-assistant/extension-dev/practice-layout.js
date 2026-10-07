@@ -30,11 +30,17 @@ export const formSections = Object.freeze([
   { title: 'Children', rows: [row('Child information — not mapped yet', null, 'children-not-mapped')] },
 ]);
 export const employmentRows = Object.freeze([
+  row('Job Title', 'employment-job-title'),
   row('Employer name', 'employment-employer'),
+  row('Business Type', 'employment-business-type'),
   row('Street Line 1', 'employment-street-line-1'),
   row('City/Town', 'employment-city'),
   row('State/Territory', 'employment-state'),
   row('ZIP Code', 'employment-zip'),
+  row('Hours per Day', 'employment-hours-per-day'),
+  row('Days per Week', 'employment-days-per-week'),
+  row('Rate of Pay', 'employment-rate-of-pay'),
+  row('Pay Frequency', 'employment-pay-frequency'),
   row('Start Date Month', null, 'employment-start-month'),
   row('Start Date Year', null, 'employment-start-year'),
   row('End Date Month', null, 'employment-end-month'),
