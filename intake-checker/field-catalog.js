@@ -2,7 +2,7 @@ import { intakeRules } from './rules.js';
 import { reviewFields } from './review-fields.js';
 
 // This catalog describes EXISTING labels; it does not change what the parser accepts.
-export const INTAKE_CHECKER_VERSION = '1.13.1';
+export const INTAKE_CHECKER_VERSION = '1.14.0';
 export const FIELD_TYPES = Object.freeze(['text', 'boolean', 'date']);
 const sectionIds = {
   'PERSONAL INFORMATION': 'personal', 'BIRTH INFORMATION': 'birth',

@@ -20,6 +20,7 @@ export function createClientDataView({ getSession, onLocate }) {
     for (const field of data.fields) {
       const row = document.createElement('tr');
       row.dataset.fieldId = field.id;
+      if (field.recordId) row.dataset.recordId = field.recordId;
       const scope = scopes.get(field.scopeId);
       const label = document.createElement('th'); label.scope = 'row';
       label.textContent = `${scope.title} / ${field.label}`;

@@ -116,6 +116,35 @@ test('repeating records, nested fields and each numbered medical source are loss
   assert.equal(field(data, 'vehicles.make').value, 'Synthetic');
 });
 
+test('plain child records preserve supported names, independent identity, sources and validation state', () => {
+  const text = `CHILDREN INFORMATION
+Child 1
+First Name: 123
+Last Name: Fictional One
+Child 2
+First Name: Synthetic Two
+Last Name: Example Two`;
+  const data = createClientData(session(text));
+  const firstNames = data.fields.filter(item => item.definitionId === 'children.first-name');
+  const lastNames = data.fields.filter(item => item.definitionId === 'children.last-name');
+  assert.equal(firstNames.length, 2);
+  assert.equal(lastNames.length, 2);
+  assert(firstNames.every(item => item.supported && item.valueStatus !== 'uninterpreted'));
+  assert(lastNames.every(item => item.supported && item.valueStatus !== 'uninterpreted'));
+  assert.notEqual(firstNames[0].recordId, firstNames[1].recordId);
+  assert.deepEqual(firstNames.map(item => item.value), [null, 'Synthetic Two']);
+  assert.equal(firstNames[0].valueStatus, 'invalid');
+  assert(firstNames[0].validation.hasErrors);
+  assert(firstNames[1].validation.hasErrors === false);
+  for (const item of [...firstNames, ...lastNames]) {
+    const occurrence = item.occurrences[0];
+    assert.equal(text.slice(occurrence.source.start, occurrence.source.end), `${item.label}: ${occurrence.currentValue}`);
+    assert.equal(item.recordId, data.scopes.find(scope => scope.id === item.scopeId).id);
+  }
+  assert.equal(data.coverage.unmappedFields, 0);
+  assert.equal(data.unparsed.length, 0);
+});
+
 test('all validation and review decisions remain intact and dismissals never change the underlying value', () => {
   const state = session('PERSONAL INFORMATION\nPhone Number: 123\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nMARRIAGE INFORMATION\nMarital Status: Separated\nFINANCIAL SUPPORT\nVeteran Benefits - Receive Veteran Benefits: Yes');
   state.report.issues.forEach(state.validationState.review);

@@ -131,13 +131,19 @@ export function validateIntake(intake, rules = intakeRules, { now = new Date() }
   for (const root of sections("MARRIAGE INFORMATION")) {
     const context = contextFor("MARRIAGE INFORMATION", root);
     const marriageFields = new Set([...spouse.required, ...spouse.optional]);
-    for (const entry of flatten(root.node.subsections, root.location)) {
+    const marriageEntries = flatten(root.node.subsections, root.location);
+    const previousSpouses = marriageEntries.filter(entry => spouse.unsupportedHeadings?.test(entry.node.title));
+    for (const entry of marriageEntries) {
+      if (previousSpouses.some(previous => entry.location === previous.location || entry.location.startsWith(previous.location + "/"))) continue;
       if (entry.node.fields.some(field => marriageFields.has(field.label)) && !values(entry.node, "Type of Marriage").length) {
         issue(contextFor("MARRIAGE INFORMATION", entry, true), "Type of Marriage", "Type of Marriage is required when marriage details are provided.");
       }
     }
+    const current = marriageEntries.filter(entry => spouse.heading.test(entry.node.title));
+    for (const entry of current.slice(1)) {
+      issue(contextFor("MARRIAGE INFORMATION", entry, true), null, "Only one Current Spouse record is supported.");
+    }
     if (single(root.node, "Marital Status", context) !== "Married") continue;
-    const current = flatten(root.node.subsections, root.location).filter(entry => spouse.heading.test(entry.node.title));
     if (!current.length) {
       issue({ ...context, record: "Current Spouse" }, null, "Current Spouse record is required when Marital Status is Married.");
     }

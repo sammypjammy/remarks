@@ -52,6 +52,30 @@ Example`);
   assert.equal(parsed.sections[5].subsections[0].title, "Current Spouse");
 });
 
+test("plain child and previous-spouse headings create separate structural records", () => {
+  const text = `CHILDREN INFORMATION
+Child 1
+First Name: Synthetic
+Last Name: One
+Child 2
+First Name: Fictional
+Last Name: Two
+MARRIAGE INFORMATION
+Marital Status: Married
+Current Spouse
+First Name: Current
+Previous Spouse
+First Name: Former`;
+  const parsed = parseIntake(text);
+  assert.deepEqual(parsed.sections[0].subsections.map(node => node.title), ["Child 1", "Child 2"]);
+  assert.deepEqual(parsed.sections[0].subsections.map(node => node.fields.map(field => field.value)), [
+    ["Synthetic", "One"], ["Fictional", "Two"]
+  ]);
+  assert.deepEqual(parsed.sections[1].subsections.map(node => node.title), ["Current Spouse", "Previous Spouse"]);
+  assert.deepEqual(parsed.sections[1].subsections.map(node => node.fields[0].value), ["Current", "Former"]);
+  assert.deepEqual(parsed.unparsed, []);
+});
+
 test("plain parsing does not promote arbitrary uppercase text, unknown labels, or unknown records", () => {
   const parsed = parseIntake("MEDICAL PROVIDERS\nClinic 1\nNotes:\nPLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7\nClinic Name: Example");
   assert.equal(parsed.sections.length, 1);

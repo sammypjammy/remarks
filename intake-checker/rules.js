@@ -42,11 +42,12 @@ export const intakeRules = {
     },
     spouse: {
       section: "MARRIAGE INFORMATION", heading: /^Current Spouse$/,
+      unsupportedHeadings: /^Previous Spouse(?: \d+)?$/,
       required: ["First Name", "Last Name", "Marriage Date", "Birth Country", "Birth City", "Birth State", "Age", "City of Marriage", "State of Marriage", "Type of Marriage"],
       optional: ["Maiden Name", "Social Security Number"]
     },
-    // No guessed child heading names: identify field-bearing records in CHILDREN INFORMATION.
-    children: { section: "CHILDREN INFORMATION", required: [], recognition: ["First Name", "Last Name"], allowEmptyRecords: true, otherFieldsOptional: true }
+    // Child N is an explicit plain-text heading; other headings are recognized only by their fields.
+    children: { section: "CHILDREN INFORMATION", heading: /^Child(?: \d+)?$/, required: [], recognition: ["First Name", "Last Name"], allowEmptyRecords: true, otherFieldsOptional: true }
   },
   personNameFields: {
     "PERSONAL INFORMATION": ["First Name", "Middle Name", "Last Name", "Suffix", "Nickname"],

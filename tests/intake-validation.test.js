@@ -154,6 +154,32 @@ test("Married requires current spouse details, with optional identity fields", (
   assert.equal(validateIntake(parseIntake(prefix)).deferred.length, 2);
 });
 
+test("previous spouse records do not trigger current-spouse duplicate or type requirements", () => {
+  const current = fields(intakeRules.records.spouse.required);
+  const previousOnly = `MARRIAGE INFORMATION
+Marital Status: Married
+Current Spouse
+${current}
+Previous Spouse
+First Name: Fictional Former
+Last Name: Example Former`;
+  const previousIssues = scoped(previousOnly, "MARRIAGE INFORMATION");
+  assert(!previousIssues.some(issue => /Current Spouse record|Only one Current Spouse/.test(issue.message)));
+  assert(!previousIssues.some(issue => issue.record === "Previous Spouse" && issue.field === "Type of Marriage"));
+
+  const formerOnly = scoped(`MARRIAGE INFORMATION
+Marital Status: Married
+Previous Spouse
+First Name: Fictional Former`, "MARRIAGE INFORMATION");
+  assert(formerOnly.some(issue => issue.message === "Current Spouse record is required when Marital Status is Married."));
+  assert(!formerOnly.some(issue => issue.message === "Only one Current Spouse record is supported."));
+
+  const duplicate = previousOnly + `\nCurrent Spouse\n${current}`;
+  const duplicateIssues = scoped(duplicate, "MARRIAGE INFORMATION").filter(issue => issue.message === "Only one Current Spouse record is supported.");
+  assert.equal(duplicateIssues.length, 1);
+  assert.equal(duplicateIssues[0].record, "Current Spouse");
+});
+
 test("blank marital status alone is optional", () => {
   assert.equal(scoped("**MARRIAGE INFORMATION**\n**Marital Status:**", "MARRIAGE INFORMATION").length, 0);
 });

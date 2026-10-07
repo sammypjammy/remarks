@@ -72,10 +72,8 @@ test('nested children stay optional and have distinct profile identities', () =>
   assert.notEqual(children[0].recordId, children[1].recordId);
 });
 
-test('nested marriage details retain the existing Type of Marriage requirement', () => {
+test('nested previous-spouse details remain separate and do not invoke Current Spouse requirements', () => {
   const text = 'MARRIAGE INFORMATION\nMarital Status: Separated\n#### Marriage group\n##### Previous Spouse\nFirst Name: Synthetic';
   const issues = report(text).issues.filter(issue => issue.section === 'MARRIAGE INFORMATION');
-  assert.equal(issues.length, 1);
-  assert.equal(issues[0].field, 'Type of Marriage');
-  assert.equal(issues[0].location, '/0/0/0');
+  assert.equal(issues.length, 0);
 });

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 export async function checkClientData({ visit, evaluate, width, capture }) {
   await visit('/intake-checker/');
-  const text = 'PERSONAL INFORMATION\nFirst Name: SYNTHETIC\nLast Name: EXAMPLE\nPhone Number: 123\nCustom note:\n<img src=x onerror=alert(1)>\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nMEDICAL PROBLEMS\nProblem one: Synthetic condition\nMEDICAL PROVIDERS\nClinic 1\nClinic Name: Synthetic\nClinic 2\nClinic Name: Synthetic';
+  const text = 'PERSONAL INFORMATION\nFirst Name: SYNTHETIC\nLast Name: EXAMPLE\nPhone Number: 123\nCustom note:\n<img src=x onerror=alert(1)>\nEMPLOYMENT INFORMATION\nCurrently working: Yes\nMEDICAL PROBLEMS\nProblem one: Synthetic condition\nMEDICAL PROVIDERS\nClinic 1\nClinic Name: Synthetic\nClinic 2\nClinic Name: Synthetic\nCHILDREN INFORMATION\nChild 1\nFirst Name: Fictional One\nLast Name: Example One\nChild 2\nFirst Name: Fictional Two\nLast Name: Example Two';
   const check = () => evaluate(`intakeText.value = ${JSON.stringify(text)}; document.querySelector('#intakeForm button[type=submit]').click()`);
   const open = () => evaluate("document.getElementById('clientDataInspector').open=true; new Promise(done=>setTimeout(done,60))");
   const data = () => evaluate("JSON.parse(document.getElementById('clientDataJson').textContent)");
@@ -21,6 +21,11 @@ export async function checkClientData({ visit, evaluate, width, capture }) {
   assert.equal(initial.schemaVersion, '1.0.0'); assert.equal(initial.source.text, text);
   assert.equal(initial.coverage.parsedOccurrences, initial.coverage.preservedOccurrences);
   assert.equal(initial.fields.filter(field => field.definitionId === 'providers.clinic-name').length, 2);
+  const children = initial.fields.filter(field => ['children.first-name', 'children.last-name'].includes(field.definitionId));
+  assert.equal(children.length, 4);
+  assert(children.every(field => field.supported && field.valueStatus === 'value' && field.occurrences[0].source));
+  assert.equal(new Set(children.map(field => field.recordId)).size, 2);
+  assert.equal(await evaluate("new Set([...document.querySelectorAll('#clientDataFields tr')].filter(row=>row.dataset.fieldId.startsWith('children.')).map(row=>row.dataset.recordId).filter(Boolean)).size"), 2);
   assert(await evaluate("!document.querySelector('#clientDataInspector img') && document.documentElement.scrollWidth <= innerWidth"));
   await evaluate("document.querySelector('[aria-label=\"Find structured source: PERSONAL INFORMATION / First Name / 1\"]').click()");
   assert.equal(await evaluate('intakeText.value.slice(intakeText.selectionStart,intakeText.selectionEnd)'), 'First Name: SYNTHETIC');

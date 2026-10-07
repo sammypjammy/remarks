@@ -1,6 +1,6 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.13.1.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.14.0.
 
 ## Coverage audit
 
@@ -54,8 +54,8 @@ Allowed types are `text`, `boolean` and `date`. Explicit Yes/True and No/False a
 | Employment last-work exemption only for explicit No/false to ever worked | Existing issue outcome, separate ever-worked/currently-working/last-work fields | `validation.js`; `tests/intake-audit-fixes.test.js` |
 | Job required fields; address only when End Date is in current local calendar year | Per-record values and existing required issues; no new date policy | `validation.js`; `tests/intake-validation.test.js` |
 | Provider clinic or doctor name; Last Visit required when First Visit supplied; first/last order; same-month precision review; Next Visit current/future month | Per-record missing/error/warning issues with actual acknowledgement state | `validation.js`; `tests/intake-validation.test.js`, `tests/intake-audit-fixes.test.js` |
-| Married requires Current Spouse details; Type of Marriage when marriage details supplied; other marriage statuses do not make all spouse details required | Actual marriage scopes and issues; no invented spouse record | `validation.js`; `tests/intake-validation.test.js` |
-| Medication name required; children and vehicles optional; unknown record structures warn | Actual nested groups and all fields preserved, including unmapped fields | `rules.js`, `validation.js`; `tests/intake-nested-records.test.js` |
+| Married requires Current Spouse details; duplicate errors apply only to multiple Current Spouse records; previous-spouse fields remain unsupported | Actual marriage scopes and issues; previous spouses do not satisfy or enter the Current Spouse handoff | `validation.js`; `tests/intake-validation.test.js`, `tests/ssa-canonical-practice.test.mjs` |
+| Medication name required; child first/last names are supported repeating fields; children and vehicles optional; unknown record structures warn | Actual nested groups and all fields preserved with source ranges, record identity and validation state | `rules.js`, `validation.js`, `client-data.js`; `tests/intake-nested-records.test.js`, `tests/intake-client-data.test.js` |
 | At least one numbered medical problem; exact-text distinct count | Every slot/source retained and existing derived distinct count | `medical-problems.js`, `validation.js`; `tests/intake-audit-fixes.test.js` |
 | Letters/spaces and title case for configured names/places; numbers allowed in addresses; phone 10 digits, SSN 9, ZIP 5; email syntax; strict dates/month precision; amount format; unchanged other free text | Existing format output and errors, original source beside it | `formats.js`, `values.js`; `tests/intake-formats.test.js` |
 | Duplicate same-subject answers, equivalent formatted strings and conflicts | All occurrences and existing conflict issue, never silently select competing answers | `answers.js`, `validation.js`; `tests/intake-duplicates.test.js` |

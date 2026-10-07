@@ -1,13 +1,13 @@
 # Intake Checker
 
-Part of the Toolkit's existing Vite build. Intake Checker v1.13.1 owns the canonical client-data schema 1.0.0 documented in [CLIENT-DATA.md](CLIENT-DATA.md), including the complete coverage audit and field inventory. No intake data is automatically sent, logged, or persisted; Clear and leaving the page remove the current input/results. Deliberate Copy actions write to the OS clipboard and Download JSON saves a local file; these copies remain after page close.
+Part of the Toolkit's existing Vite build. Intake Checker v1.14.0 owns the canonical client-data schema 1.0.0 documented in [CLIENT-DATA.md](CLIENT-DATA.md), including the complete coverage audit and field inventory. No intake data is automatically sent, logged, or persisted; Clear and leaving the page remove the current input/results. Deliberate Copy actions write to the OS clipboard and Download JSON saves a local file; these copies remain after page close.
 
 `parseIntake(text)` returns `{ sections, unparsed }`. Sections and subsections have an exact `title`, ordered `fields: [{ label, value }]`, and `subsections`. Arrays intentionally preserve repeated labels and identically named records. `unparsed` retains unmatched text with source line numbers; it drives parsing completeness handling. **Inspect structured intake data** shows a read-only table and complete JSON built by `createClientData(session)`. Copy and Download include original source text, every supported/unmapped field, validation/review decisions and employee corrections. These actions never upload the intake.
 
 Supported format:
 
 - Plain section headings and exact field labels reuse the centralized rules plus known conditional labels. Both `Label: value` and `Label:` followed by value lines are supported.
-- Known plain record headings (Clinic 1, Medication 1, Most Recent Job, Current Spouse, etc.) start separate records. Arbitrary uppercase text and unknown colon labels are not promoted to structure.
+- Known plain record headings (Clinic 1, Medication 1, Most Recent Job, Current Spouse, Child 1, Previous Spouse, etc.) start separate records. Previous Spouse fields remain unsupported; arbitrary uppercase text and unknown colon labels are not promoted to structure.
 
 - Standalone `**SECTION**` or Markdown headings levels 1–3 start main sections.
 - Headings levels 4–6 start subsections; heading depth determines nesting. Names need not contain numbers.

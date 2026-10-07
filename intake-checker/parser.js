@@ -69,7 +69,8 @@ export function parseIntake(rawText) {
     const heading = line.match(/^(#{1,6})\s+(.+?)(?:\s+#+)?$/);
     const boldHeading = !match && line.match(/^\*\*([^*]+)\*\*$/);
     const plainSection = plainSections.has(line);
-    const plainRecord = section && plainRecords.some(rule => rule.heading.test(line));
+    const plainRecord = section && plainRecords.some(rule => rule.section === section.title
+      && (rule.heading?.test(line) || rule.unsupportedHeadings?.test(line)));
     if (heading || boldHeading || plainSection || plainRecord) {
       finishField();
       const level = heading ? heading[1].length : plainRecord ? 4 : 2;

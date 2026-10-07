@@ -328,6 +328,25 @@ Clergy/Public Official`;
   assert(canonicalPracticeProfile(data).fields.some(field => field.definitionId === 'spouse.first-name'));
 });
 
+test('previous spouses stay unsupported and do not block one actual Current Spouse handoff', () => {
+  const input = completeSyntheticIntake().replace(
+    '\n## SCHOOL INFORMATION',
+    '\nPrevious Spouse\nFirst Name: Fictional Former\nLast Name: Example Former\n\n## SCHOOL INFORMATION'
+  );
+  const state = createIntakeSession(parseIntake(input));
+  const data = createClientData(state);
+  const previous = data.scopes.find(scope => scope.title === 'Previous Spouse');
+  assert(previous);
+  assert(!previous.recordTypes.includes('spouse'));
+  assert(data.fields.filter(field => field.scopeId === previous.id).every(field => !field.supported));
+  assert(!state.report.issues.some(issue => issue.message === 'Only one Current Spouse record is supported.'));
+  data.validationIssues.forEach(issue => { issue.dismissed = true; });
+  data.reviewItems.forEach(item => { item.reviewed = true; });
+  const profile = canonicalPracticeProfile(data);
+  assert.equal(profile.fields.find(field => field.id === 'spouse.first-name@current-spouse')?.value, 'Synthetic');
+  assert(!profile.fields.some(field => field.value === 'Fictional Former' || field.value === 'Example Former'));
+});
+
 test('child first and last names retain separate repeating record identities', () => {
   const input = completeSyntheticIntake().replace(/(## CHILDREN INFORMATION\n[\s\S]*?)(?=\n## )/,
     '$1\n#### Child 2\n**First Name:** Second\n**Last Name:** Fictional');
