@@ -1,4 +1,4 @@
-# SSA Intake Assistant v1.16.0
+# SSA Intake Assistant v1.17.0
 
 ## Intake Checker handoff
 
@@ -10,7 +10,9 @@ The preview opens no SSA page or browser tab. At the exact local development and
 
 The hosted pilot now transfers eligible answers from the active Checker intake after the employee affirms it is entirely fictional. This test-only declaration is a human safeguard, not a technical classifier of client data. Do not use real client intakes during the pilot or distribute the unpacked extension to staff. The extension has no SSA site access or client-data storage. See [extension-dev/README.md](extension-dev/README.md). The older SSA profile projection remains documented in [PROFILE-CONTRACT.md](PROFILE-CONTRACT.md), but is not used to render the filing preview or to select practice answers.
 
-The synthetic practice page maps forty exact Checker fields, including birth city/state/country; separate mailing and physical addresses; personal/contact details; six language answers; five optional security-question answers; and height in feet and inches plus weight in pounds. These three vitals values are separate text answers from Checker; this pilot does not infer or convert units. Established Checker Yes/No values fill explicit Yes/No controls without changing their meaning. Missing or ambiguous answers stay blank. It never substitutes a spouse SSN, another address, phone, relative name or similar date for a missing answer. Unsupported questions remain blank for employee review. The pilot uses fictional intakes only.
+The synthetic practice page maps forty-two exact Checker fields, including the two established Other Names fields (other first and last name), birthplace; separate mailing and physical addresses; personal/contact details; language; security questions; and vitals. Other middle name and suffix have no Checker source and remain blank for employee entry. The medical-records other-name review flag is not treated as the answer to a broader name question. Vitals remain separate text answers without unit conversion. Established Checker Yes/No values fill explicit Yes/No controls without changing their meaning. Missing or ambiguous answers stay blank. It never substitutes a spouse SSN, another address, phone, relative name or similar date for a missing answer. The pilot uses fictional intakes only.
+
+The visible practice form follows the staff-supplied order from applicant name through Children. Sex, blindness, SGA, marriage and child questions appear empty until their exact meaning and mapping are established; the separate Checker Gender answer remains in the collapsed earlier-fields section. A complete, ready birth date is displayed as separate month, day and year without guessing missing parts. Existing practice fields outside this review list remain in a collapsed section; they are not new mappings.
 
 ## Privacy
 

@@ -6,8 +6,15 @@ p { line-height: 1.5; }
 .notice { padding: 10px; border-left: 4px solid #427e5e; background: #e0eee4; font-size: .8rem; font-weight: bold; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 button, a { padding: 10px 16px; color: white; background: #326c4e; border: 0; border-radius: 6px; cursor: pointer; display: inline-block; }
-#practice { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+#practice { display: grid; gap: 12px; }
+.practice-section, .prior-practice { border: 1px solid #bfd4c8; border-radius: 7px; background: #fff; padding: 12px; }
+.practice-section h2 { margin: 0 0 10px; }
+.mapping-note { margin: -3px 0 10px; color: #5c6f64; font-size: .82rem; }
+.practice-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.prior-practice summary { cursor: pointer; font-weight: 700; }
+.prior-practice .practice-grid { margin-top: 12px; }
+[hidden] { display: none !important; }
 label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; }
 input, select { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; border: 1px solid #aac6b7; border-radius: 5px; font: inherit; background: white; }
 li { margin: 5px 0; font-size: .9rem; }
-@media (max-width: 550px) { #practice { grid-template-columns: 1fr; } main { padding: 14px; } }
+@media (max-width: 550px) { .practice-grid { grid-template-columns: 1fr; } main { padding: 14px; } }

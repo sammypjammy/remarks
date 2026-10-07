@@ -26,6 +26,8 @@ export function syntheticProfile() {
     ['vitals.height-feet', '5', 'text'],
     ['vitals.height-inches', '8', 'text'],
     ['vitals.weight-pounds', '150', 'text'],
+    ['other-names.other-first-name', 'Alternate', 'text'],
+    ['other-names.other-last-name', 'Example', 'text'],
     ['birth.date-of-birth', '2000-01-02', 'date', 'day'],
     ['birth.city-of-birth', 'Example City', 'text'],
     ['birth.state-of-birth', 'Example State', 'text'],

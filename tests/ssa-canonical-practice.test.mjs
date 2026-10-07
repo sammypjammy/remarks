@@ -16,7 +16,7 @@ test('canonical Checker data projects only exact ready practice questions', () =
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
   assert.equal(profile.schemaVersion, '3.0.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 40);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 42);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -206,4 +206,23 @@ test('vitals retain exact units and optional inches never borrow another measure
   assert(!canonicalPracticeProfile(data).fields.some(field => field.id === pounds.definitionId));
   data.fields.push({ ...data.fields.find(field => field.definitionId === 'vitals.height-feet') });
   assert(!canonicalPracticeProfile(data).fields.some(field => field.id === 'vitals.height-feet'));
+});
+
+test('other names transfer exact first and last only, with no invented middle or suffix', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Other first name:** Synthetic', '**Other first name:** Alternate')
+    .replace('**Other last name:** Synthetic', '**Other last name:** Fictional');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  let profile = canonicalPracticeProfile(data);
+  assert.equal(profile.fields.find(field => field.id === 'other-names.other-first-name')?.value, 'Alternate');
+  assert.equal(profile.fields.find(field => field.id === 'other-names.other-last-name')?.value, 'Fictional');
+  assert(!profile.fields.some(field => /other-middle-name|other-suffix/.test(field.id)));
+  const first = data.fields.find(field => field.definitionId === 'other-names.other-first-name');
+  first.valueStatus = 'ambiguous'; first.value = null;
+  profile = canonicalPracticeProfile(data);
+  assert(!profile.fields.some(field => field.id === first.definitionId));
+  assert(profile.fields.some(field => field.id === 'other-names.other-last-name'));
+  const last = data.fields.find(field => field.definitionId === 'other-names.other-last-name');
+  last.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === last.definitionId));
 });

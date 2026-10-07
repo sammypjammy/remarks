@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { mappings, planPractice, fillPractice, schemaVersion } from '../ssa-intake-assistant/extension-dev/mapping.js';
 import { syntheticProfile } from '../ssa-intake-assistant/extension-dev/synthetic.js';
+import { formSections } from '../ssa-intake-assistant/extension-dev/practice-layout.js';
 import { PROFILE_SCHEMA_VERSION, fieldDefinitions } from '../ssa-intake-assistant/src/model/intake-contract.js';
 import { parseIntake } from '../intake-checker/parser.js';
 import { createIntakeSession } from '../intake-checker/session.js';
@@ -13,12 +14,31 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && !d.record));
   const plan = planPractice(fromIntakeChecker(createIntakeSession(parseIntake(completeSyntheticIntake()))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 40);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 42);
+  for (const target of ['other-middle-name', 'other-suffix']) assert.equal(plan.find(item => item.target === target).status, 'pause');
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
+});
+test('practice layout follows the supplied section order and leaves unsupported questions unmapped', () => {
+  assert.deepEqual(formSections.map(section => section.title), [
+    'Applicant’s Name', 'Social Security Number (SSN)', 'Date of Birth', 'Sex',
+    'Is the applicant blind?', 'In the last 14 months, SGA?', 'Other Names',
+    'Marriage Information — Current Spouse', 'Prior Marriages', 'Children',
+  ]);
+  const rows = formSections.flatMap(section => section.rows);
+  assert.equal(rows.find(row => row.label === 'Other First Name').target, 'other-first-name');
+  assert.equal(rows.find(row => row.label === 'Other Middle Name').target, 'other-middle-name');
+  for (const section of formSections.slice(7)) assert(section.rows.every(row => row.target === null));
+  assert.equal(rows.find(row => row.key === 'applicant-blind').target, null);
+  assert.equal(rows.find(row => row.key === 'applicant-sex').target, null);
+  assert.equal(rows.find(row => row.key === 'recent-sga').target, null);
 });
 test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 37);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 39);
+  assert.equal(plan.find(item => item.target === 'other-first-name').value, 'Alternate');
+  assert.equal(plan.find(item => item.target === 'other-last-name').value, 'Example');
+  assert.equal(plan.find(item => item.target === 'other-middle-name').status, 'pause');
+  assert.equal(plan.find(item => item.target === 'other-suffix').status, 'pause');
   assert.equal(plan.find(item => item.target === 'height-feet').value, '5');
   assert.equal(plan.find(item => item.target === 'height-inches').value, '8');
   assert.equal(plan.find(item => item.target === 'weight-pounds').value, '150');
@@ -80,7 +100,7 @@ test('Chrome practice package accepts only Toolkit messaging with no host, backg
   assert.equal(manifest.manifest_version, 3);
   for (const key of ['permissions','host_permissions','content_scripts','background','web_accessible_resources','optional_permissions','optional_host_permissions']) assert.equal(manifest[key], undefined);
   assert.deepEqual(manifest.externally_connectable, {matches:['http://127.0.0.1/*','http://localhost/*','https://packardtoolkit.vercel.app/*']});
-  for (const name of ['practice.js','mapping.js','synthetic.js']) {
+  for (const name of ['practice.js','practice-layout.js','mapping.js','synthetic.js']) {
     const source = await readFile(new URL(name, base), 'utf8');
     assert(!/\b(fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB|console|postMessage)\b/.test(source));
   }

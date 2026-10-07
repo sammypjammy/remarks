@@ -26,6 +26,10 @@ export const mappings = Object.freeze([
   ['height-feet', 'Height (feet)', 'vitals.height-feet', 'text'],
   ['height-inches', 'Height (inches, optional)', 'vitals.height-inches', 'text'],
   ['weight-pounds', 'Weight (pounds)', 'vitals.weight-pounds', 'text'],
+  ['other-first-name', 'Other first name', 'other-names.other-first-name', 'text'],
+  ['other-middle-name', 'Other middle name — not mapped', null, 'text'],
+  ['other-last-name', 'Other last name', 'other-names.other-last-name', 'text'],
+  ['other-suffix', 'Other suffix — not mapped', null, 'text'],
   ['birth-date', 'Date of birth (full date)', 'birth.date-of-birth', 'date'],
   ['birth-city', 'City of birth', 'birth.city-of-birth', 'text'],
   ['birth-state', 'State of birth', 'birth.state-of-birth', 'text'],
@@ -49,7 +53,7 @@ export function planPractice(profile) {
   return mappings.map(mapping => {
     const pause = reason => ({ ...mapping, status: 'pause', reason });
     if (!supported) return pause('Unsupported profile contract.');
-    if (!mapping.definitionId) return pause('No exact mapping. Employee input required; no similar date will be substituted.');
+    if (!mapping.definitionId) return pause('No exact Checker field. Employee input required; no answer will be guessed.');
     const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId);
     if (candidates.length !== 1 || candidates[0].recordId != null) return pause('No unique singleton answer.');
     const field = candidates[0];

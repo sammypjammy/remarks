@@ -1,0 +1,35 @@
+// Fictional review layout supplied by staff. These are not verified SSA questions or selectors.
+const row = (label, target = null, key = null) => Object.freeze({ label, target, key: key || target });
+export const formSections = Object.freeze([
+  { title: 'Applicant’s Name', rows: [row('First', 'first-name'), row('Middle', 'middle-name'), row('Last', 'last-name'), row('Suffix', 'suffix')] },
+  { title: 'Social Security Number (SSN)', rows: [row('SSN', 'ssn')] },
+  { title: 'Date of Birth', rows: [row('Month', null, 'birth-month'), row('Day', null, 'birth-day'), row('Year', null, 'birth-year')] },
+  { title: 'Sex', rows: [row('Answer', null, 'applicant-sex')] },
+  { title: 'Is the applicant blind?', rows: [row('Answer', null, 'applicant-blind')] },
+  { title: 'In the last 14 months, SGA?', rows: [row('Answer', null, 'recent-sga')] },
+  { title: 'Other Names', rows: [row('Other First Name', 'other-first-name'), row('Other Middle Name', 'other-middle-name'), row('Other Last Name', 'other-last-name'), row('Suffix', 'other-suffix')] },
+  { title: 'Marriage Information — Current Spouse', rows: [
+    row('Spouse’s First Name', null, 'current-spouse-first'), row('Spouse’s Last Name', null, 'current-spouse-last'),
+    row('Spouse’s Social Security Number', null, 'current-spouse-ssn'), row('Does applicant know spouse’s DOB?', null, 'current-spouse-knows-dob'),
+    row('Spouse’s DOB Month', null, 'current-spouse-birth-month'), row('Spouse’s DOB Day', null, 'current-spouse-birth-day'), row('Spouse’s DOB Year', null, 'current-spouse-birth-year'),
+    row('Spouse Age', null, 'current-spouse-age'), row('Date of Marriage Month', null, 'current-marriage-month'),
+    row('Date of Marriage Day', null, 'current-marriage-day'), row('Date of Marriage Year', null, 'current-marriage-year'),
+    row('Place of Marriage City/Town', null, 'current-marriage-city'), row('Place of Marriage State', null, 'current-marriage-state'),
+    row('Marriage Type', null, 'current-marriage-type'),
+  ] },
+  { title: 'Prior Marriages', rows: [
+    row('Marriage over 10 years', null, 'prior-over-ten-years'), row('Marriages ending in death', null, 'prior-ending-in-death'),
+    row('Details of prior marriages', null, 'prior-details'), row('Prior Spouse’s First Name', null, 'prior-spouse-first'),
+    row('Prior Spouse’s Last Name', null, 'prior-spouse-last'), row('Prior Spouse’s SSN', null, 'prior-spouse-ssn'),
+    row('Does applicant know prior spouse’s DOB?', null, 'prior-spouse-knows-dob'),
+    row('Prior Spouse’s DOB Month', null, 'prior-spouse-birth-month'), row('Prior Spouse’s DOB Day', null, 'prior-spouse-birth-day'),
+    row('Prior Spouse’s DOB Year', null, 'prior-spouse-birth-year'), row('Prior Spouse Age', null, 'prior-spouse-age'),
+    row('Date of Marriage Month', null, 'prior-marriage-month'), row('Date of Marriage Day', null, 'prior-marriage-day'),
+    row('Date of Marriage Year', null, 'prior-marriage-year'), row('Place of Marriage City/Town', null, 'prior-marriage-city'),
+    row('Place of Marriage State', null, 'prior-marriage-state'), row('Marriage Type', null, 'prior-marriage-type'),
+    row('Date Marriage Ended Month', null, 'prior-ended-month'), row('Date Marriage Ended Day', null, 'prior-ended-day'),
+    row('Date Marriage Ended Year', null, 'prior-ended-year'), row('Place of Marriage City/Town Ended', null, 'prior-ended-city'),
+    row('Place of Marriage State Ended', null, 'prior-ended-state'), row('How did the marriage end?', null, 'prior-ended-how'),
+  ] },
+  { title: 'Children', rows: [row('Child information — not mapped yet', null, 'children-not-mapped')] },
+]);
