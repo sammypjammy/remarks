@@ -64,12 +64,13 @@ try{
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');
   }
-  const empty=()=>extension.evaluate("document.querySelectorAll('[data-practice-field]').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
+  const empty=()=>extension.evaluate("document.querySelectorAll('[data-practice-field]:not([data-practice-record])').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
   await parse(text);
   assert(await source.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Send to practice extension').disabled"));
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
   const start=network.length;
   await send();assert(await empty(),'receipt must not auto-fill');
+  assert(await extension.evaluate("document.querySelectorAll('[data-employment-record]').length===1 && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value===''"));
   assert(await extension.evaluate("!document.getElementById('fill').disabled && document.getElementById('demo').disabled"));
   await click(extension,'Fill received answers');
   assert(await extension.evaluate("document.querySelector('[data-practice-field=first-name]').value==='Bridge Synthetic'"));
@@ -84,7 +85,10 @@ try{
   assert(await extension.evaluate("document.querySelector('[data-practice-field=applicant-blind]').value==='no' && document.querySelector('[data-practice-field=current-spouse-first]').value!=='' && document.querySelector('[data-practice-field=current-spouse-last]').value!==''"));
   assert(await extension.evaluate("document.querySelector('[data-practice-placeholder=current-marriage-month]').value==='01' && document.querySelector('[data-practice-placeholder=current-marriage-day]').value==='01' && document.querySelector('[data-practice-placeholder=current-marriage-year]').value==='2000'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-placeholder=child-1-first-name]').value!=='' && document.querySelector('[data-practice-placeholder=child-1-last-name]').value!==''"));
-  assert(await extension.evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-') && !i.dataset.practicePlaceholder.startsWith('current-marriage-') && !i.dataset.practicePlaceholder.startsWith('child-')).every(i=>i.value==='')"));
+  assert(await extension.evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value==='Synthetic' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-street-line-1]').value==='Synthetic'"));
+  assert(await extension.evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-month]').value==='01' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-start-year]').value==='2000' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-end-month]').value==='01' && document.querySelector('[data-employment-record=job-1] [data-practice-placeholder=employment-end-year]').value==='2001'"));
+  assert(await extension.evaluate("[...document.querySelectorAll('[data-employment-record=job-1] [data-practice-field=employment-2025], [data-employment-record=job-1] [data-practice-field=employment-2026], [data-employment-record=job-1] [data-practice-field=employment-2027], [data-employment-record=job-1] [data-practice-field=employment-country], [data-employment-record=job-1] [data-practice-field=employment-street-line-2], [data-employment-record=job-1] [data-practice-field=employment-not-ended]')].every(input=>input.value==='')"));
+  assert(await extension.evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-') && !i.dataset.practicePlaceholder.startsWith('current-marriage-') && !i.dataset.practicePlaceholder.startsWith('child-') && !i.dataset.practicePlaceholder.startsWith('employment-')).every(i=>i.value==='')"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=middle-name]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value==='' && document.querySelector('[data-practice-field=last-worked]').value===''"));
   await click(source,'Back to Intake Checker');await until(empty,'Back clears receiver');
   assert.equal(await source.evaluate('intakeText.value'),text);

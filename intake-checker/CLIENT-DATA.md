@@ -1,6 +1,6 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.15.0.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.16.0.
 
 ## Coverage audit
 
@@ -8,7 +8,7 @@ The audit examined `parser.js`, `rules.js`, `formats.js`, `validation.js`, `revi
 
 There are **138 fixed field definitions across 22 categories**, plus an unbounded numbered medical-problem family. Seven repeating record types are vehicles, providers, medications, jobs, Current Spouse, Previous Spouse and children. Previous Spouse N records have their own supported field IDs and retain a record heading source even when individual values are absent. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 138.
 
-The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.1.0 SSA practice projection is not the canonical client-data schema. Only ready prior-spouse values are eligible for the synthetic practice extension; no live SSA interaction or automation is present.
+The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.2.0 SSA practice projection is not the canonical client-data schema. Only exact ready employment values and prior-spouse values are eligible for the synthetic practice extension; no live SSA interaction or automation is present.
 
 ## Object structure
 
@@ -27,7 +27,7 @@ The catalog now resides in `field-catalog.js`; the parser uses it for the existi
 | `derived` | Existing display summary, review identifier/email, and exact-text distinct medical-problem count; explicitly not independently validated answers |
 | `coverage` | Catalog count, parsed/current/preserved occurrence counts, scope/field/definition counts, unmapped fields and unparsed lines |
 
-Each field has a stable `definitionId`, scope-qualified `id`, `scopeId`, `recordId` when repeating, label, category, declared type, supported/parsed flags, typed value, `valueStatus`, date precision, origin, validation references and review references. Prior-spouse fields also carry the actual record heading's `recordSource`, including when the value is missing. `occurrences` preserves every competing/identical source, original value, current value, formatted value, formatting result, exact range and employee correction ledger. Field values are never used in identifiers. Unknown labels are URI-encoded, not reduced to collision-prone slugs.
+Each field has a stable `definitionId`, scope-qualified `id`, `scopeId`, `recordId` when repeating, label, category, declared type, supported/parsed flags, typed value, `valueStatus`, date precision, origin, validation references and review references. Job and prior-spouse fields also carry the actual record heading's `recordSource`, including when the value is missing. `occurrences` preserves every competing/identical source, original value, current value, formatted value, formatting result, exact range and employee correction ledger. Field values are never used in identifiers. Unknown labels are URI-encoded, not reduced to collision-prone slugs.
 
 Definition IDs retain existing meanings such as `personal.first-name`, `disability.onset-date-of-disability` and `employment.when-did-you-last-work`. Scope IDs combine exact heading text and same-heading sibling ordinals. They remain stable across review, value corrections and unrelated-section insertion. Reordering identically named records or changing headings in a new pasted intake may change instance IDs; they are not permanent client/record IDs. Numbered medical slots stay separate even when answers match. Identical answers are only deduplicated in the existing derived distinct-problem count. Snapshot issue/review IDs are references within that snapshot, not durable IDs across revalidation.
 

@@ -1,5 +1,5 @@
 import { mappings, fillPractice } from './mapping.js';
-import { formSections } from './practice-layout.js';
+import { formSections, employmentRows } from './practice-layout.js';
 import { syntheticProfile } from './synthetic.js';
 import { receiveBridge, trustedSender, BRIDGE_NAME } from './bridge-contract.js';
 let received = null, waiting = false, disconnect = () => {};
@@ -21,14 +21,14 @@ function makeField(labelText, target = null, key = null, recordId = null, answer
   input.autocomplete = 'off';
   if (mapping) {
     input.dataset.practiceField = target;
-    if (recordId) input.dataset.practiceRecord = recordId;
     shown.add(target);
   }
   else input.dataset.practicePlaceholder = key;
+  if (recordId) input.dataset.practiceRecord = recordId;
   label.append(input);
   if (recordId) {
     const status = document.createElement('span');
-    status.className = 'prior-field-status';
+    status.className = 'record-field-status';
     status.textContent = answerAvailable ? 'Ready answer; Fill is required to enter it.' : 'Not provided';
     label.append(status);
   }
@@ -81,18 +81,50 @@ function showPreviousSpouses(profile) {
     root.insertBefore(group, before);
   }
 }
-const remaining = mappings.filter(mapping => !shown.has(mapping.target) && mapping.recordCategory !== 'priorSpouses');
+function showEmploymentRecords(profile) {
+  root.querySelectorAll('[data-employment-record]').forEach(section => section.remove());
+  if (!Array.isArray(profile.jobRecords)) return;
+  for (const [index, recordId] of profile.jobRecords.entries()) {
+    if (typeof recordId !== 'string' || !/^job-[1-9]\d*$/.test(recordId) || profile.jobRecords.indexOf(recordId) !== index) continue;
+    const group = document.createElement('section');
+    group.className = 'practice-section employment-record';
+    group.dataset.employmentRecord = recordId;
+    group.dataset.practiceRecord = recordId;
+    const heading = document.createElement('h2');
+    heading.textContent = `Employment — Job ${index + 1}`;
+    group.append(heading);
+    const grid = document.createElement('div'); grid.className = 'practice-grid';
+    for (const row of employmentRows) {
+      const mapping = byTarget.get(row.target);
+      const answerAvailable = !!mapping?.definitionId && profile.fields?.some(field => field.definitionId === mapping.definitionId
+        && field.recordId === recordId && field.id === `${field.definitionId}@${recordId}`
+        && field.readiness === 'ready' && field.blockingReasons?.length === 0
+        && (mapping.type === 'date' ? field.precision === 'day' && /^\d{4}-\d{2}-\d{2}$/.test(field.value)
+          : typeof field.value === 'string' && !!field.value.trim())) || false;
+      grid.append(makeField(row.label, row.target, row.key, recordId, answerAvailable));
+    }
+    for (const target of ['employment-start-date', 'employment-end-date']) {
+      const source = makeField(`${target === 'employment-start-date' ? 'Start' : 'End'} Date source`, target, null, recordId);
+      source.hidden = true; grid.append(source);
+    }
+    group.append(grid); root.append(group);
+  }
+}
+const remaining = mappings.filter(mapping => !shown.has(mapping.target)
+  && !['priorSpouses', 'jobs'].includes(mapping.recordCategory));
 const prior = document.createElement('details'); prior.className = 'prior-practice';
 const priorHeading = document.createElement('summary'); priorHeading.textContent = `Earlier practice fields outside this list (${remaining.length})`;
 const priorGrid = document.createElement('div'); priorGrid.className = 'practice-grid';
 for (const mapping of remaining) priorGrid.append(makeField(mapping.label, mapping.target));
 prior.append(priorHeading, priorGrid); root.append(prior);
-function showDateParts(target, prefix) {
-  const source = root.querySelector(`[data-practice-field="${target}"]`)?.value || '';
+function showDateParts(target, prefix, recordId = null, includeDay = true) {
+  const selector = `[data-practice-field="${target}"]${recordId ? `[data-practice-record="${recordId}"]` : ''}`;
+  const source = root.querySelector(selector)?.value || '';
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(source);
   if (!match) return;
-  for (const [key, value] of [[`${prefix}month`, match[2]], [`${prefix}day`, match[3]], [`${prefix}year`, match[1]]]) {
-    const input = root.querySelector(`[data-practice-placeholder="${key}"]`);
+  const parts = [[`${prefix}month`, match[2]], ...(includeDay ? [[`${prefix}day`, match[3]]] : []), [`${prefix}year`, match[1]]];
+  for (const [key, value] of parts) {
+    const input = root.querySelector(`[data-practice-placeholder="${key}"]${recordId ? `[data-practice-record="${recordId}"]` : ''}`);
     if (input && !input.value) input.value = value;
   }
 }
@@ -125,9 +157,18 @@ function showChildNames(profile) {
 const results = document.getElementById('results');
 const status = document.getElementById('status');
 function fill(profile) {
+  showEmploymentRecords(profile);
   const plan = fillPractice(profile, root);
   if (plan.some(item => item.target === 'birth-date' && item.status === 'filled')) showDateParts('birth-date', 'birth-');
   if (plan.some(item => item.target === 'current-marriage-date' && item.status === 'filled')) showDateParts('current-marriage-date', 'current-marriage-');
+  for (const recordId of profile.jobRecords || []) {
+    if (plan.some(item => item.recordId === recordId && item.target === 'employment-start-date' && item.status === 'filled')) {
+      showDateParts('employment-start-date', 'employment-start-', recordId, false);
+    }
+    if (plan.some(item => item.recordId === recordId && item.target === 'employment-end-date' && item.status === 'filled')) {
+      showDateParts('employment-end-date', 'employment-end-', recordId, false);
+    }
+  }
   const childCount = showChildNames(profile);
   results.replaceChildren(...plan.map(item => {
     const li = document.createElement('li');
@@ -153,6 +194,7 @@ function clearAnswers() {
   root.querySelectorAll('input,select').forEach(input => { input.value = ''; });
   root.querySelectorAll('[data-generated-child]').forEach(label => label.remove());
   root.querySelectorAll('[data-prior-record]').forEach(section => section.remove());
+  root.querySelectorAll('[data-employment-record]').forEach(section => section.remove());
   root.querySelector('[data-practice-placeholder="children-not-mapped"]')?.closest('label')?.removeAttribute('hidden');
   results.replaceChildren(); status.textContent = 'Practice cleared. Nothing saved.';
 }
@@ -171,7 +213,7 @@ globalThis.chrome?.runtime?.onConnectExternal?.addListener(port => {
   disconnect = receiveBridge(port, {
     nonce: crypto.randomUUID(),
     onProfile(profile) {
-      clearAnswers(); received = profile; showPreviousSpouses(profile);
+      clearAnswers(); received = profile; showPreviousSpouses(profile); showEmploymentRecords(profile);
       document.getElementById('fill').disabled = false;
       document.getElementById('connection').textContent = `Received ${profile.fields.length} ready practice fields. Nothing filled until you select Fill.`;
     },

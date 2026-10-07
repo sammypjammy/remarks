@@ -95,6 +95,26 @@ First Name: Not a spouse record`);
   assert.equal(parsed.unparsed.some(item => item.text.includes('Previous Spouse 4')), true);
 });
 
+test("Most Recent Job, Previous Job, and numbered Job headings create separate work records", () => {
+  const parsed = parseIntake(`WORK HISTORY
+Most Recent Job
+Employer: Fictional Recent Co
+Start Date: 2010-01-02
+Previous Job
+Employer: Fictional Previous Co
+Job 1
+Employer: Fictional Job One
+Job 2
+Employer: Fictional Job Two`);
+  assert.deepEqual(parsed.sections[0].subsections.map(node => node.title),
+    ['Most Recent Job', 'Previous Job', 'Job 1', 'Job 2']);
+  assert.deepEqual(parsed.sections[0].subsections.map(node => node.fields[0].value), [
+    'Fictional Recent Co', 'Fictional Previous Co', 'Fictional Job One', 'Fictional Job Two'
+  ]);
+  assert.equal(summarizeIntake(parsed).jobs, 4);
+  assert.deepEqual(parsed.unparsed, []);
+});
+
 test("plain parsing does not promote arbitrary uppercase text, unknown labels, or unknown records", () => {
   const parsed = parseIntake("MEDICAL PROVIDERS\nClinic 1\nNotes:\nPLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7\nClinic Name: Example");
   assert.equal(parsed.sections.length, 1);

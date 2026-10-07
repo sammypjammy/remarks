@@ -114,7 +114,7 @@ export function createClientData(session) {
       relatedReviews.forEach(item => item.fieldIds.push(id));
       const field = { id, definitionId, scopeId: scope.id, recordId: numbered ? `${scope.id}/${encodeURIComponent(label)}` : definition?.record ? scope.id : null,
         category: definition?.category || 'unmapped', label, dataType, supported: !!definition,
-        ...(definition?.category === 'priorSpouses' ? { recordSource: scope.source } : {}),
+        ...(['priorSpouses', 'jobs'].includes(definition?.category) ? { recordSource: scope.source } : {}),
         parsed: occurrences.some(item => item.source), value, valueStatus, precision, occurrences,
         origin: occurrences.some(item => item.origin === 'employee_entered') ? 'employee_entered' : candidates.length ? 'parsed' : 'absent',
         validation: { issueIds: issues.map(issue => issue.id), unresolvedIssueIds: issues.filter(issue => !issue.dismissed).map(issue => issue.id),

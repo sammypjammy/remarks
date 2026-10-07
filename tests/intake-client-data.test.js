@@ -60,6 +60,91 @@ test('complete synthetic intake represents all 138 definitions and every parsed 
   assert.equal(field(data, 'personal.phone-number').value, '202-555-0142');
 });
 
+test('actual work-history records retain supported employment values, identities, provenance and corrections', () => {
+  const text = `WORK HISTORY
+Most Recent Job
+Job Title: Synthetic
+Employer: Fictional Recent Co
+Business Type: Example
+Start Date: 2010-01-02
+End Date: 2015-06-07
+Hours per Day: 8
+Days per Week: 5
+Rate of Pay: $10.00
+Pay Frequency: Monthly
+Address: 123 Fictional Work Road
+City: Sample City
+State: EX
+Zipcode: 00000
+Previous Job
+Job Title: Synthetic
+Employer: Fictional Previous Co
+Business Type: Example
+Start Date: 2001-02-03
+End Date: 2009-12-31
+Hours per Day: 8
+Days per Week: 5
+Rate of Pay: $10.00
+Pay Frequency: Monthly`;
+  const state = session(text), data = createClientData(state);
+  const jobs = data.scopes.filter(scope => scope.recordTypes.includes('jobs'));
+  assert.equal(jobs.length, 2);
+  assert(jobs.every(scope => scope.parsed && scope.source && scope.fieldIds.length));
+  const mapped = ['jobs.employer', 'jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode', 'jobs.start-date', 'jobs.end-date'];
+  for (const definitionId of mapped) {
+    const matches = data.fields.filter(item => item.definitionId === definitionId);
+    assert.equal(matches.length, 2, definitionId);
+    assert.deepEqual(matches.map(item => item.recordId), jobs.map(scope => scope.id));
+    assert(matches.every(item => item.supported && item.validation && item.review && item.recordSource));
+  }
+  const firstEmployer = data.fields.find(item => item.definitionId === 'jobs.employer' && item.scopeId === jobs[0].id);
+  const employerSource = firstEmployer.occurrences[0].source;
+  assert.equal(text.slice(employerSource.start, employerSource.end), 'Employer: Fictional Recent Co');
+  assert.equal(firstEmployer.occurrences[0].originalValue, 'Fictional Recent Co');
+  assert.equal(firstEmployer.occurrences[0].currentValue, 'Fictional Recent Co');
+  assert(correctIntakeField(state, {
+    nodePath: jobs[0].nodePath, section: 'WORK HISTORY', label: 'Employer',
+    range: employerSource,
+  }, 'Corrected Fictional Co'));
+  const corrected = createClientData(state).fields.find(item => item.definitionId === 'jobs.employer' && item.scopeId === jobs[0].id);
+  assert.equal(corrected.value, 'Corrected Fictional Co');
+  assert.equal(corrected.origin, 'employee_entered');
+  assert.equal(corrected.occurrences[0].originalValue, 'Fictional Recent Co');
+  assert.equal(corrected.occurrences[0].currentValue, 'Corrected Fictional Co');
+  assert.deepEqual(corrected.occurrences[0].corrections.map(change => change.value), ['Corrected Fictional Co']);
+  assert.equal(corrected.validation.hasErrors, false);
+  assert.deepEqual(corrected.review.reviewedIds, []);
+
+  const reviewedSession = session(`DISABILITY INFORMATION
+Onset date of disability: 2020-01-01
+WORK HISTORY
+Job 1
+Start Date: 2020-02-01
+End Date: 2020-03-01`);
+  const failedAttempt = reviewedSession.review.items.find(item => item.message.startsWith('Failed Work Attempt'));
+  assert(failedAttempt);
+  reviewedSession.reviewState.review(failedAttempt);
+  const reviewedData = createClientData(reviewedSession);
+  const reviewedStart = reviewedData.fields.find(item => item.definitionId === 'jobs.start-date');
+  assert(reviewedStart.review.itemIds.includes('review-0'));
+  assert(reviewedStart.review.reviewedIds.includes('review-0'));
+});
+
+test('no work-history record creates no job scope; missing fields on an actual job remain explicit', () => {
+  const empty = createClientData(session('WORK HISTORY\nHave you ever worked: Yes'));
+  assert.equal(empty.scopes.some(scope => scope.recordTypes.includes('jobs')), false);
+  const data = createClientData(session('WORK HISTORY\nJob 1\nEmployer: Fictional Co'));
+  const job = data.scopes.find(scope => scope.recordTypes.includes('jobs'));
+  assert(job);
+  for (const definitionId of ['jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode', 'jobs.start-date', 'jobs.end-date']) {
+    const field = data.fields.find(item => item.definitionId === definitionId && item.scopeId === job.id);
+    assert(field, definitionId);
+    assert.equal(field.valueStatus, 'missing', definitionId);
+    assert.equal(field.parsed, false, definitionId);
+    assert.equal(field.recordId, job.id, definitionId);
+  }
+});
+
 test('original document metadata, UTF-16 CRLF offsets, raw values, unknown multiline fields and scoped unparsed lines survive', () => {
   const text = 'Print as PDF\r\nIntake Form\r\nSynthetic Example\r\nGenerated on October 5, 2026 at 5:33 PM\r\n\r\nPERSONAL INFORMATION\r\nFirst Name: SYNTHÉTIC\r\nCustom note:\r\nFictional emoji 😀\r\nsecond line\r\nUnknown inline: keep as unparsed';
   const data = createClientData(session(text));

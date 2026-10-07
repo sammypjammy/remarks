@@ -16,9 +16,11 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && d.record === !!m.recordCategory));
   const plan = planPractice(canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 51);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 58);
   for (const target of ['other-middle-name', 'other-suffix']) assert.equal(plan.find(item => item.target === target).status, 'pause');
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
+  assert.equal(plan.find(item => item.target === 'employment-employer' && item.recordId === 'job-1').value, 'Synthetic');
+  assert.equal(plan.find(item => item.target === 'employment-2025' && item.recordId === 'job-1').status, 'pause');
 });
 test('practice layout follows the supplied section order and leaves unsupported questions unmapped', () => {
   assert.deepEqual(formSections.map(section => section.title), [
@@ -38,7 +40,7 @@ test('practice layout follows the supplied section order and leaves unsupported 
 });
 test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 48);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 55);
   assert.equal(plan.find(item => item.target === 'applicant-blind').value, true);
   assert.equal(plan.find(item => item.target === 'current-spouse-first').value, 'Fictional');
   assert.equal(plan.find(item => item.target === 'other-first-name').value, 'Alternate');
@@ -84,10 +86,22 @@ test('unknown schema, duplicates, wrong types, repeated subjects and unresolved 
   for (const mutate of [p => p.schemaVersion = '0', p => p.schema = 'other', p => p.fields = null]) {
     const p = syntheticProfile(); mutate(p); assert(planPractice(p).every(item => item.status === 'pause'));
   }
+  const repeatedJobs = syntheticProfile(); repeatedJobs.jobRecords = ['job-1','job-1'];
+  assert(planPractice(repeatedJobs).filter(item => item.recordCategory === 'jobs').every(item => item.status === 'pause'));
   for (const mutate of [p => p.fields.push({...p.fields[0]}), p => p.fields[0].recordId = 'person-2', p => p.fields[0].value = true,
     p => p.fields[0].dataType = 'boolean', p => p.fields[0].readiness = 'blocked', p => p.fields[0].blockingReasons = [{code:'conflict'}]]) {
     const p = syntheticProfile(); mutate(p); assert.equal(planPractice(p)[0].status, 'pause');
   }
+});
+test('employment date mappings require a valid complete day and use actual job identities', () => {
+  const profile = syntheticProfile(), plan = planPractice(profile);
+  assert.equal(plan.find(item => item.target === 'employment-start-date' && item.recordId === 'job-1').value, '2010-01-02');
+  const start = profile.fields.find(field => field.definitionId === 'jobs.start-date');
+  start.precision = 'month'; start.value = '2010-01';
+  assert.equal(planPractice(profile).find(item => item.target === 'employment-start-date' && item.recordId === 'job-1').status, 'pause');
+  start.precision = 'day'; start.value = '2010-02-30';
+  assert.equal(planPractice(profile).find(item => item.target === 'employment-start-date' && item.recordId === 'job-1').status, 'pause');
+  assert.equal(planPractice(profile).find(item => item.target === 'employment-employer' && item.recordId === 'job-1').value, 'Example Company');
 });
 test('explicit fill preserves employee entries and refuses changed targets', () => {
   const input = { tagName:'INPUT', type:'text', value:'Employee entry' };

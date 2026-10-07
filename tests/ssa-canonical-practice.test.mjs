@@ -12,12 +12,15 @@ const canonical = () => createClientData(createIntakeSession(parseIntake(complet
 
 test('canonical Checker data projects only exact ready practice questions', () => {
   const data = canonical(), profile = canonicalPracticeProfile(data);
-  const ids = mappings.filter(mapping => mapping.definitionId && mapping.recordCategory !== 'priorSpouses').map(mapping => mapping.recordCategory === 'spouse'
-    ? `${mapping.definitionId}@current-spouse` : mapping.definitionId).concat(['children.first-name@child-1', 'children.last-name@child-1']);
+  const ids = mappings.filter(mapping => mapping.definitionId && mapping.recordCategory !== 'priorSpouses').map(mapping =>
+    mapping.recordCategory === 'spouse' ? `${mapping.definitionId}@current-spouse`
+      : mapping.recordCategory === 'jobs' ? `${mapping.definitionId}@job-1` : mapping.definitionId)
+    .concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
-  assert.equal(profile.schemaVersion, '3.1.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 51);
+  assert.equal(profile.schemaVersion, '3.2.0');
+  assert.deepEqual(profile.jobRecords, ['job-1']);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 58);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -66,6 +69,106 @@ test('date precision, duplicate singleton and employee correction are respected 
   const corrected = canonicalPracticeProfile(edited).fields.find(item => item.id === 'personal.first-name');
   assert.equal(corrected.value, 'Example');
   assert.equal(edited.fields.find(item => item.definitionId === 'personal.first-name').origin, 'employee_entered');
+});
+
+test('employment appears only for actual jobs and each exact ready record maps independently', () => {
+  const noJobsInput = completeSyntheticIntake().replace(
+    /## WORK HISTORY\n[\s\S]*?(?=\n## |$)/, '## WORK HISTORY\n');
+  const noJobsData = createClientData(createIntakeSession(parseIntake(noJobsInput)));
+  const noJobsProfile = canonicalPracticeProfile(noJobsData);
+  assert.deepEqual(noJobsProfile.jobRecords, []);
+  assert(!noJobsProfile.fields.some(field => field.definitionId.startsWith('jobs.')));
+  assert(!planPractice(noJobsProfile).some(item => item.recordCategory === 'jobs'));
+
+  const multipleJobsInput = completeSyntheticIntake().replace('\n## CHILDREN INFORMATION', `
+Previous Job
+Job Title: Synthetic
+Employer: Fictional Previous Company
+Business Type: Example
+Start Date: 2001-02-03
+End Date: 2009-12-31
+Hours per Day: 8
+Days per Week: 5
+Rate of Pay: $10.00
+Pay Frequency: Monthly
+Address: 456 Fictional Work Road
+City: Other Sample City
+State: FX
+Zipcode: 11111
+
+## CHILDREN INFORMATION`);
+  const withPreviousSpouse = multipleJobsInput.replace('\n## SCHOOL INFORMATION', `
+Previous Spouse 1
+First Name: Fictional Former
+
+## SCHOOL INFORMATION`);
+  const data = createClientData(createIntakeSession(parseIntake(withPreviousSpouse)));
+  data.validationIssues.forEach(issue => { issue.dismissed = true; });
+  data.reviewItems.forEach(item => { item.reviewed = true; });
+  const profile = canonicalPracticeProfile(data);
+  assert.deepEqual(profile.jobRecords, ['job-1', 'job-2']);
+  assert.equal(profile.fields.find(field => field.id === 'jobs.employer@job-1')?.value, 'Synthetic');
+  assert.equal(profile.fields.find(field => field.id === 'jobs.employer@job-2')?.value, 'Fictional Previous Company');
+  assert.equal(profile.fields.find(field => field.id === 'jobs.start-date@job-2')?.value, '2001-02-03');
+  assert.equal(profile.fields.find(field => field.id === 'jobs.end-date@job-2')?.value, '2009-12-31');
+  assert.equal(planPractice(profile).find(item => item.target === 'employment-start-date' && item.recordId === 'job-2').value, '2001-02-03');
+  assert.deepEqual(projectReady(profile).jobRecords, profile.jobRecords);
+  assert.equal(projectReady(profile).fields.filter(field => field.recordId === 'job-1' || field.recordId === 'job-2').length, 14);
+  assert(profile.fields.some(field => field.id === 'spouse.first-name@current-spouse'));
+  assert(profile.fields.some(field => field.id === 'children.first-name@child-1'));
+  assert(profile.fields.some(field => field.id.startsWith('priorSpouses.first-name@prior-spouse-1')));
+  for (const target of ['employment-2025', 'employment-2026', 'employment-2027', 'employment-country',
+    'employment-street-line-2', 'employment-not-ended']) {
+    assert.equal(mappings.find(mapping => mapping.target === target).definitionId, null);
+    assert.equal(planPractice(profile).find(item => item.target === target && item.recordId === 'job-1').status, 'pause');
+    assert.equal(planPractice(profile).find(item => item.target === target && item.recordId === 'job-2').status, 'pause');
+  }
+});
+
+test('employment fields reject missing, invalid, ambiguous, conflicting, unresolved and incomplete date answers', () => {
+  for (const status of ['missing', 'invalid', 'ambiguous', 'conflict']) {
+    const data = canonical();
+    const field = data.fields.find(item => item.definitionId === 'jobs.employer');
+    field.valueStatus = status; field.value = null;
+    assert(!canonicalPracticeProfile(data).fields.some(item => item.id === 'jobs.employer@job-1'), status);
+  }
+  const conflictingInput = completeSyntheticIntake().replace(
+    '**Employer:** Synthetic', '**Employer:** Fictional One\n**Employer:** Fictional Two');
+  const conflictingData = createClientData(createIntakeSession(parseIntake(conflictingInput)));
+  const conflictingField = conflictingData.fields.find(item => item.definitionId === 'jobs.employer');
+  assert.equal(conflictingField.valueStatus, 'conflict');
+  assert(!canonicalPracticeProfile(conflictingData).fields.some(item => item.id === 'jobs.employer@job-1'));
+  const data = canonical(), start = data.fields.find(item => item.definitionId === 'jobs.start-date');
+  start.precision = 'month';
+  assert(!canonicalPracticeProfile(data).fields.some(item => item.id === 'jobs.start-date@job-1'));
+  start.precision = 'day'; start.validation.unresolvedIssueIds.push('unresolved-employment');
+  assert(!canonicalPracticeProfile(data).fields.some(item => item.id === 'jobs.start-date@job-1'));
+
+  const invalidInput = completeSyntheticIntake().replace('**Start Date:** 2000-01-01', '**Start Date:** 02/30/2000');
+  const invalidData = createClientData(createIntakeSession(parseIntake(invalidInput)));
+  invalidData.validationIssues.forEach(issue => { issue.dismissed = true; });
+  invalidData.reviewItems.forEach(item => { item.reviewed = true; });
+  const invalidField = invalidData.fields.find(item => item.definitionId === 'jobs.start-date');
+  assert.equal(invalidField.valueStatus, 'invalid');
+  assert(!canonicalPracticeProfile(invalidData).fields.some(item => item.id === 'jobs.start-date@job-1'));
+});
+
+test('valid employee corrections to employment fields stay in memory and enter only the exact job handoff', () => {
+  const session = createIntakeSession(parseIntake(completeSyntheticIntake()));
+  const data = createClientData(session);
+  const start = data.fields.find(item => item.definitionId === 'jobs.start-date');
+  assert(correctIntakeField(session, {
+    nodePath: start.scopeId ? data.scopes.find(scope => scope.id === start.scopeId).nodePath : null,
+    section: 'WORK HISTORY', label: 'Start Date', range: start.occurrences[0].source,
+  }, '2012-04-05'));
+  const correctedData = createClientData(session);
+  const correctedField = correctedData.fields.find(item => item.definitionId === 'jobs.start-date');
+  assert.equal(correctedField.occurrences[0].originalValue, '2000-01-01');
+  assert.equal(correctedField.occurrences[0].currentValue, '2012-04-05');
+  assert.equal(correctedField.origin, 'employee_entered');
+  const profile = canonicalPracticeProfile(correctedData);
+  assert.equal(profile.fields.find(item => item.id === 'jobs.start-date@job-1')?.value, '2012-04-05');
+  assert.equal(projectReady(profile).fields.find(item => item.id === 'jobs.start-date@job-1')?.value, '2012-04-05');
 });
 
 test('birthplace and mailing address retain separate exact Checker values without inference', () => {

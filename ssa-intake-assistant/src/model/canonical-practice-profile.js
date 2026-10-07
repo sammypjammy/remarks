@@ -4,7 +4,7 @@ import { mappings, schemaVersion, childDefinitionIds } from '../../extension-dev
 // Only these exact, fictional practice questions can receive Checker answers.
 // This projection never contains the original intake, sources, review notes or edits.
 export function canonicalPracticeProfile(data) {
-  const empty = { schema: 'packard.intake-client-profile', schemaVersion, fields: [], priorSpouseRecords: [] };
+  const empty = { schema: 'packard.intake-client-profile', schemaVersion, fields: [], priorSpouseRecords: [], jobRecords: [] };
   if (data?.schema !== CLIENT_DATA_SCHEMA || data.schemaVersion !== CLIENT_DATA_VERSION
       || !data.validationPerformed || !Array.isArray(data.fields) || !Array.isArray(data.scopes)
       || !Array.isArray(data.validationIssues) || !Array.isArray(data.reviewItems)
@@ -24,6 +24,8 @@ export function canonicalPracticeProfile(data) {
     && data.fields.some(field => field.recordId === scope.id && field.parsed));
   const priorSpouseScopes = data.scopes.filter(scope => scope.recordTypes?.includes('priorSpouses') && scope.parsed);
   empty.priorSpouseRecords = priorSpouseScopes.map((_, index) => `prior-spouse-${index + 1}`);
+  const jobScopes = data.scopes.filter(scope => scope.recordTypes?.includes('jobs') && scope.parsed);
+  empty.jobRecords = jobScopes.map((_, index) => `job-${index + 1}`);
   for (const mapping of mappings) {
     if (!mapping.definitionId) continue;
     if (mapping.recordCategory === 'priorSpouses') {
@@ -31,6 +33,17 @@ export function canonicalPracticeProfile(data) {
         const candidates = data.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === scope.id);
         if (candidates.length !== 1 || !eligible(candidates[0], mapping.type, mapping.precision, mapping.allowedValues)) continue;
         const recordId = `prior-spouse-${index + 1}`;
+        empty.fields.push({ id: `${mapping.definitionId}@${recordId}`, definitionId: mapping.definitionId,
+          recordId, dataType: mapping.type, value: candidates[0].value, precision: candidates[0].precision || null,
+          readiness: 'ready', blockingReasons: [] });
+      }
+      continue;
+    }
+    if (mapping.recordCategory === 'jobs') {
+      for (const [index, scope] of jobScopes.entries()) {
+        const candidates = data.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === scope.id);
+        if (candidates.length !== 1 || !eligible(candidates[0], mapping.type, mapping.precision, mapping.allowedValues)) continue;
+        const recordId = `job-${index + 1}`;
         empty.fields.push({ id: `${mapping.definitionId}@${recordId}`, definitionId: mapping.definitionId,
           recordId, dataType: mapping.type, value: candidates[0].value, precision: candidates[0].precision || null,
           readiness: 'ready', blockingReasons: [] });

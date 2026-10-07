@@ -29,3 +29,20 @@ export const formSections = Object.freeze([
   ] },
   { title: 'Children', rows: [row('Child information — not mapped yet', null, 'children-not-mapped')] },
 ]);
+export const employmentRows = Object.freeze([
+  row('Employer name', 'employment-employer'),
+  row('Street Line 1', 'employment-street-line-1'),
+  row('City/Town', 'employment-city'),
+  row('State/Territory', 'employment-state'),
+  row('ZIP Code', 'employment-zip'),
+  row('Start Date Month', null, 'employment-start-month'),
+  row('Start Date Year', null, 'employment-start-year'),
+  row('End Date Month', null, 'employment-end-month'),
+  row('End Date Year', null, 'employment-end-year'),
+  row('Employed in 2025 — not mapped', 'employment-2025'),
+  row('Employed in 2026 — not mapped', 'employment-2026'),
+  row('Employed in 2027 — not mapped', 'employment-2027'),
+  row('Country — not mapped', 'employment-country'),
+  row('Street Line 2 — not mapped', 'employment-street-line-2'),
+  row('Employment has not ended — not mapped', 'employment-not-ended'),
+]);

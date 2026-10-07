@@ -87,7 +87,7 @@ export function fromIntakeChecker(session) {
     fields.push({
       id: recordId ? `${definition.id}@${recordId}` : definition.id,
       definitionId: definition.id, recordId, category: definition.category, label,
-      ...(definition.category === 'priorSpouses' ? { recordSource: sourceRange(nodes[0]?.node) } : {}),
+      ...(['priorSpouses', 'jobs'].includes(definition.category) ? { recordSource: sourceRange(nodes[0]?.node) } : {}),
       dataType: definition.dataType, value: conflict ? null : encoded.value, precision: encoded.precision,
       sources, origin: edits.length ? 'employee_entered' : candidates.length ? 'parsed' : 'absent',
       validation: { status: unresolved.length ? 'unresolved' : issues.length ? 'acknowledged' : 'no_issues', issues },

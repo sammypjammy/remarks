@@ -1,5 +1,5 @@
 // These are invented practice questions, NOT verified SSA selectors or meanings.
-export const schemaVersion = '3.1.0';
+export const schemaVersion = '3.2.0';
 export const mappings = Object.freeze([
   ['first-name', 'First name', 'personal.first-name', 'text'],
   ['last-name', 'Last name', 'personal.last-name', 'text'],
@@ -55,6 +55,19 @@ export const mappings = Object.freeze([
   ['onset', 'Disability onset (month accepted)', 'disability.onset-date-of-disability', 'date', 'month'],
   ['last-worked', 'Last day worked (full date)', 'employment.when-did-you-last-work', 'date'],
   ['work-stopped', 'Date work stopped — not mapped', null, 'date'],
+  ['employment-employer', 'Employer name', 'jobs.employer', 'text', 'day', 'jobs'],
+  ['employment-street-line-1', 'Street Line 1', 'jobs.address', 'text', 'day', 'jobs'],
+  ['employment-city', 'City/Town', 'jobs.city', 'text', 'day', 'jobs'],
+  ['employment-state', 'State/Territory', 'jobs.state', 'text', 'day', 'jobs'],
+  ['employment-zip', 'ZIP Code', 'jobs.zipcode', 'text', 'day', 'jobs'],
+  ['employment-start-date', 'Start Date', 'jobs.start-date', 'date', 'day', 'jobs'],
+  ['employment-end-date', 'End Date', 'jobs.end-date', 'date', 'day', 'jobs'],
+  ['employment-2025', 'Employed in 2025 — not mapped', null, 'text', 'day', 'jobs'],
+  ['employment-2026', 'Employed in 2026 — not mapped', null, 'text', 'day', 'jobs'],
+  ['employment-2027', 'Employed in 2027 — not mapped', null, 'text', 'day', 'jobs'],
+  ['employment-country', 'Country — not mapped', null, 'text', 'day', 'jobs'],
+  ['employment-street-line-2', 'Street Line 2 — not mapped', null, 'text', 'day', 'jobs'],
+  ['employment-not-ended', 'Employment has not ended — not mapped', null, 'text', 'day', 'jobs'],
   ['prior-first-name', 'First Name', 'priorSpouses.first-name', 'text', 'day', 'priorSpouses'],
   ['prior-middle-name', 'Middle Name', 'priorSpouses.middle-name', 'text', 'day', 'priorSpouses'],
   ['prior-last-name', 'Last Name', 'priorSpouses.last-name', 'text', 'day', 'priorSpouses'],
@@ -77,24 +90,43 @@ export const mappings = Object.freeze([
   Object.freeze({ target, label, definitionId, type, precision, recordCategory, allowedValues })));
 
 export const childDefinitionIds = Object.freeze(['children.first-name', 'children.last-name']);
+export const jobDefinitionIds = Object.freeze([
+  'jobs.employer', 'jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode', 'jobs.start-date', 'jobs.end-date',
+]);
+
+export function isFullDate(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [, year, month, day] = match.map(Number);
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
 
 export function planPractice(profile) {
   const supported = profile?.schema === 'packard.intake-client-profile' && profile.schemaVersion === schemaVersion
-    && Array.isArray(profile.fields) && Array.isArray(profile.priorSpouseRecords);
+    && Array.isArray(profile.fields) && Array.isArray(profile.priorSpouseRecords) && Array.isArray(profile.jobRecords);
   const priorRecords = profile?.priorSpouseRecords;
   const validPriorRecords = Array.isArray(priorRecords) && priorRecords.every((recordId, index) =>
     typeof recordId === 'string' && /^prior-spouse-[1-9]\d*$/.test(recordId)
       && priorRecords.indexOf(recordId) === index);
+  const jobRecords = profile?.jobRecords;
+  const validJobRecords = Array.isArray(jobRecords) && jobRecords.every((recordId, index) =>
+    typeof recordId === 'string' && /^job-[1-9]\d*$/.test(recordId)
+      && jobRecords.indexOf(recordId) === index);
   const plannedMappings = mappings.flatMap(mapping => mapping.recordCategory === 'priorSpouses'
     ? validPriorRecords ? priorRecords.map(recordId => ({ ...mapping, recordId })) : [{ ...mapping, recordId: null, invalidRecords: true }]
-    : [mapping]);
+    : mapping.recordCategory === 'jobs'
+      ? validJobRecords ? jobRecords.map(recordId => ({ ...mapping, recordId })) : [{ ...mapping, recordId: null, invalidRecords: true }]
+      : [mapping]);
   return plannedMappings.map(mapping => {
     const pause = reason => ({ ...mapping, status: 'pause', reason });
     if (!supported) return pause('Unsupported profile contract.');
-    if (mapping.invalidRecords) return pause('Prior-spouse record identities are invalid.');
+    if (mapping.invalidRecords) return pause('Repeating record identities are invalid.');
     if (!mapping.definitionId) return pause('No exact Checker field. Employee input required; no answer will be guessed.');
     const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse'
-      : mapping.recordCategory === 'priorSpouses' ? mapping.recordId : null;
+      : ['priorSpouses', 'jobs'].includes(mapping.recordCategory) ? mapping.recordId : null;
     const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
     if (candidates.length !== 1) return pause('No unique matching answer.');
     const field = candidates[0];
@@ -102,7 +134,8 @@ export function planPractice(profile) {
     if (field.dataType !== mapping.type || (mapping.type === 'boolean'
       ? typeof field.value !== 'boolean' : typeof field.value !== 'string' || !field.value.trim())) return pause('Answer type does not match this question.');
     if (mapping.allowedValues && !mapping.allowedValues.includes(field.value)) return pause('Answer is outside the exact supported choices.');
-    if (mapping.type === 'date' && (!['day', 'month'].includes(field.precision) || (mapping.precision === 'day' && field.precision !== 'day'))) return pause('A complete date is needed. No day will be guessed.');
+    if (mapping.type === 'date' && (!['day', 'month'].includes(field.precision)
+      || (mapping.precision === 'day' && (field.precision !== 'day' || !isFullDate(field.value))))) return pause('A complete date is needed. No day will be guessed.');
     return { ...mapping, status: 'ready', value: field.value, fieldId: field.id };
   });
 }

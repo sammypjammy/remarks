@@ -56,8 +56,15 @@ export function syntheticProfile() {
     ['address.physical-address-zipcode', '11111', 'text'],
     ['disability.onset-date-of-disability', '2020-03', 'date', 'month'],
     ['employment.when-did-you-last-work', '2020-02', 'date', 'month'],
+    ['jobs.employer', 'Example Company', 'text', null, 'job-1'],
+    ['jobs.address', '123 Fictional Work Road', 'text', null, 'job-1'],
+    ['jobs.city', 'Sample City', 'text', null, 'job-1'],
+    ['jobs.state', 'EX', 'text', null, 'job-1'],
+    ['jobs.zipcode', '00000', 'text', null, 'job-1'],
+    ['jobs.start-date', '2010-01-02', 'date', 'day', 'job-1'],
+    ['jobs.end-date', '2015-06-07', 'date', 'day', 'job-1'],
   ];
-  return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
+  return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], jobRecords: ['job-1'], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
     id: recordId ? `${definitionId}@${recordId}` : definitionId, definitionId, recordId,
     value, dataType, precision, readiness: value === null ? 'blocked' : 'ready',
     blockingReasons: value === null ? [{ code: 'missing' }] : [],
