@@ -1,11 +1,82 @@
 import { zipSync } from 'fflate';
-import { splitContract } from './splits.js';
+import { splitContract, makeSplits } from './splits.js';
 
 const input = document.getElementById('contractFiles');
 const results = document.getElementById('contractResults');
 const status = document.getElementById('splitterStatus');
 const downloadAll = document.getElementById('downloadAll');
+const pieceCount = document.getElementById('pieceCount');
+const pieceFields = document.getElementById('pieceFields');
+const setupError = document.getElementById('setupError');
 let documents = [];
+let selections = ['1-4', '5-7', '10', '11'];
+
+for (let count = 1; count <= 12; count++) {
+  const option = document.createElement('option');
+  option.value = String(count);
+  option.textContent = String(count);
+  pieceCount.append(option);
+}
+pieceCount.value = String(selections.length);
+
+function clearOutputs() {
+  documents = [];
+  results.replaceChildren();
+  downloadAll.disabled = true;
+  status.textContent = 'Choose contracts to begin.';
+}
+
+function renderPieces() {
+  pieceFields.replaceChildren();
+  selections.forEach((value, index) => {
+    const label = document.createElement('label');
+    label.className = 'splitter-piece';
+    const title = document.createElement('span');
+    title.textContent = `Piece ${index + 1} pages`;
+    const field = document.createElement('input');
+    field.type = 'text';
+    field.inputMode = 'text';
+    field.autocomplete = 'off';
+    field.spellcheck = false;
+    field.placeholder = 'e.g. 1-4 or 1, 3, 5-7';
+    field.value = value;
+    field.addEventListener('input', () => {
+      selections[index] = field.value;
+      setupError.hidden = true;
+      field.setCustomValidity('');
+      clearOutputs();
+    });
+    label.append(title, field);
+    pieceFields.append(label);
+  });
+}
+
+pieceCount.addEventListener('change', () => {
+  const count = Number(pieceCount.value);
+  selections = Array.from({ length: count }, (_, index) => selections[index] || '');
+  setupError.hidden = true;
+  clearOutputs();
+  renderPieces();
+});
+renderPieces();
+
+function selectedSplits() {
+  for (const [index, field] of [...pieceFields.querySelectorAll('input')].entries()) {
+    try {
+      makeSplits([field.value]);
+      field.setCustomValidity('');
+    } catch (error) {
+      field.setCustomValidity(error.message);
+      field.reportValidity();
+      setupError.textContent = `Piece ${index + 1}: ${error.message}`;
+      setupError.hidden = false;
+      field.focus();
+      return null;
+    }
+  }
+  setupError.hidden = true;
+  return makeSplits(selections);
+}
 
 function download(bytes, name, type) {
   const url = URL.createObjectURL(new Blob([bytes], { type }));
@@ -43,7 +114,7 @@ function addContract(file, result, batchIndex) {
     if (item.missing) {
       const missing = document.createElement('span');
       missing.className = 'splitter-missing';
-      missing.textContent = `Unavailable — needs page ${item.range.end}`;
+      missing.textContent = `Unavailable — missing ${item.missingPages.length === 1 ? 'page' : 'pages'} ${item.missingPages.join(', ')}`;
       row.append(missing);
     } else {
       const name = `${base}-${item.range.suffix}.pdf`;
@@ -65,16 +136,18 @@ function addContract(file, result, batchIndex) {
 input.addEventListener('change', async () => {
   const files = Array.from(input.files || []);
   if (!files.length) return;
-  documents = [];
-  results.replaceChildren();
-  downloadAll.disabled = true;
+  const splits = selectedSplits();
+  if (!splits) { input.value = ''; return; }
+  clearOutputs();
   input.disabled = true;
+  pieceCount.disabled = true;
+  pieceFields.querySelectorAll('input').forEach(field => { field.disabled = true; });
   status.textContent = `Processing ${files.length} ${files.length === 1 ? 'contract' : 'contracts'}…`;
   let failed = 0;
   for (const [index, file] of files.entries()) {
     try {
       if (file.type && file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) throw new Error('Choose a PDF file.');
-      const result = await splitContract(await file.arrayBuffer());
+      const result = await splitContract(await file.arrayBuffer(), splits);
       addContract(file, result, index);
     } catch {
       failed++;
@@ -86,6 +159,8 @@ input.addEventListener('change', async () => {
   }
   input.value = '';
   input.disabled = false;
+  pieceCount.disabled = false;
+  pieceFields.querySelectorAll('input').forEach(field => { field.disabled = false; });
   downloadAll.disabled = documents.length === 0;
   status.textContent = `${documents.length} PDFs ready${failed ? `; ${failed} ${failed === 1 ? 'file' : 'files'} could not be processed` : ''}.`;
 });

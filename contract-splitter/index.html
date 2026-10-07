@@ -12,7 +12,13 @@
 <body data-page="contract-splitter">
   <div data-app-header></div><div data-app-menu></div>
   <main class="app-shell splitter-page">
-    <section class="page-intro"><h1>Contract Splitter</h1><p class="subtitle">Choose contract PDFs to create pages 1–4, 5–7, 10, and 11.</p></section>
+    <section class="page-intro"><h1>Contract Splitter</h1><p class="subtitle">Choose the pieces you need, then select your contract PDFs.</p></section>
+    <section class="splitter-setup panel" aria-labelledby="setupTitle">
+      <div class="splitter-setup-heading"><div><h2 id="setupTitle">Choose your pieces</h2><p>Enter page numbers or ranges for each PDF you want to make.</p></div><label for="pieceCount">Number of pieces <select id="pieceCount" aria-label="Number of pieces"></select></label></div>
+      <div id="pieceFields" class="splitter-piece-fields"></div>
+      <p class="splitter-hint">Example: <strong>1-4, 7, 10</strong> puts those pages together in one piece. The same setup applies to every contract.</p>
+      <p id="setupError" class="splitter-validation" role="alert" hidden></p>
+    </section>
     <section class="splitter-upload panel" aria-label="Upload contracts">
       <label class="splitter-picker" for="contractFiles"><strong>Choose PDF contracts</strong><span>Select one or more files. Splitting starts automatically.</span></label>
       <input id="contractFiles" type="file" accept="application/pdf,.pdf" multiple aria-describedby="privacyNote" />
@@ -23,7 +29,7 @@
       <div id="contractResults"></div>
     </section>
   </main>
-  <div data-app-footer data-app-version="Contract Splitter v1.0.0"></div>
+  <div data-app-footer data-app-version="Contract Splitter v1.1.0"></div>
   <script src="../shared/settings-storage.js"></script><script src="../shared/app-shell.js"></script>
   <script type="module" src="./main.js"></script>
 </body>
