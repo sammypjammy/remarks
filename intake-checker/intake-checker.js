@@ -1,6 +1,6 @@
 import { createIntakeHandoff } from "../ssa-intake-assistant/src/intake-handoff.jsx";
 import { parseIntake } from "./parser.js";
-import { createIntakeSession, correctIntakeField } from "./session.js";
+import { createIntakeSession, correctIntakeField, canContinueToSsa } from "./session.js";
 import { issueSource, findInTextarea } from "./source-location.js";
 import { validationSummary } from "./acknowledgements.js";
 import { createClientDataView } from './client-data-view.js';
@@ -11,6 +11,15 @@ const message = document.getElementById("intakeMessage");
 let activeIntake = null;
 const clientDataView = createClientDataView({ getSession: () => activeIntake, onLocate: range => findInTextarea(input, range) });
 const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, range), onAccessLost: () => reset(), onCorrect: applyCorrection });
+function updateContinuation() {
+  const button = document.getElementById("continueToSsa");
+  const status = document.getElementById("continueToSsaStatus");
+  button.hidden = !activeIntake?.validationPerformed;
+  button.disabled = !canContinueToSsa(activeIntake);
+  const remaining = activeIntake ? activeIntake.validationState.remaining().length + activeIntake.reviewState.remaining().length : 0;
+  status.hidden = button.hidden || !remaining;
+  status.textContent = status.hidden ? "" : `${remaining} notification${remaining === 1 ? "" : "s"} left. Resolve or ignore each one to continue.`;
+}
 function clearResults() {
   activeIntake = null;
   clientDataView.refresh();
@@ -18,7 +27,7 @@ function clearResults() {
   document.querySelector('#intakeNormalizations ul').replaceChildren();
   document.getElementById('intakeNormalizations').hidden = true;
   handoff.clear();
-  document.getElementById("continueToSsa").hidden = true;
+  updateContinuation();
   results.hidden = true;
   document.getElementById("intakeEmpty").hidden = false;
   message.textContent = "";
@@ -39,7 +48,7 @@ document.getElementById("clearIntake").addEventListener("click", () => { reset()
 // Avoid restoring client text/results through back-forward page caching.
 window.addEventListener("pagehide", reset);
 window.addEventListener("packardaccountchange", reset);
-document.getElementById("continueToSsa").addEventListener("click", () => { if (activeIntake) handoff.open(activeIntake); });
+document.getElementById("continueToSsa").addEventListener("click", () => { if (canContinueToSsa(activeIntake)) handoff.open(activeIntake); });
 document.getElementById("intakeForm").addEventListener("submit", event => {
   event.preventDefault();
   clearResults();
@@ -57,7 +66,7 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
     renderNormalizations(activeIntake.report.formats);
     renderReview(activeIntake.review, activeIntake.reviewState);
     renderReport(activeIntake.report, partial, parsed, activeIntake.validationState);
-    document.getElementById("continueToSsa").hidden = false;
+    updateContinuation();
     document.getElementById("validationReport").hidden = false;
   } else {
     message.dataset.severity = "error";
@@ -96,6 +105,7 @@ function renderReport(report, partial, parsed, state) {
     actions.append(reviewedButton(row, title.textContent, () => {
       state.review(issue);
       updateSummary();
+      updateContinuation();
       clientDataView.refresh();
     }, summary, "Ignore"));
     row.append(actions);
@@ -193,6 +203,7 @@ function renderReview(review, state) {
     actions.append(cannedRemarks);
     actions.append(reviewedButton(row, item.message, () => {
       state.review(item);
+      updateContinuation();
       clientDataView.refresh();
     }, client.querySelector("button") || document.getElementById("reviewTitle")));
     row.append(actions);
@@ -221,5 +232,6 @@ function applyCorrection(session, target, value) {
   }
   corrections.append(list);
   clientDataView.refresh();
+  updateContinuation();
   return true;
 }

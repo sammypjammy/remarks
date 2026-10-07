@@ -12,6 +12,14 @@ export function createIntakeSession(parsed, { validate = true } = {}) {
     validationState: createAcknowledgements(report.issues), reviewState: createAcknowledgements(review.items) };
 }
 
+// A handoff is available only after every Checker notification has been handled.
+// An ignored error remains invalid in the canonical data; this only gates the UI.
+export function canContinueToSsa(session) {
+  return !!session?.validationPerformed && session.parsed.sections.length > 0
+    && session.validationState.remaining().length === 0
+    && session.reviewState.remaining().length === 0;
+}
+
 export function nodeAtPath(parsed, path) {
   let nodes = parsed.sections, node;
   for (const index of path.split('/').slice(1)) {

@@ -33,14 +33,16 @@ export async function checkClientData({ visit, evaluate, width, capture }) {
   assert((await data()).reviewItems.some(item => item.message === 'Currently Working' && item.reviewed));
   await evaluate("[...document.querySelectorAll('#validationIssues li')].find(row=>row.textContent.includes('Social Security Number')).querySelector('.intake-reviewed').click()");
   assert((await data()).validationIssues.some(item => item.field === 'Social Security Number' && item.dismissed));
+  assert(await evaluate("document.getElementById('continueToSsa').disabled"));
+  await evaluate("document.querySelectorAll('#validationIssues .intake-reviewed, #reviewItems .intake-reviewed').forEach(button=>button.click())");
+  assert(await evaluate("!document.getElementById('continueToSsa').disabled"));
   await evaluate("document.getElementById('continueToSsa').click(); new Promise(done=>setTimeout(done,350))");
-  await evaluate(`(()=>{const input=document.getElementById('correct-personal.phone-number');
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'2025550142');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-  await evaluate("document.getElementById('correct-personal.phone-number').closest('form').requestSubmit();new Promise(done=>setTimeout(done,150))");
-  await evaluate("[...document.querySelectorAll('button')].find(button=>button.textContent==='Back to Intake Checker').click()");
-  const corrected = await data();
-  const phone = corrected.fields.find(field => field.definitionId === 'personal.phone-number');
-  assert.equal(phone.value, '202-555-0142'); assert.equal(phone.origin, 'employee_entered');
+  await evaluate("[...document.querySelectorAll('.ssa-client-filing button')].find(button => button.textContent === 'Open client filing').click();new Promise(done=>setTimeout(done,60))");
+  assert(await evaluate("document.getElementById('clientFilingText').value.includes('PhoneNumber: 123')"));
+  await evaluate("document.querySelector('.filing-header button').click()");
+  const returned = await data();
+  const phone = returned.fields.find(field => field.definitionId === 'personal.phone-number');
+  assert.equal(phone.valueStatus, 'invalid'); assert.equal(phone.origin, 'parsed');
   assert.equal(phone.occurrences[0].originalValue, '123'); assert.equal(await evaluate('intakeText.value'), text);
   await capture(`intake-client-data-${width}`);
   await check(); await open(); assert.equal((await data()).revision, 0);
@@ -53,5 +55,5 @@ export async function checkClientData({ visit, evaluate, width, capture }) {
   assert.equal(await evaluate('window.clientDataWrites'), 0); assert.equal(await evaluate('window.clientDataRequests'), 0);
   await check(); await open(); await visit('/intake-checker/');
   assert(await evaluate("!intakeText.value && document.getElementById('clientDataInspector').hidden && !document.getElementById('clientDataJson').textContent"));
-  console.log(`PASS (${width}px): canonical inspection, copy/download, sources, review, correction, recheck, reload, safe rendering and memory-only behavior.`);
+  console.log(`PASS (${width}px): canonical inspection, copy/download, sources, review, filing preview, recheck, reload, safe rendering and memory-only behavior.`);
 }

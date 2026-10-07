@@ -1,5 +1,7 @@
 # Chrome synthetic practice pilot 0.3.0
 
+The current SSA Intake Assistant handoff shows only the local client-filing preview. It does not mount the practice bridge controls. The bridge instructions and dedicated bridge browser harness below describe the retained earlier pilot; they require its connection UI and are not a test of the current filing-preview page. The extension's isolated synthetic practice page and protocol unit tests remain available. No extension or SSA access is added by the filing preview.
+
 ## Hosted Chrome pilot
 
 In Chrome, open `chrome://extensions`, enable Developer mode, load this `extension-dev` folder as unpacked, or select Reload if it is already installed. Reopen the practice page after an update. Use the authenticated Toolkit at `https://packardtoolkit.vercel.app/intake-checker/`, check an intake, and continue to SSA Intake Assistant. Open the extension practice page, select **Receive from Toolkit**, then approve **Send to practice extension** in the Toolkit. Finally select **Fill received answers** in the extension.

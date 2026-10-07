@@ -84,7 +84,9 @@ try {
   const intake = readinessIntake;
   await checkReadiness({ cdp, evaluate, visit, click, check, until, network, origin, directory });
   authenticated = false;
-  await visit('/intake-checker/'); await check(intake); await click('Continue to SSA Intake Assistant');
+  await visit('/intake-checker/'); await check(intake);
+  await evaluate("document.querySelectorAll('#validationIssues .intake-reviewed, #reviewItems .intake-reviewed').forEach(button => button.click())");
+  await click('Continue to SSA Intake Assistant');
   await until(() => evaluate("!document.getElementById('intakeText').value && document.getElementById('ssaIntakeView').hidden"));
   await visit('/ssa-intake-assistant/');
   await until(() => evaluate("document.body.textContent.includes('Sign in to the Toolkit to use SSA Intake Assistant')"));
@@ -128,8 +130,10 @@ try {
   assert(requests.every(request => request.method === 'GET'));
   assert.deepEqual(failures, []);
   console.log('PASS: authentication, direct PDF, image-only local OCR (9 fields, page 1), same-origin GET assets only');
-  await visit('/intake-checker/'); await check(intake); await click('Continue to SSA Intake Assistant');
-  await until(() => evaluate("!!document.querySelector('.ssa-readiness')"));
+  await visit('/intake-checker/'); await check(intake);
+  await evaluate("document.querySelectorAll('#validationIssues .intake-reviewed, #reviewItems .intake-reviewed').forEach(button => button.click())");
+  await click('Continue to SSA Intake Assistant');
+  await until(() => evaluate("!!document.querySelector('.ssa-client-filing')"));
   const stopped = once(child, 'exit');
   await cdp('Browser.close'); await stopped; socket.close();
   const reopened = spawn(browserPath, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${join(directory, 'profile')}`, '--dump-dom', '--virtual-time-budget=3000', origin + '/intake-checker/'], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });

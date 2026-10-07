@@ -57,14 +57,14 @@ test('navigation shares tool metadata and retains hidden tools in saved order', 
   await b.settings.refreshAccountPreferences();
   b.settings.saveHomepagePreferences({ ...b.settings.getHomepagePreferences(), order: ['fax', 'email', 'remarks', 'med-tabs', 'intake'], hidden: ['fax'] });
   const sections = b.settings.getToolkitNavigation();
-  assert.deepEqual(Array.from(sections[0].items, item => item.id), ['home', 'fax', 'email', 'remarks', 'med-tabs', 'intake', 'ssa-intake']);
+  assert.deepEqual(Array.from(sections[0].items, item => item.id), ['home', 'fax', 'email', 'remarks', 'med-tabs', 'intake', 'ssa-intake', 'contract-splitter']);
   for (const tool of b.settings.homepageTools) {
     assert.equal(sections[0].items.find(item => item.id === tool.id), tool);
   }
   assert.equal(sections[0].items[0].path, '');
   assert.equal(sections[1].items[0].path, 'settings/');
   b.settings.resetHomepagePreferences();
-  assert.deepEqual(Array.from(b.settings.getToolkitNavigation()[0].items, item => item.id), ['home', 'remarks', 'med-tabs', 'email', 'fax', 'intake', 'ssa-intake']);
+  assert.deepEqual(Array.from(b.settings.getToolkitNavigation()[0].items, item => item.id), ['home', 'remarks', 'med-tabs', 'email', 'fax', 'intake', 'ssa-intake', 'contract-splitter']);
   await b.settings.flushPreferences();
 });
 

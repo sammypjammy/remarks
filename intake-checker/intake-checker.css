@@ -41,6 +41,8 @@
 .copy-status { margin-left: 8px; font-size: 0.875rem; color: var(--muted); }
 
 #continueToSsa { margin-bottom: 16px; max-width: 100%; white-space: normal; }
+#continueToSsa:not([hidden]) { margin-bottom: 0; }
+#continueToSsaStatus:not([hidden]) { margin: 5px 0 16px; color: var(--muted); font-size: .85rem; }
 #ssaIntakeView[hidden], #intakeCheckerView[hidden] { display: none; }
 
 #intakeMessage[data-severity="error"] { color: #9b1c1c; background: #fff1f1; padding: 12px; border-left: 3px solid #c0392b; }

@@ -36,7 +36,8 @@
         <section class="intake-output" aria-label="Intake results">
           <p id="intakeEmpty">Check an intake to see issues here.</p>
           <div id="intakeResults" hidden>
-          <button id="continueToSsa" class="primary-btn" type="button" hidden>Continue to SSA Intake Assistant</button>
+          <button id="continueToSsa" class="primary-btn" type="button" aria-describedby="continueToSsaStatus" hidden disabled>Continue to SSA Intake Assistant</button>
+          <p id="continueToSsaStatus" role="status" hidden></p>
           <section id="intakeReview" aria-labelledby="reviewTitle" hidden>
             <h2 id="reviewTitle" tabindex="-1">Things to Notate in Remarks</h2>
             <div id="reviewClient"></div>

@@ -1,4 +1,10 @@
 .ssa-page { max-width: 1180px; }
+.ssa-client-filing { padding: .75rem 0; }
+.ssa-client-filing .filing-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1rem; }
+.ssa-client-filing .filing-header h2 { margin: 0; }
+.ssa-client-filing .filing-header .button { flex: 0 0 auto; }
+.ssa-client-filing textarea { display: block; width: 100%; min-height: 55vh; max-height: 75vh; margin-top: 1rem; padding: 1rem; resize: vertical; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font: .9rem/1.6 ui-monospace, Consolas, monospace; }
+@media (max-width: 640px) { .ssa-client-filing .filing-header { align-items: flex-start; flex-direction: column; } }
 .ssa-readiness .readiness-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin: 1.5rem 0; }
 .ssa-readiness .readiness-counts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .7rem; }
 .ssa-readiness .readiness-counts > div { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }

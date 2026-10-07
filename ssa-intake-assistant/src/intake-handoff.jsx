@@ -1,27 +1,22 @@
 import { createRoot } from 'react-dom/client';
-import ReadinessDashboard from './ReadinessDashboard.jsx';
+import ClientFiling from './ClientFiling.jsx';
 import AuthGate from './AuthGate.jsx';
-import { fromIntakeChecker } from './model/from-intake-checker.js';
+import { createClientData } from '../../intake-checker/client-data.js';
 import './styles.css';
 
-// Both views live in one document. The optional development bridge is explicitly approved.
-export function createIntakeHandoff({ onSource, onAccessLost, onCorrect }) {
+// Both views live in one document; the filing preview never opens a site or bridge.
+export function createIntakeHandoff({ onSource, onAccessLost }) {
   const checker = document.getElementById('intakeCheckerView');
   const host = document.getElementById('ssaIntakeView');
   let root = null;
   function render(session) {
-    const profile = fromIntakeChecker(session);
-    function correct(id, value) {
-      const field = profile.fields.find(item => item.id === id);
-      if (!field || field.readiness !== 'blocked' || !field.correctionTarget) return false;
-      if (!onCorrect(session, field.correctionTarget, value)) return false;
-      render(session);
-      return true;
-    }
-    root.render(<AuthGate onAccessLost={onAccessLost}><ReadinessDashboard profile={profile} onBack={back} onSource={back} onCorrect={correct} /></AuthGate>);
+    const data = createClientData(session);
+    root.render(<AuthGate onAccessLost={onAccessLost}><ClientFiling data={data} onBack={back} /></AuthGate>);
   }
   function back(range) {
     window.dispatchEvent(new Event('packard-ssa-revoke'));
+    root?.unmount();
+    root = null;
     host.hidden = true;
     checker.hidden = false;
     if (range) onSource(range);
