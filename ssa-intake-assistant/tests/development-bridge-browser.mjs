@@ -54,7 +54,7 @@ try{
     await until(()=>source.evaluate("!!document.querySelector('[aria-label=\"Synthetic extension connection\"]')"));
   }
   async function send(){
-    await click(extension,'Receive from local Toolkit');
+    await click(extension,'Receive from Toolkit');
     await source.evaluate("document.querySelector('[aria-label=\"Synthetic extension connection\"] input[type=checkbox]').click()");
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');

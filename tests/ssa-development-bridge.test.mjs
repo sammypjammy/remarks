@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
-import { projectReady, trustedSender, receiveBridge, BRIDGE_NAME, SOURCE_URL, LEASE_MS, MAX_SESSION_MS } from '../ssa-intake-assistant/extension-dev/bridge-contract.js';
+import { projectReady, trustedSender, receiveBridge, BRIDGE_NAME, SOURCE_URL, HOSTED_PILOT_URL, LEASE_MS, MAX_SESSION_MS } from '../ssa-intake-assistant/extension-dev/bridge-contract.js';
+import { sendDevelopmentProfile } from '../ssa-intake-assistant/src/model/development-bridge.js';
 import { DEVELOPMENT_EXTENSION_ID } from '../ssa-intake-assistant/src/model/development-extension-id.js';
 import { syntheticProfile } from '../ssa-intake-assistant/extension-dev/synthetic.js';
 const nonce='11111111-1111-1111-1111-111111111111', session='22222222-2222-2222-2222-222222222222';
@@ -25,8 +26,24 @@ test('projection sends only mapped ready values with no source, review, credenti
 test('only exact local URL, origin, top frame and browser tab are accepted',()=>{
   assert(trustedSender(sender()));
   assert(trustedSender({...sender(),url:'http://localhost:5173/intake-checker/',origin:'http://localhost:5173'}));
+  assert(trustedSender({...sender(),url:HOSTED_PILOT_URL,origin:'https://packardtoolkit.vercel.app'}));
   assert(!trustedSender({...sender(),url:'http://localhost:5173/intake-checker/'}));
   for(const change of [{url:'https://ssa.gov/'},{url:SOURCE_URL+'?profile=x'},{url:SOURCE_URL.replace(':5173',':5174')},{origin:'https://untrusted.invalid'},{frameId:1},{tab:null},{id:'another-extension'}]) assert(!trustedSender({...sender(),...change}));
+  for(const url of [HOSTED_PILOT_URL+'?profile=x',HOSTED_PILOT_URL+'#x','http://packardtoolkit.vercel.app/intake-checker/','https://other.vercel.app/intake-checker/']) assert(!trustedSender({...sender(),url,origin:new URL(url).origin}));
+});
+test('hosted pilot ignores active intake and sends only fixed fictional values',async()=>{
+  let port;
+  const runtime={connect(id){assert.equal(id,DEVELOPMENT_EXTENSION_ID);port={onDisconnect:event(),onMessage:event(),postMessage(packet){if(packet.type==='profile')this.sent=packet.profile;},disconnect(){}};return port;}};
+  const windowObject={location:{href:HOSTED_PILOT_URL},addEventListener(){},removeEventListener(){}};windowObject.top=windowObject;
+  const client=syntheticProfile();client.fields[0].value='PRIVATE_CLIENT_VALUE';
+  const stop=sendDevelopmentProfile(client,{runtime,windowObject,onStatus(){},checkAccess:async()=>true});
+  for(let i=0;i<10&&!port;i++)await new Promise(resolve=>setTimeout(resolve,0));
+  assert(port);
+  port.onMessage.emit({type:'challenge',receiver:nonce});
+  assert(port.sent);
+  assert.equal(port.sent.fields.find(field=>field.id==='personal.first-name').value,'Synthetic');
+  assert(!JSON.stringify(port.sent).includes('PRIVATE_CLIENT_VALUE'));
+  stop();
 });
 test('receiver binds nonce and session, clears on revoke and rejects repeated payloads',()=>{
   const h=harness();assert.equal(h.messages[0].type,'challenge');assert.equal(h.timer.delay,LEASE_MS);

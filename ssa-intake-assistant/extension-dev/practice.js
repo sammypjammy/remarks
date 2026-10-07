@@ -37,7 +37,7 @@ document.getElementById('receive').addEventListener('click', () => {
     document.getElementById('connection').textContent = 'Load this package as an unpacked extension to connect.'; return;
   }
   waiting = true;
-  document.getElementById('connection').textContent = 'Waiting for your approved local Toolkit transfer.';
+  document.getElementById('connection').textContent = 'Waiting for your approved Toolkit transfer.';
 });
 globalThis.chrome?.runtime?.onConnectExternal?.addListener(port => {
   if (!waiting || port.name !== BRIDGE_NAME || !trustedSender(port.sender)) { port.disconnect(); return; }

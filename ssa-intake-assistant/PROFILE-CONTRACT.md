@@ -207,6 +207,6 @@ The table below is checked by the contract tests. Category-specific duplicate la
 | financial-support.other-support-stay-with-friends | FINANCIAL SUPPORT | Other Support - Stay with Friends | boolean |
 | financial-support.other-support-other | FINANCIAL SUPPORT | Other Support - Other | boolean |
 
-## Development-only consumer
+## Chrome synthetic practice consumer
 
-SSA v1.9.0 can explicitly share a narrow projection of the eight practice mappings with the 0.2.0 development extension, from the exact local development Toolkit page only. Contract 3.0.0 and readyFields semantics are unchanged. The transfer excludes source text, provenance, review metadata and authentication. It requires source approval, receiver arming, a bound session/nonce and a short lease. No production or live SSA connection is enabled. See extension-dev/README.md for the protocol, lifecycle, trust boundary and test instructions.
+SSA v1.10.0 can explicitly share a narrow projection of the eight practice mappings with the 0.3.0 Chrome practice extension. On the hosted Toolkit, the sender substitutes a fixed fictional profile before projection; the active intake is never transferred. Local development retains explicitly approved synthetic intake transfer. Contract 3.0.0 and readyFields semantics are unchanged. The transfer excludes source text, provenance, review metadata and authentication. It requires source approval, receiver arming, a bound session/nonce and a short lease. The extension has no live SSA connection. See extension-dev/README.md for the protocol, lifecycle, trust boundary and test instructions.

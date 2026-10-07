@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Packard SSA Synthetic Practice",
-  "version": "0.2.0",
-  "description": "Development only: synthetic practice and explicitly approved local Toolkit transfers.",
+  "version": "0.3.0",
+  "description": "Chrome synthetic practice with an explicitly approved Toolkit pilot connection. No SSA access.",
   "action": {
     "default_popup": "launcher.html",
     "default_title": "Open synthetic practice"
@@ -14,7 +14,8 @@
   "externally_connectable": {
     "matches": [
       "http://127.0.0.1/*",
-      "http://localhost/*"
+      "http://localhost/*",
+      "https://packardtoolkit.vercel.app/*"
     ]
   }
 }

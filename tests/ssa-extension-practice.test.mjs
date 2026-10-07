@@ -48,12 +48,12 @@ test('explicit fill preserves employee entries and refuses changed targets', () 
   assert(fillPractice(syntheticProfile(), root).every(item => item.status === 'pause'));
   root.dataset.practice = 'other'; assert.deepEqual(fillPractice(syntheticProfile(), root), []);
 });
-test('development package accepts only loopback messaging with no host, background or storage permissions', async () => {
+test('Chrome practice package accepts only Toolkit messaging with no host, background or storage permissions', async () => {
   const base = new URL('../ssa-intake-assistant/extension-dev/', import.meta.url);
   const manifest = JSON.parse(await readFile(new URL('manifest.json', base), 'utf8'));
   assert.equal(manifest.manifest_version, 3);
   for (const key of ['permissions','host_permissions','content_scripts','background','web_accessible_resources','optional_permissions','optional_host_permissions']) assert.equal(manifest[key], undefined);
-  assert.deepEqual(manifest.externally_connectable, {matches:['http://127.0.0.1/*','http://localhost/*']});
+  assert.deepEqual(manifest.externally_connectable, {matches:['http://127.0.0.1/*','http://localhost/*','https://packardtoolkit.vercel.app/*']});
   for (const name of ['practice.js','mapping.js','synthetic.js']) {
     const source = await readFile(new URL(name, base), 'utf8');
     assert(!/\b(fetch|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB|console|postMessage)\b/.test(source));

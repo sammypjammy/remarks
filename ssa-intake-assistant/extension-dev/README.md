@@ -1,18 +1,26 @@
-# Synthetic extension development 0.2.0
+# Chrome synthetic practice pilot 0.3.0
 
-This separate Manifest V3 package uses fictional data and simulated questions only. It cannot inspect or access live SSA pages. It has no host, tabs, storage, cookies or scripting permissions, no content scripts and no background service worker. Its only external connection is from an explicitly approved local Toolkit page to this open practice page.
+## Hosted Chrome pilot
+
+In Chrome, open `chrome://extensions`, enable Developer mode, load this `extension-dev` folder as unpacked, or select Reload if it is already installed. Reopen the practice page after an update. Use the authenticated Toolkit at `https://packardtoolkit.vercel.app/intake-checker/`, check an intake, and continue to SSA Intake Assistant. Open the extension practice page, select **Receive from Toolkit**, then approve **Send to practice extension** in the Toolkit. Finally select **Fill received answers** in the extension.
+
+The hosted Toolkit sends a fixed fictional profile. The active intake never enters the extension, even if it contains real information. The hosted sender enforces this in code. The local development flow below still transfers approved synthetic intake data and must not be used with client information. Both flows use the same memory-only, short-lived channel. This unpacked package is for a Chrome pilot, not managed staff distribution; a Chrome Web Store or enterprise package needs a confirmed production extension ID and update plan.
+
+The extension permits external messages from `https://packardtoolkit.vercel.app/*` plus the two loopback hosts. Application checks narrow this to the exact `/intake-checker/` URL with no query/hash, the correct origin, top frame, and source tab. The extension has no website, storage, network, cookie, or scripting permissions and cannot access SSA. Authentication stays in the Toolkit page; no credentials or cookies enter the extension.
+
+This separate Manifest V3 package uses fictional data and simulated questions only. It cannot inspect or access live SSA pages. It has no host, tabs, storage, cookies or scripting permissions, no content scripts and no background service worker. Its external connection accepts an explicitly approved Toolkit page.
 
 ## Install / update
 
-For this update, remove the earlier 0.1.0 development extension, then use Chrome `chrome://extensions` or Edge `edge://extensions`: enable Developer mode, **Load unpacked**, choose this `extension-dev` directory. Version 0.2.0 introduces a fixed public package key so the Toolkit can address exactly this extension. The key is a public identity, not a credential. Later updates can use Reload in the extension manager. Reopen the practice page after updates. Keep only one practice page open.
+In Chrome `chrome://extensions`, enable Developer mode and **Load unpacked** this `extension-dev` directory. The fixed public package key keeps the unpacked pilot ID stable; it is not a credential. Later updates can use Reload in the extension manager. Reopen the practice page after updates. Keep only one practice page open.
 
 If managed browser policy disables unpacked extensions, ask the administrator for an approved development profile; do not bypass policy. No staff deployment or store publishing is included. Original standalone extension files are untouched.
 
 ## Manual synthetic bridge test
 
-1. Start the Toolkit's existing authenticated local development setup with `npm.cmd run dev -- --host 127.0.0.1`. For the existing local sign-in configuration use `http://localhost:5173/intake-checker/`. The exact loopback alternative `http://127.0.0.1:5173/intake-checker/` is also allowed when authentication is configured for that origin. Local login must use the existing Toolkit authentication; do not disable it or copy tokens into the extension. If local authentication is not configured, complete the existing local-auth setup before manual testing. The deployed Toolkit deliberately has no bridge button in this milestone.
+1. Start the Toolkit's existing authenticated local development setup with `npm.cmd run dev -- --host 127.0.0.1`. For the existing local sign-in configuration use `http://localhost:5173/intake-checker/`. The exact loopback alternative `http://127.0.0.1:5173/intake-checker/` is also allowed when authentication is configured for that origin. Local login must use the existing Toolkit authentication; do not disable it or copy tokens into the extension. If local authentication is not configured, complete the existing local-auth setup before manual testing.
 2. Paste a clearly synthetic intake, check it, and Continue to SSA Intake Assistant. Existing parsing, edits and review rules are reused.
-3. In the extension practice page select **Receive from local Toolkit**. This arms one transfer; it does not request or retrieve a profile.
+3. In the extension practice page select **Receive from Toolkit**. This arms one transfer; it does not request or retrieve a profile.
 4. In the Toolkit development connection, select the synthetic-data approval checkbox and **Send to practice extension**.
 5. The extension reports how many ready practice fields it received. Nothing fills automatically. Select **Fill received answers**.
 6. Verify missing/blocked answers stay blank; complete-date questions reject month-only answers. An ignored error is not permission to fill an invalid answer. Missing values do not create new Checker tasks.
@@ -23,9 +31,9 @@ The hard session limit is five minutes, with a fifteen-second receiver lease ren
 
 ## Architecture and trust boundary
 
-The Toolkit development-only component uses Chrome's `runtime.connect` to the pinned extension ID. The receiving extension page uses `onConnectExternal`. `externally_connectable` allows only the two loopback hosts localhost and 127.0.0.1; application checks additionally require the exact port 5173, `/intake-checker/` path with no query/hash, top frame, matching browser-reported origin, and a source tab. Other extensions are not accepted. The source also checks its exact URL and existing Toolkit authentication before sending and on heartbeats.
+The Toolkit component uses Chrome's `runtime.connect` to the pinned unpacked extension ID. The receiving extension page uses `onConnectExternal`. `externally_connectable` allows the hosted Toolkit and the two loopback hosts; application checks additionally require the exact hosted URL or local port 5173, `/intake-checker/` path with no query/hash, top frame, matching browser-reported origin, and a source tab. Other extensions are not accepted. The source also checks its exact URL and existing Toolkit authentication before sending and on heartbeats.
 
-Each connection binds a random receiver nonce and source session ID. One profile is accepted per armed connection. Replays, wrong-session messages and unsupported schemas close it. The port binds the originating tab/document. Back, corrections, account changes and page lifecycle revoke it. Disconnect, expiry, reload and pagehide clear all receiver values. This is a development trust boundary: code running in the allowed local Toolkit origin is trusted. It is not a production attestation or proof that arbitrary input is synthetic.
+Each connection binds a random receiver nonce and source session ID. One profile is accepted per armed connection. Replays, wrong-session messages and unsupported schemas close it. The port binds the originating tab/document. Back, corrections, account changes and page lifecycle revoke it. Disconnect, expiry, reload and pagehide clear all receiver values. The hosted Toolkit substitutes its fixed fictional profile before projection. Local development still requires synthetic input and explicit approval.
 
 The projection contains only mapped ready fields with `id`, `definitionId`, `recordId`, `dataType`, `value`, `precision`, `readiness`, and empty `blockingReasons`, plus the contract name/version. It excludes source text, source locations, raw answers, edit/review history, credentials and account details. Profile values exist only in the source page, transient browser-native messages and receiving page memory. No database, browser storage, URLs, navigation history, analytics, logs, server upload or background cache is used. Authentication requests remain ordinary source-page same-origin requests; credentials never enter the extension. The extension CSP forbids network connections and form submission.
 
@@ -49,6 +57,6 @@ node ssa-intake-assistant/tests/development-bridge-browser.mjs 'C:\Program Files
 
 The actual-extension harness requires port 5173 free. It creates an isolated local Vite instance with test-only authentication responses and a temporary Chrome profile, installs the unpacked package using Chrome's extension debugging support, and exercises the real Toolkit UI and native message channel. That authentication stub is confined to the test process, never a deployed or normal-development authentication bypass. Only generated synthetic fixtures are used.
 
-## Next milestone
+## Remaining before staff rollout
 
-Review local results before enabling any production Toolkit origin. Production needs an approved extension distribution/ID and origin, staff policy checks, threat review and authentication/session lifecycle verification. Real SSA mappings and controlled live testing require separate approval; unsupported questions always pause. Nothing here authorizes a production or live-site rollout.
+Confirm Chrome policy, managed package distribution, the resulting production extension ID, staff access group, and update channel. Verify the hosted Toolkit authentication/session lifecycle with fictional data. Real SSA mappings and controlled live testing require separate approval; unsupported questions always pause. Nothing here authorizes a production or live-site rollout.

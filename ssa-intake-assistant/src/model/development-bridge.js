@@ -1,13 +1,15 @@
-import { BRIDGE_NAME, isSourceUrl, MAX_SESSION_MS, projectReady, tokenValid } from '../../extension-dev/bridge-contract.js';
+import { BRIDGE_NAME, HOSTED_PILOT_URL, isSourceUrl, MAX_SESSION_MS, projectReady, tokenValid } from '../../extension-dev/bridge-contract.js';
+import { syntheticProfile } from '../../extension-dev/synthetic.js';
 import { DEVELOPMENT_EXTENSION_ID } from './development-extension-id.js';
 
 // Called only after a visible employee approval in the local development UI.
 export function sendDevelopmentProfile(profile, { runtime, onStatus, checkAccess, windowObject = window }) {
   if (!isSourceUrl(windowObject.location.href) || windowObject.top !== windowObject || !runtime?.connect) {
-    onStatus('Open the local Toolkit and the updated practice extension first.'); return () => {};
+    onStatus('Open the supported Toolkit page and the updated Chrome practice extension first.'); return () => {};
   }
   let port, receiver, timer, expiry, stopped = false, busy = false;
-  let projected = projectReady(profile);
+  // The hosted pilot never projects the active intake, even if a caller passes one.
+  let projected = projectReady(windowObject.location.href === HOSTED_PILOT_URL ? syntheticProfile() : profile);
   const session = crypto.randomUUID();
   function stop() {
     if (stopped) return;

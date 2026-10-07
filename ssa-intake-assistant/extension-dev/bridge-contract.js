@@ -1,7 +1,8 @@
 import { mappings, schemaVersion } from './mapping.js';
 export const BRIDGE_NAME = 'packard-synthetic-practice-v1';
 export const SOURCE_URL = 'http://127.0.0.1:5173/intake-checker/';
-export const SOURCE_URLS = Object.freeze([SOURCE_URL, 'http://localhost:5173/intake-checker/']);
+export const HOSTED_PILOT_URL = 'https://packardtoolkit.vercel.app/intake-checker/';
+export const SOURCE_URLS = Object.freeze([SOURCE_URL, 'http://localhost:5173/intake-checker/', HOSTED_PILOT_URL]);
 export const isSourceUrl = url => SOURCE_URLS.includes(url);
 export const LEASE_MS = 15000;
 export const MAX_SESSION_MS = 300000;
