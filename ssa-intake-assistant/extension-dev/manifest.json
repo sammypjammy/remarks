@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Packard SSA Synthetic Practice",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Chrome synthetic practice with an explicitly approved Toolkit pilot connection. No SSA access.",
   "action": {
     "default_popup": "launcher.html",

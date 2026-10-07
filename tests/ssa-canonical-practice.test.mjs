@@ -16,7 +16,7 @@ test('canonical Checker data projects only exact ready practice questions', () =
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
   assert.equal(profile.schemaVersion, '3.0.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 32);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 40);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -163,4 +163,47 @@ test('language answers preserve real booleans including No and leave unknown ans
   speaking.value = 'No';
   assert(!canonicalPracticeProfile(data).fields.some(field => field.id === speaking.definitionId),
     'a string is never coerced into a boolean');
+});
+
+test('security answers use only exact Checker singleton values and never infer a relative', () => {
+  const data = canonical();
+  const ids = ['security-questions.mother-first-name', 'security-questions.mother-maiden-name',
+    'security-questions.father-first-name', 'security-questions.father-last-name',
+    'security-questions.other-legal-representative'];
+  const profile = canonicalPracticeProfile(data);
+  for (const id of ids) {
+    const source = data.fields.find(field => field.definitionId === id);
+    assert.equal(profile.fields.find(field => field.id === id)?.value, source.value, id);
+  }
+  const mother = data.fields.find(field => field.definitionId === ids[1]);
+  mother.valueStatus = 'missing'; mother.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === ids[1]));
+  assert(canonicalPracticeProfile(data).fields.some(field => field.id === ids[3]));
+  const father = data.fields.find(field => field.definitionId === ids[3]);
+  father.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === ids[3]));
+  const representative = data.fields.find(field => field.definitionId === ids[4]);
+  data.fields.push({ ...representative });
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === ids[4]));
+});
+
+test('vitals retain exact units and optional inches never borrow another measure', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Height (feet):** Synthetic', '**Height (feet):** 5')
+    .replace('**Height (inches):** Synthetic', '**Height (inches):** 8')
+    .replace('**Weight (pounds):** Synthetic', '**Weight (pounds):** 150');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  const profile = canonicalPracticeProfile(data);
+  const expected = [['vitals.height-feet', '5'], ['vitals.height-inches', '8'], ['vitals.weight-pounds', '150']];
+  for (const [id, value] of expected) assert.equal(profile.fields.find(field => field.id === id)?.value, value);
+  const inches = data.fields.find(field => field.definitionId === 'vitals.height-inches');
+  inches.valueStatus = 'missing'; inches.value = null;
+  const missing = canonicalPracticeProfile(data);
+  assert(!missing.fields.some(field => field.id === inches.definitionId));
+  assert.equal(missing.fields.find(field => field.id === 'vitals.height-feet')?.value, '5');
+  const pounds = data.fields.find(field => field.definitionId === 'vitals.weight-pounds');
+  pounds.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === pounds.definitionId));
+  data.fields.push({ ...data.fields.find(field => field.definitionId === 'vitals.height-feet') });
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === 'vitals.height-feet'));
 });

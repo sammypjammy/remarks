@@ -120,13 +120,13 @@ try {
   await cdp("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
   const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/ssa-intake-assistant/", "/settings/", "/version-history/"];
-  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Contract Splitter", "Settings"];
+  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings"];
   for (const width of [1280, 390]) {
     authenticated = true;
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
     for (const page of pages) {
       await visit(page);
-      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.4.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.12.0' : page === '/ssa-intake-assistant/' ? 'SSA Intake Assistant v1.15.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
+      assert(await evaluate(`document.querySelector('.app-footer').innerText.includes('${page === '/' ? 'Home Page v1.3.1' : page === '/canned-remarks/' ? 'Canned Remarks v2.11.0' : page === '/fax-sender/' ? 'Fax Sender v3.4.0' : page === '/welcome-email-sender/' ? 'Email Sender v2.8.0' : page === '/intake-checker/' ? 'Intake Checker v1.12.0' : page === '/ssa-intake-assistant/' ? 'SSA Intake Assistant v1.16.0' : 'Packard Toolkit'}')`), `Version on ${page}`);
       if (page === '/fax-sender/') assert(await evaluate("document.getElementById('faxWorkspace').hidden"), "Disconnected users cannot use the fax workspace");
       assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth`), `No horizontal overflow on ${page} at ${width}`);
       if (page === '/canned-remarks/') {
@@ -193,7 +193,7 @@ try {
     assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Homepage name survives refresh after reorder");
     await visit("/settings/");
     assert.equal(await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] .homepage-move-button[data-homepage-move=\\\"up\\\"]').disabled"), false, "Homepage order persists after navigation");
-    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Contract Splitter", "Settings"];
+    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings"];
     for (const path of pages) {
       await visit(path);
       await evaluate("document.querySelector('.app-menu-toggle').click()");

@@ -13,12 +13,17 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && !d.record));
   const plan = planPractice(fromIntakeChecker(createIntakeSession(parseIntake(completeSyntheticIntake()))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 32);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 40);
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
 });
-test('synthetic practice fills thirty answers and pauses on missing, partial and unsupported answers', () => {
+test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 30);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 37);
+  assert.equal(plan.find(item => item.target === 'height-feet').value, '5');
+  assert.equal(plan.find(item => item.target === 'height-inches').value, '8');
+  assert.equal(plan.find(item => item.target === 'weight-pounds').value, '150');
+  assert.equal(plan.find(item => item.target === 'mother-maiden-name').value, 'Fiction');
+  assert.equal(plan.find(item => item.target === 'other-legal-representative').status, 'pause');
   assert.equal(plan.find(item => item.target === 'birth-city').value, 'Example City');
   assert.equal(plan.find(item => item.target === 'mailing-city').value, 'Sample City');
   assert.equal(plan.find(item => item.target === 'physical-city').value, 'Another City');

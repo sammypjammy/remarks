@@ -42,11 +42,11 @@ try{
   const loaded=await cdp('Extensions.loadUnpacked',{path:resolve('ssa-intake-assistant/extension-dev')});
   assert.equal(loaded.id,DEVELOPMENT_EXTENSION_ID);
   const extension=await page(`chrome-extension://${loaded.id}/practice.html`);
-  await until(()=>extension.evaluate("document.querySelectorAll('#practice input, #practice select').length===33"));
+  await until(()=>extension.evaluate("document.querySelectorAll('#practice input, #practice select').length===41"));
   const source=await page('http://127.0.0.1:5173/intake-checker/');
   await until(()=>source.evaluate("!!document.querySelector('.toolkit-auth-name') && PackardSettings.accountPreferencesStatus()==='saved'"));
   async function click(p,text){assert(await p.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(text)});if(!b)return false;b.click();return true})()`));}
-  const text=completeSyntheticIntake().replace('**First Name:** Synthetic','**First Name:** Bridge Synthetic').replace('**Middle Name:** Synthetic','**Middle Name:** Not provided').replace('**When did you last work:** 2000-01-01','**When did you last work:** 2020-02').replace('**Physical Address - Street Address:** Synthetic','**Physical Address - Street Address:** 456 Fictional Avenue').replace('**Alternate Phone:** 202-555-0142','**Alternate Phone:** 202-555-0143').replace('**Secondary Phone:** 202-555-0142','**Secondary Phone:** 202-555-0144');
+  const text=completeSyntheticIntake().replace('**First Name:** Synthetic','**First Name:** Bridge Synthetic').replace('**Middle Name:** Synthetic','**Middle Name:** Not provided').replace('**When did you last work:** 2000-01-01','**When did you last work:** 2020-02').replace('**Physical Address - Street Address:** Synthetic','**Physical Address - Street Address:** 456 Fictional Avenue').replace('**Alternate Phone:** 202-555-0142','**Alternate Phone:** 202-555-0143').replace('**Secondary Phone:** 202-555-0142','**Secondary Phone:** 202-555-0144').replace('**Height (feet):** Synthetic','**Height (feet):** 5').replace('**Height (inches):** Synthetic','**Height (inches):** 8').replace('**Weight (pounds):** Synthetic','**Weight (pounds):** 150');
   async function parse(text){
     await until(()=>source.evaluate("document.readyState==='complete' && typeof PackardSettings!=='undefined' && PackardSettings.accountPreferencesStatus()==='saved'"),'Toolkit initialized');
     await source.evaluate(`document.getElementById('intakeText').value=${JSON.stringify(text)};document.getElementById('intakeText').dispatchEvent(new Event('input',{bubbles:true}))`);
@@ -64,7 +64,7 @@ try{
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');
   }
-  const empty=()=>extension.evaluate("document.querySelectorAll('#practice input, #practice select').length===33 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
+  const empty=()=>extension.evaluate("document.querySelectorAll('#practice input, #practice select').length===41 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
   await parse(text);
   assert(await source.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Send to practice extension').disabled"));
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
@@ -76,6 +76,8 @@ try{
   assert(await extension.evaluate("document.querySelector('[data-practice-field=physical-street]').value==='456 Fictional Avenue' && document.querySelector('[data-practice-field=mailing-street]').value!=='456 Fictional Avenue'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=ssn]').value==='000-12-3456' && document.querySelector('[data-practice-field=alternate-phone]').value==='202-555-0143' && document.querySelector('[data-practice-field=secondary-phone]').value==='202-555-0144'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=speak-english]').value==='no' && document.querySelector('[data-practice-field=read-english]').value==='no'"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-field=mother-maiden-name]').value!=='' && document.querySelector('[data-practice-field=father-last-name]').value!==''"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-field=height-feet]').value==='5' && document.querySelector('[data-practice-field=height-inches]').value==='8' && document.querySelector('[data-practice-field=weight-pounds]').value==='150'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=middle-name]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value==='' && document.querySelector('[data-practice-field=last-worked]').value===''"));
   await click(source,'Back to Intake Checker');await until(empty,'Back clears receiver');
   assert.equal(await source.evaluate('intakeText.value'),text);
