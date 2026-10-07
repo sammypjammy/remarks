@@ -42,7 +42,7 @@ try{
   const loaded=await cdp('Extensions.loadUnpacked',{path:resolve('ssa-intake-assistant/extension-dev')});
   assert.equal(loaded.id,DEVELOPMENT_EXTENSION_ID);
   const extension=await page(`chrome-extension://${loaded.id}/practice.html`);
-  await until(()=>extension.evaluate("document.querySelectorAll('#practice input').length===9"));
+  await until(()=>extension.evaluate("document.querySelectorAll('#practice input').length===16"));
   const source=await page('http://127.0.0.1:5173/intake-checker/');
   await until(()=>source.evaluate("!!document.querySelector('.toolkit-auth-name') && PackardSettings.accountPreferencesStatus()==='saved'"));
   async function click(p,text){assert(await p.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(text)});if(!b)return false;b.click();return true})()`));}
@@ -64,7 +64,7 @@ try{
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');
   }
-  const empty=()=>extension.evaluate("document.querySelectorAll('#practice input').length===9 && [...document.querySelectorAll('#practice input')].every(input=>input.value==='')");
+  const empty=()=>extension.evaluate("document.querySelectorAll('#practice input').length===16 && [...document.querySelectorAll('#practice input')].every(input=>input.value==='')");
   await parse(text);
   assert(await source.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Send to practice extension').disabled"));
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
@@ -72,6 +72,7 @@ try{
   await send();assert(await empty(),'receipt must not auto-fill');
   await click(extension,'Fill received answers');
   assert(await extension.evaluate("document.querySelector('[data-practice-field=first-name]').value==='Bridge Synthetic'"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-field=birth-city]').value!=='' && document.querySelector('[data-practice-field=mailing-city]').value!==''"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=middle-name]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value==='' && document.querySelector('[data-practice-field=last-worked]').value===''"));
   await click(source,'Back to Intake Checker');await until(empty,'Back clears receiver');
   assert.equal(await source.evaluate('intakeText.value'),text);

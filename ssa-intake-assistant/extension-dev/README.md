@@ -1,4 +1,4 @@
-# Chrome synthetic practice pilot 0.3.0
+# Chrome synthetic practice pilot 0.4.0
 
 The SSA Intake Assistant filing preview includes the practice connection on the exact local development and hosted Toolkit URLs. It projects only mapped, valid, unique answers from the Checker-owned canonical data after every Checker issue and flag has been handled and the employee explicitly affirms the intake is fictional. No SSA access or new extension permission is added. Open client filing before using the connection controls below.
 
@@ -43,7 +43,7 @@ See Chrome's [message channel documentation](https://developer.chrome.com/docs/e
 
 ## Mapping limits
 
-Eight mappings: first/last/optional middle name, phone, email, date of birth, disability onset and last day worked. Date work stopped is deliberately unsupported. No date is substituted for another. These are invented practice questions/selectors, **not verified SSA mappings**. Only contract 3.0.0, exact singleton IDs, correct types, ready fields with no blocking reasons and suitable precision are eligible. All other questions pause. Existing input values and changed/duplicate targets are not overwritten.
+Fifteen exact mappings: first/last/optional middle name, phone, email, date of birth, birth city/state/country, mailing street/city/state/ZIP, disability onset and last day worked. Birthplace and mailing address remain separate. Physical address is not substituted for mailing address. Date work stopped is deliberately unsupported; no similar date is substituted. These are invented practice questions/selectors, **not verified SSA mappings**. Only contract 3.0.0, exact singleton IDs, correct types, ready fields with no blocking reasons and suitable precision are eligible. All other questions pause. Existing input values and changed/duplicate targets are not overwritten.
 
 There is no automatic navigation, submission, credentials, MFA, CAPTCHA, attestation, signature, penalty-of-perjury confirmation or real SSA interaction. The standalone PDF/OCR workflow is not a transfer source.
 

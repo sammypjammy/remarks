@@ -38,12 +38,13 @@ try {
   for(const width of [1280,390]) {
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
     await cdp('Page.navigate',{url:origin+'/practice.html'});
-    await until(()=>evaluate("document.querySelectorAll('#practice input').length === 9"));
+    await until(()=>evaluate("document.querySelectorAll('#practice input').length === 16"));
     await evaluate("window.writes=0; for(const name of ['setItem','removeItem','clear']) Storage.prototype[name]=()=>{window.writes++}; indexedDB.open=()=>{window.writes++}; for(const name of ['log','warn','error','info','debug']) console[name]=()=>{window.writes++}");
     assert(await evaluate("[...document.querySelectorAll('input')].every(i=>i.value==='')"));
     const start=network.length;
     await evaluate("document.getElementById('fill').click()");
-    assert(await evaluate("document.getElementById('status').textContent.startsWith('6 filled; 3 paused')"));
+    assert(await evaluate("document.getElementById('status').textContent.startsWith('13 filled; 3 paused')"));
+    assert(await evaluate("document.querySelector('[data-practice-field=birth-city]').value==='Example City' && document.querySelector('[data-practice-field=mailing-city]').value==='Sample City'"));
     assert(await evaluate("document.querySelector('[data-practice-field=onset]').value==='2020-03' && document.querySelector('[data-practice-field=last-worked]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value===''"));
     await evaluate("document.querySelector('[data-practice-field=first-name]').value='Employee Synthetic';document.getElementById('fill').click()");
     assert(await evaluate("document.querySelector('[data-practice-field=first-name]').value==='Employee Synthetic'"));
@@ -53,7 +54,7 @@ try {
     await evaluate("document.getElementById('clear').click()");assert(await evaluate("[...document.querySelectorAll('input')].every(i=>i.value==='')"));
     await evaluate("document.getElementById('fill').click();window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}))");
     assert(await evaluate("[...document.querySelectorAll('input')].every(i=>i.value==='')"));
-    await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('#practice input').length===9 && [...document.querySelectorAll('input')].every(i=>i.value==='')"));
+    await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('#practice input').length===16 && [...document.querySelectorAll('input')].every(i=>i.value==='')"));
     assert(await evaluate('localStorage.length===0 && sessionStorage.length===0'));
     console.log(`PASS ${width}px: explicit fill, exact dates, pauses, overwrite protection, reset/reload, layout and no storage/log/network writes`);
   }

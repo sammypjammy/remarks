@@ -1,4 +1,4 @@
-# SSA Intake Assistant v1.13.0
+# SSA Intake Assistant v1.14.0
 
 ## Intake Checker handoff
 
@@ -9,6 +9,8 @@ The preview consumes the Checker-owned canonical snapshot described in [CLIENT-D
 The preview opens no SSA page or browser tab. At the exact local development and hosted Toolkit URLs, opening the preview exposes an explicit fictional-intake approval for the Chrome practice extension. Only mapped, unique, valid answers from the Checker-owned canonical snapshot are projected. Dismissed validation errors, ambiguous or missing values, unsupported meanings, and incomplete dates for full-date questions stay out of the transfer. No original intake, source text, issue detail, review log, credential or cookie is sent. The employee first arms **Receive from Toolkit** in the extension, approves the fictional intake in the Toolkit, then clicks **Fill received answers** in the extension. Filling never happens automatically. Back, Clear, reload, logout, disconnection and expiry clear the practice connection and its answers.
 
 The hosted pilot now transfers eligible answers from the active Checker intake after the employee affirms it is entirely fictional. This test-only declaration is a human safeguard, not a technical classifier of client data. Do not use real client intakes during the pilot or distribute the unpacked extension to staff. The extension has no SSA site access or client-data storage. See [extension-dev/README.md](extension-dev/README.md). The older SSA profile projection remains documented in [PROFILE-CONTRACT.md](PROFILE-CONTRACT.md), but is not used to render the filing preview or to select practice answers.
+
+The synthetic practice page maps fifteen exact Checker fields, including birth city/state/country and mailing street/city/state/ZIP. It never treats birthplace, physical address or a similar date as a mailing or work-stopped answer. Unsupported questions remain blank for employee review.
 
 ## Privacy
 

@@ -16,7 +16,7 @@ test('canonical Checker data projects only exact ready practice questions', () =
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
   assert.equal(profile.schemaVersion, '3.0.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 8);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 15);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -65,4 +65,27 @@ test('date precision, duplicate singleton and employee correction are respected 
   const corrected = canonicalPracticeProfile(edited).fields.find(item => item.id === 'personal.first-name');
   assert.equal(corrected.value, 'Example');
   assert.equal(edited.fields.find(item => item.definitionId === 'personal.first-name').origin, 'employee_entered');
+});
+
+test('birthplace and mailing address retain separate exact Checker values without inference', () => {
+  const data = canonical(), profile = canonicalPracticeProfile(data);
+  const additions = ['birth.city-of-birth','birth.state-of-birth','birth.country-of-birth',
+    'address.mailing-address-street-address','address.mailing-address-city',
+    'address.mailing-address-state','address.mailing-address-zipcode'];
+  for (const id of additions) {
+    const original = data.fields.find(field => field.definitionId === id);
+    const projected = profile.fields.find(field => field.id === id);
+    assert(projected, id);
+    assert.equal(projected.value, original.value);
+  }
+  const birthCity = data.fields.find(field => field.definitionId === 'birth.city-of-birth');
+  birthCity.valueStatus = 'missing'; birthCity.value = null;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === birthCity.definitionId));
+  assert(canonicalPracticeProfile(data).fields.some(field => field.id === 'address.mailing-address-city'));
+  const zip = data.fields.find(field => field.definitionId === 'address.mailing-address-zipcode');
+  zip.validation.hasErrors = true;
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === zip.definitionId));
+  const mailingState = data.fields.find(field => field.definitionId === 'address.mailing-address-state');
+  data.fields.push({ ...mailingState });
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.id === mailingState.definitionId));
 });
