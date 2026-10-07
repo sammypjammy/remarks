@@ -242,6 +242,27 @@ test('staff-approved Gender and BlindOrHaveLowVision answers keep their exact va
   assert(!profile.fields.some(field => field.id === blind.definitionId));
 });
 
+test('observed but unsupported medical labels do not block an exact blindness answer', () => {
+  const input = `MEDICAL INFORMATION
+EmergencyContactFriendFamilyMemberForEmergencyContact: Yes
+EmergencyContactFirstName: Fictional
+EmergencyContactLastName: Sample
+EmergencyContactPhone: 202-555-0142
+EmergencyContactRelationship: Example
+EmergencyContactLiveWithThisPerson: No
+DateBecameDisabled: 01/01/2025
+ConditionExpectedToEndInDeath: No
+Blind or have low vision: No`;
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  assert.equal(data.unparsed.length, 0);
+  assert.equal(data.fields.filter(field => field.category === 'unmapped' && field.parsed).length, 8);
+  assert.equal(data.fields.find(field => field.definitionId === 'medical-information.blindorhavelowvision')?.value, false);
+  data.validationIssues.forEach(issue => { issue.dismissed = true; });
+  data.reviewItems.forEach(item => { item.reviewed = true; });
+  assert.equal(canonicalPracticeProfile(data).fields.find(field =>
+    field.definitionId === 'medical-information.blindorhavelowvision')?.value, false);
+});
+
 test('only one exact Current Spouse record transfers; duplicate spouses and partial dates pause', () => {
   const input = completeSyntheticIntake().replace('**Age:** Synthetic', '**Age:** 45')
     .replace('**Social Security Number:** 000-12-3456', '**Social Security Number:** 000-12-3456');
@@ -259,6 +280,52 @@ test('only one exact Current Spouse record transfers; duplicate spouses and part
   duplicateData.validationIssues.forEach(issue => { issue.dismissed = true; });
   duplicateData.reviewItems.forEach(item => { item.reviewed = true; });
   assert(!canonicalPracticeProfile(duplicateData).fields.some(field => field.definitionId.startsWith('spouse.')));
+});
+
+test('one plain Current Spouse record keeps supplied answers when other spouse answers are missing', () => {
+  const input = `MARRIAGE INFORMATION
+Marital Status:
+Married
+Current Spouse
+First Name:
+Fictional
+Last Name:
+Not provided
+Maiden Name:
+Sample
+Social Security Number:
+Not provided
+Marriage Date:
+2023-01-01
+Birth Country:
+Not provided
+Birth City:
+Not provided
+Birth State:
+Not provided
+Age:
+22
+City of Marriage:
+Sampletown
+State of Marriage:
+UT
+Type of Marriage:
+Clergy/Public Official`;
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  data.validationIssues.forEach(issue => { issue.dismissed = true; });
+  data.reviewItems.forEach(item => { item.reviewed = true; });
+  const profile = canonicalPracticeProfile(data);
+  assert(profile.fields.some(field => field.definitionId === 'spouse.first-name'));
+  assert(profile.fields.some(field => field.definitionId === 'spouse.marriage-date'));
+  assert(profile.fields.some(field => field.definitionId === 'spouse.age'));
+  assert(!profile.fields.some(field => field.definitionId === 'spouse.last-name'));
+  assert(!profile.fields.some(field => field.definitionId === 'spouse.social-security-number'));
+  const spouseScope = data.scopes.find(scope => scope.title === 'Current Spouse');
+  data.scopes.push({ ...spouseScope, id: 'empty-current-spouse', fieldIds: [], parsed: true });
+  assert(canonicalPracticeProfile(data).fields.some(field => field.definitionId === 'spouse.first-name'));
+  data.fields.push({ ...data.fields.find(field => field.definitionId === 'spouse.first-name'),
+    id: 'spouse.first-name@unrelated', recordId: 'unrelated', scopeId: 'unrelated' });
+  assert(canonicalPracticeProfile(data).fields.some(field => field.definitionId === 'spouse.first-name'));
 });
 
 test('child first and last names retain separate repeating record identities', () => {

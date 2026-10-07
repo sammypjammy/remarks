@@ -1,4 +1,4 @@
-# Chrome synthetic practice pilot 0.8.0
+# Chrome synthetic practice pilot 0.8.1
 
 The SSA Intake Assistant filing preview includes the practice connection on the exact local development and hosted Toolkit URLs. It projects only mapped, valid, unique answers from the Checker-owned canonical data after every Checker issue and flag has been handled and the employee explicitly affirms the intake is fictional. No SSA access or new extension permission is added. Open client filing before using the connection controls below.
 
@@ -25,6 +25,7 @@ If managed browser policy disables unpacked extensions, ask the administrator fo
 3. In the extension practice page select **Receive from Toolkit**. This arms one transfer; it does not request or retrieve a profile.
 4. In the Toolkit development connection, select the synthetic-data approval checkbox and **Send to practice extension**.
 5. The extension reports how many ready practice fields it received. Nothing fills automatically. Select **Fill received answers**.
+   That button stays disabled until a Toolkit profile arrives. **Fill built-in example (not your intake)** uses fixed fictional answers for standalone demonstration and never uses Intake Checker data.
 6. Verify missing/blocked answers stay blank; complete-date questions reject month-only answers. An ignored error is not permission to fill an invalid answer. Missing values do not create new Checker tasks.
 7. Test editing an existing practice answer and filling again: the edit remains. Test Back, correction, Clear, reload of either page, disconnect, logout, and closing either tab: the transferred profile and practice answers clear. Back preserves the active Checker intake itself.
 8. For a different intake, select Receive again and approve again. Old values must not carry over. Reload the source and confirm no profile restores.

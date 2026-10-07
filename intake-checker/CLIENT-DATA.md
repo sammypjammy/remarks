@@ -1,6 +1,6 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.13.0.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.13.1.
 
 ## Coverage audit
 
@@ -75,7 +75,7 @@ All implementation lives under `intake-checker/`. SSA re-exports the catalog and
 
 ## What cannot yet be represented with a verified meaning
 
-Unknown labels are preserved as uninterpreted text, even if they resemble an SSA question. Many optional section headings have no verified field catalog. Arbitrary bold labels and standalone plain labels are accepted; unknown same-line plain labels remain unparsed. HTML/table exports, multiple fields on one line and ambiguous free-text headings follow the existing parser limitations. Prior-marriage duration/details and Total Earnings validation remain deferred. Date work stopped has no supported definition; it is never inferred from onset or last worked. Counts and typed values do not claim complete DeLorean coverage beyond the actual parser. Unrecognized-only input has no validation result. Repeating records lack permanent source IDs, so stable instance identity is limited to unchanged heading/ordinal structure.
+The observed `Blind or have low vision` source label resolves to the supported `BlindOrHaveLowVision` field, with its original source range retained. Eight observed medical labels are preserved as unsupported fields and do not establish filing answers. Unknown labels are preserved as uninterpreted text, even if they resemble an SSA question. Many optional section headings have no verified field catalog. Arbitrary bold labels and standalone plain labels are accepted; unknown same-line plain labels remain unparsed. HTML/table exports, multiple fields on one line and ambiguous free-text headings follow the existing parser limitations. Prior-marriage duration/details and Total Earnings validation remain deferred. Date work stopped has no supported definition; it is never inferred from onset or last worked. Counts and typed values do not claim complete DeLorean coverage beyond the actual parser. Unrecognized-only input has no validation result. Repeating records lack permanent source IDs, so stable instance identity is limited to unchanged heading/ordinal structure.
 
 ## Fixed field inventory
 

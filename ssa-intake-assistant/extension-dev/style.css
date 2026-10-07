@@ -6,6 +6,7 @@ p { line-height: 1.5; }
 .notice { padding: 10px; border-left: 4px solid #427e5e; background: #e0eee4; font-size: .8rem; font-weight: bold; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 button, a { padding: 10px 16px; color: white; background: #326c4e; border: 0; border-radius: 6px; cursor: pointer; display: inline-block; }
+button:disabled { opacity: .5; cursor: not-allowed; }
 #practice { display: grid; gap: 12px; }
 .practice-section, .prior-practice { border: 1px solid #bfd4c8; border-radius: 7px; background: #fff; padding: 12px; }
 .practice-section h2 { margin: 0 0 10px; }

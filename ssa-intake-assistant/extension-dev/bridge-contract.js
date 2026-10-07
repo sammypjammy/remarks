@@ -13,10 +13,10 @@ export function projectReady(profile) {
   if (profile?.schema !== 'packard.intake-client-profile' || profile.schemaVersion !== schemaVersion || !Array.isArray(profile.fields)) return null;
   const fields = [];
   for (const mapping of mappings.filter(item => item.definitionId)) {
-    const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId);
+    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
+    const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
     if (matches.length !== 1) continue;
     const field = matches[0];
-    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
     if (field.recordId !== recordId || field.id !== (recordId ? `${mapping.definitionId}@${recordId}` : mapping.definitionId)
       || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length
       || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean'

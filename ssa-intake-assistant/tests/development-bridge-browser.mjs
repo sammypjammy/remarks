@@ -70,6 +70,7 @@ try{
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
   const start=network.length;
   await send();assert(await empty(),'receipt must not auto-fill');
+  assert(await extension.evaluate("!document.getElementById('fill').disabled && document.getElementById('demo').disabled"));
   await click(extension,'Fill received answers');
   assert(await extension.evaluate("document.querySelector('[data-practice-field=first-name]').value==='Bridge Synthetic'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=birth-city]').value!=='' && document.querySelector('[data-practice-field=mailing-city]').value!==''"));

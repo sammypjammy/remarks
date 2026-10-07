@@ -1,4 +1,4 @@
-# SSA Intake Assistant v1.18.0
+# SSA Intake Assistant v1.18.1
 
 ## Intake Checker handoff
 

@@ -65,9 +65,9 @@ export function planPractice(profile) {
     const pause = reason => ({ ...mapping, status: 'pause', reason });
     if (!supported) return pause('Unsupported profile contract.');
     if (!mapping.definitionId) return pause('No exact Checker field. Employee input required; no answer will be guessed.');
-    const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId);
-    if (candidates.length !== 1 || (mapping.recordCategory === 'spouse'
-      ? candidates[0].recordId !== 'current-spouse' : candidates[0].recordId != null)) return pause('No unique matching answer.');
+    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
+    const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId && field.recordId === recordId);
+    if (candidates.length !== 1) return pause('No unique matching answer.');
     const field = candidates[0];
     if (field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.value == null) return pause('No ready answer. Leave blank for employee input if needed.');
     if (field.dataType !== mapping.type || (mapping.type === 'boolean'

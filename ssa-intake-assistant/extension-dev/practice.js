@@ -83,23 +83,30 @@ function showChildNames(profile) {
 }
 const results = document.getElementById('results');
 const status = document.getElementById('status');
-document.getElementById('fill').addEventListener('click', () => {
-  const plan = fillPractice(received || syntheticProfile(), root);
+function fill(profile) {
+  const plan = fillPractice(profile, root);
   if (plan.some(item => item.target === 'birth-date' && item.status === 'filled')) showDateParts('birth-date', 'birth-');
   if (plan.some(item => item.target === 'current-marriage-date' && item.status === 'filled')) showDateParts('current-marriage-date', 'current-marriage-');
-  const childCount = showChildNames(received || syntheticProfile());
+  const childCount = showChildNames(profile);
   results.replaceChildren(...plan.map(item => {
     const li = document.createElement('li');
-    li.textContent = `${item.label}: ${item.status === 'filled' ? 'Filled synthetic answer.' : item.reason}`;
+    li.textContent = `${item.label}: ${item.status === 'filled' ? 'Filled practice answer.' : item.reason}`;
     return li;
   }));
   status.textContent = `${plan.filter(item => item.status === 'filled').length + childCount} filled; ${plan.filter(item => item.status === 'pause').length} paused. No uploads or saved data.`;
+}
+document.getElementById('fill').addEventListener('click', () => { if (received) fill(received); });
+document.getElementById('demo').addEventListener('click', () => {
+  if (waiting || received) return;
+  fill(syntheticProfile());
+  document.getElementById('connection').textContent = 'Built-in example only. No Intake Checker profile received.';
 });
 function clear() {
   disconnect(); disconnect = () => {}; received = null; waiting = false;
   clearAnswers();
   document.getElementById('connection').textContent = 'Not connected. No profile received.';
-  document.getElementById('fill').textContent = 'Fill synthetic answers';
+  document.getElementById('fill').disabled = true;
+  document.getElementById('demo').disabled = false;
 }
 function clearAnswers() {
   root.querySelectorAll('input,select').forEach(input => { input.value = ''; });
@@ -113,6 +120,7 @@ document.getElementById('receive').addEventListener('click', () => {
     document.getElementById('connection').textContent = 'Load this package as an unpacked extension to connect.'; return;
   }
   waiting = true;
+  document.getElementById('demo').disabled = true;
   document.getElementById('connection').textContent = 'Waiting for your approved Toolkit transfer.';
 });
 globalThis.chrome?.runtime?.onConnectExternal?.addListener(port => {
@@ -122,12 +130,13 @@ globalThis.chrome?.runtime?.onConnectExternal?.addListener(port => {
     nonce: crypto.randomUUID(),
     onProfile(profile) {
       clearAnswers(); received = profile;
-      document.getElementById('fill').textContent = 'Fill received answers';
+      document.getElementById('fill').disabled = false;
       document.getElementById('connection').textContent = `Received ${profile.fields.length} ready practice fields. Nothing filled until you select Fill.`;
     },
     onClear() {
       received = null; clearAnswers();
-      document.getElementById('fill').textContent = 'Fill synthetic answers';
+      document.getElementById('fill').disabled = true;
+      document.getElementById('demo').disabled = false;
       document.getElementById('connection').textContent = 'Connection cleared. Receive and approve again to use a profile.';
     },
   });

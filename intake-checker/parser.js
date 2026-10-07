@@ -7,6 +7,16 @@ const plainSections = new Set([
   ...definitions.flatMap(rule => [rule.section, rule.parent].filter(Boolean)), "MEDICAL PROBLEMS"
 ]);
 const plainFields = new Set(fieldDefinitions.map(definition => definition.label));
+// Observed DeLorean medical labels with no validated Checker meaning yet.
+// Preserve their answers as unsupported fields rather than marking the whole
+// section unparsed and blocking an unrelated, exact BlindOrHaveLowVision answer.
+const preservedMedicalLabels = new Set([
+  'EmergencyContactFriendFamilyMemberForEmergencyContact', 'EmergencyContactFirstName',
+  'EmergencyContactLastName', 'EmergencyContactPhone', 'EmergencyContactRelationship',
+  'EmergencyContactLiveWithThisPerson', 'DateBecameDisabled', 'ConditionExpectedToEndInDeath',
+]);
+const canonicalLabel = (section, label) => section?.title === 'MEDICAL INFORMATION'
+  && label === 'Blind or have low vision' ? 'BlindOrHaveLowVision' : label;
 const plainRecords = Object.values(intakeRules.records).filter(rule => rule.heading);
 
 // Internal metadata follows node lifetime; it does not change the validation data shape.
@@ -53,7 +63,8 @@ export function parseIntake(rawText) {
     const range = { start: sourceLine.index, end: sourceLine.index + rawLine.length };
     const line = rawLine.trim();
     const plainField = line.match(/^([^:]+):(.*)$/);
-    const knownField = plainField && (plainFields.has(plainField[1]) || intakeRules.medicalProblemLabel.test(plainField[1]));
+    const knownField = plainField && (plainFields.has(canonicalLabel(section, plainField[1])) || intakeRules.medicalProblemLabel.test(plainField[1])
+      || section?.title === 'MEDICAL INFORMATION' && preservedMedicalLabels.has(plainField[1]));
     const match = line.match(/^\*\*(.+?):\*\*(.*)$/) || line.match(/^\*\*(.+?)\*\*:(.*)$/) || (knownField || section && plainField && !plainField[2].trim() ? plainField : null);
     const heading = line.match(/^(#{1,6})\s+(.+?)(?:\s+#+)?$/);
     const boldHeading = !match && line.match(/^\*\*([^*]+)\*\*$/);
@@ -81,7 +92,7 @@ export function parseIntake(rawText) {
       const target = stack.at(-1)?.node || section;
       if (!target) unparsed(index, rawLine, range);
       else {
-        field = { label: match[1], value: null };
+        field = { label: canonicalLabel(section, match[1]), value: null };
         sourceRanges.set(field, range);
         target.fields.push(field);
         lines = [match[2]];
