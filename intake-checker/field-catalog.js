@@ -2,7 +2,7 @@ import { intakeRules } from './rules.js';
 import { reviewFields } from './review-fields.js';
 
 // This catalog describes EXISTING labels; it does not change what the parser accepts.
-export const INTAKE_CHECKER_VERSION = '1.12.0';
+export const INTAKE_CHECKER_VERSION = '1.13.0';
 export const FIELD_TYPES = Object.freeze(['text', 'boolean', 'date']);
 const sectionIds = {
   'PERSONAL INFORMATION': 'personal', 'BIRTH INFORMATION': 'birth',
@@ -12,7 +12,7 @@ const sectionIds = {
   'SCHOOL INFORMATION': 'school', 'CHILDREN INFORMATION': 'child-summary',
 };
 const booleans = new Set([
-  'Currently working', 'Have you ever worked', 'Used other names in medical records', 'Own any vehicles',
+  'Currently working', 'Have you ever worked', 'Used other names in medical records', 'Own any vehicles', 'BlindOrHaveLowVision',
   ...reviewFields.filter(label => /Receive |Borrowing Money - Borrowing Money|Other Support -/.test(label)),
 ]);
 function typeFor(label) {
@@ -39,6 +39,7 @@ add('employment', 'EMPLOYMENT INFORMATION', ['Have you ever worked'], { record: 
 add('other-names', 'OTHER NAMES', ['Used other names in medical records', 'Other first name', 'Other last name'], { record: false });
 add('remarks', 'REMARKS/COMMENTS', ['Remarks/Comments'], { record: false });
 add('disability', 'DISABILITY INFORMATION', ['Onset date of disability'], { record: false });
+add('medical-information', 'MEDICAL INFORMATION', ['BlindOrHaveLowVision'], { record: false });
 add('financial-support', 'FINANCIAL SUPPORT', reviewFields.filter(label => label !== 'Onset date of disability'), { record: false });
 Object.freeze(fieldDefinitions);
 

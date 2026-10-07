@@ -31,8 +31,8 @@ function allFieldsFixture() {
 }
 
 test('catalog includes every configured field and every supplemental parser/review label with stable unique IDs', () => {
-  assert.equal(fieldDefinitions.length, 119);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 119);
+  assert.equal(fieldDefinitions.length, 120);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 120);
   for (const [section, rule] of Object.entries(intakeRules.sections)) for (const label of [...rule.required, ...(rule.optional || [])]) {
     assert(fieldDefinitions.some(item => item.section === section && item.label === label && !item.record), `${section} / ${label}`);
   }
@@ -42,14 +42,14 @@ test('catalog includes every configured field and every supplemental parser/revi
   for (const label of [...reviewFields, 'Last Visit Date', 'Have you ever worked', 'Used other names in medical records', 'Other first name', 'Other last name', 'Remarks/Comments']) assert(fieldDefinitions.some(item => item.label === label), label);
 });
 
-test('complete synthetic intake represents all 119 definitions and every parsed occurrence exactly once', () => {
+test('complete synthetic intake represents all 120 definitions and every parsed occurrence exactly once', () => {
   const state = session(allFieldsFixture()), before = JSON.stringify(state.parsed);
   const data = createClientData(state);
   assert.equal(data.schema, CLIENT_DATA_SCHEMA); assert.equal(data.schemaVersion, '1.0.0');
   assert.equal(CLIENT_DATA_VERSION, '1.0.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
   for (const definition of fieldDefinitions) assert(data.fields.some(item => item.definitionId === definition.id && item.parsed), definition.id);
-  assert.equal(data.coverage.parsedOccurrences, 120);
-  assert.equal(data.coverage.preservedOccurrences, 120);
+  assert.equal(data.coverage.parsedOccurrences, 121);
+  assert.equal(data.coverage.preservedOccurrences, 121);
   assert.equal(data.coverage.unmappedFields, 0);
   assert.equal(new Set(data.fields.map(item => item.id)).size, data.fields.length);
   assert.equal(JSON.stringify(state.parsed), before);

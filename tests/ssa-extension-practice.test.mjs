@@ -7,14 +7,16 @@ import { formSections } from '../ssa-intake-assistant/extension-dev/practice-lay
 import { PROFILE_SCHEMA_VERSION, fieldDefinitions } from '../ssa-intake-assistant/src/model/intake-contract.js';
 import { parseIntake } from '../intake-checker/parser.js';
 import { createIntakeSession } from '../intake-checker/session.js';
+import { createClientData } from '../intake-checker/client-data.js';
+import { canonicalPracticeProfile } from '../ssa-intake-assistant/src/model/canonical-practice-profile.js';
 import { fromIntakeChecker } from '../ssa-intake-assistant/src/model/from-intake-checker.js';
 import { completeSyntheticIntake } from '../ssa-intake-assistant/tests/complete-intake.mjs';
 
 test('practice mapping references exact current contract IDs without inventing date-work-stopped', () => {
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
-  for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && !d.record));
-  const plan = planPractice(fromIntakeChecker(createIntakeSession(parseIntake(completeSyntheticIntake()))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 42);
+  for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && d.record === !!m.recordCategory));
+  const plan = planPractice(canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())))));
+  assert.equal(plan.filter(item => item.status === 'ready').length, 51);
   for (const target of ['other-middle-name', 'other-suffix']) assert.equal(plan.find(item => item.target === target).status, 'pause');
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
 });
@@ -27,14 +29,16 @@ test('practice layout follows the supplied section order and leaves unsupported 
   const rows = formSections.flatMap(section => section.rows);
   assert.equal(rows.find(row => row.label === 'Other First Name').target, 'other-first-name');
   assert.equal(rows.find(row => row.label === 'Other Middle Name').target, 'other-middle-name');
-  for (const section of formSections.slice(7)) assert(section.rows.every(row => row.target === null));
-  assert.equal(rows.find(row => row.key === 'applicant-blind').target, null);
-  assert.equal(rows.find(row => row.key === 'applicant-sex').target, null);
+  assert(formSections.find(section => section.title === 'Prior Marriages').rows.every(row => row.target === null));
+  assert.equal(rows.find(row => row.target === 'applicant-blind').label, 'Answer from MEDICAL INFORMATION / BlindOrHaveLowVision');
+  assert.equal(rows.find(row => row.target === 'gender').label, 'Answer from PERSONAL INFORMATION / Gender');
   assert.equal(rows.find(row => row.key === 'recent-sga').target, null);
 });
 test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 39);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 48);
+  assert.equal(plan.find(item => item.target === 'applicant-blind').value, true);
+  assert.equal(plan.find(item => item.target === 'current-spouse-first').value, 'Fictional');
   assert.equal(plan.find(item => item.target === 'other-first-name').value, 'Alternate');
   assert.equal(plan.find(item => item.target === 'other-last-name').value, 'Example');
   assert.equal(plan.find(item => item.target === 'other-middle-name').status, 'pause');

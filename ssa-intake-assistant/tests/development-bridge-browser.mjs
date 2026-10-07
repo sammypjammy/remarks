@@ -42,7 +42,7 @@ try{
   const loaded=await cdp('Extensions.loadUnpacked',{path:resolve('ssa-intake-assistant/extension-dev')});
   assert.equal(loaded.id,DEVELOPMENT_EXTENSION_ID);
   const extension=await page(`chrome-extension://${loaded.id}/practice.html`);
-  await until(()=>extension.evaluate("document.querySelectorAll('[data-practice-field]').length===45"));
+  await until(()=>extension.evaluate("document.querySelectorAll('[data-practice-field]').length===54"));
   const source=await page('http://127.0.0.1:5173/intake-checker/');
   await until(()=>source.evaluate("!!document.querySelector('.toolkit-auth-name') && PackardSettings.accountPreferencesStatus()==='saved'"));
   async function click(p,text){assert(await p.evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent===${JSON.stringify(text)});if(!b)return false;b.click();return true})()`));}
@@ -64,7 +64,7 @@ try{
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');
   }
-  const empty=()=>extension.evaluate("document.querySelectorAll('[data-practice-field]').length===45 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
+  const empty=()=>extension.evaluate("document.querySelectorAll('[data-practice-field]').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
   await parse(text);
   assert(await source.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Send to practice extension').disabled"));
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
@@ -80,7 +80,10 @@ try{
   assert(await extension.evaluate("document.querySelector('[data-practice-field=height-feet]').value==='5' && document.querySelector('[data-practice-field=height-inches]').value==='8' && document.querySelector('[data-practice-field=weight-pounds]').value==='150'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=other-first-name]').value==='Alternate' && document.querySelector('[data-practice-field=other-last-name]').value==='Fictional' && document.querySelector('[data-practice-field=other-middle-name]').value==='' && document.querySelector('[data-practice-field=other-suffix]').value===''"));
   assert(await extension.evaluate("document.querySelector('[data-practice-placeholder=birth-month]').value==='01' && document.querySelector('[data-practice-placeholder=birth-day]').value==='01' && document.querySelector('[data-practice-placeholder=birth-year]').value==='2000'"));
-  assert(await extension.evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-')).every(i=>i.value==='')"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-field=applicant-blind]').value==='no' && document.querySelector('[data-practice-field=current-spouse-first]').value!=='' && document.querySelector('[data-practice-field=current-spouse-last]').value!==''"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-placeholder=current-marriage-month]').value==='01' && document.querySelector('[data-practice-placeholder=current-marriage-day]').value==='01' && document.querySelector('[data-practice-placeholder=current-marriage-year]').value==='2000'"));
+  assert(await extension.evaluate("document.querySelector('[data-practice-placeholder=child-1-first-name]').value!=='' && document.querySelector('[data-practice-placeholder=child-1-last-name]').value!==''"));
+  assert(await extension.evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-') && !i.dataset.practicePlaceholder.startsWith('current-marriage-') && !i.dataset.practicePlaceholder.startsWith('child-')).every(i=>i.value==='')"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=middle-name]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value==='' && document.querySelector('[data-practice-field=last-worked]').value===''"));
   await click(source,'Back to Intake Checker');await until(empty,'Back clears receiver');
   assert.equal(await source.evaluate('intakeText.value'),text);

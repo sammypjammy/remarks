@@ -38,16 +38,20 @@ try {
   for(const width of [1280,390]) {
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390});
     await cdp('Page.navigate',{url:origin+'/practice.html'});
-    await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length === 45"));
+    await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length === 54"));
     assert(await evaluate("[...document.querySelectorAll('#practice > .practice-section > h2')].map(h=>h.textContent).join('|')==='Applicant’s Name|Social Security Number (SSN)|Date of Birth|Sex|Is the applicant blind?|In the last 14 months, SGA?|Other Names|Marriage Information — Current Spouse|Prior Marriages|Children'"));
-    assert(await evaluate("[...document.querySelectorAll('#practice .mapping-note')].length===6"));
+    assert(await evaluate("[...document.querySelectorAll('#practice .mapping-note')].length===3"));
     await evaluate("window.writes=0; for(const name of ['setItem','removeItem','clear']) Storage.prototype[name]=()=>{window.writes++}; indexedDB.open=()=>{window.writes++}; for(const name of ['log','warn','error','info','debug']) console[name]=()=>{window.writes++}");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     const start=network.length;
     await evaluate("document.getElementById('fill').click()");
-    assert(await evaluate("document.getElementById('status').textContent.startsWith('39 filled; 6 paused')"));
+    assert(await evaluate("document.getElementById('status').textContent.startsWith('50 filled; 6 paused')"));
+    assert(await evaluate("document.querySelector('[data-practice-field=applicant-blind]').value==='yes' && document.querySelector('[data-practice-field=current-spouse-first]').value==='Fictional' && document.querySelector('[data-practice-field=current-spouse-ssn]').value==='000-98-7654'"));
+    assert(await evaluate("document.querySelector('[data-practice-placeholder=current-marriage-month]').value==='01' && document.querySelector('[data-practice-placeholder=current-marriage-day]').value==='02' && document.querySelector('[data-practice-placeholder=current-marriage-year]').value==='2010'"));
+    assert(await evaluate("document.querySelector('[data-practice-placeholder=child-1-first-name]').value==='Fictional' && document.querySelector('[data-practice-placeholder=child-1-last-name]').value==='Child'"));
+    assert(await evaluate("document.querySelector('[data-practice-field=gender]').value==='Female'"));
     assert(await evaluate("document.querySelector('[data-practice-placeholder=birth-month]').value==='01' && document.querySelector('[data-practice-placeholder=birth-day]').value==='02' && document.querySelector('[data-practice-placeholder=birth-year]').value==='2000'"));
-    assert(await evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-')).every(i=>i.value==='')"));
+    assert(await evaluate("[...document.querySelectorAll('[data-practice-placeholder]')].filter(i=>!i.dataset.practicePlaceholder.startsWith('birth-') && !i.dataset.practicePlaceholder.startsWith('current-marriage-') && !i.dataset.practicePlaceholder.startsWith('child-')).every(i=>i.value==='')"));
     assert(await evaluate("document.querySelector('[data-practice-field=other-first-name]').value==='Alternate' && document.querySelector('[data-practice-field=other-last-name]').value==='Example' && document.querySelector('[data-practice-field=other-middle-name]').value==='' && document.querySelector('[data-practice-field=other-suffix]').value===''"));
     assert(await evaluate("document.querySelector('[data-practice-field=height-feet]').value==='5' && document.querySelector('[data-practice-field=height-inches]').value==='8' && document.querySelector('[data-practice-field=weight-pounds]').value==='150'"));
     assert(await evaluate("document.querySelector('[data-practice-field=mother-maiden-name]').value==='Fiction' && document.querySelector('[data-practice-field=other-legal-representative]').value===''"));
@@ -64,7 +68,7 @@ try {
     await evaluate("document.getElementById('clear').click()");assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     await evaluate("document.getElementById('fill').click();window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}))");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
-    await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length===45 && [...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
+    await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     assert(await evaluate('localStorage.length===0 && sessionStorage.length===0'));
     console.log(`PASS ${width}px: explicit fill, exact dates, pauses, overwrite protection, reset/reload, layout and no storage/log/network writes`);
   }

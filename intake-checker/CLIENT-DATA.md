@@ -1,12 +1,12 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.12.0.
+Schema: `packard.intake-checker.client-data`, version **1.0.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.13.0.
 
 ## Coverage audit
 
 The audit examined `parser.js`, `rules.js`, `formats.js`, `validation.js`, `review.js`, `review-fields.js`, `answers.js`, `medical-problems.js`, `source-location.js`, `acknowledgements.js`, `session.js`, the Checker UI, and the former SSA catalog/adapter. It also reconciled the parser, format, validation, review, duplicate, nested-record, source-location, acknowledgement, document-header and SSA adapter tests. Only generated synthetic fixtures were used.
 
-There are **119 fixed field definitions across 20 categories**, plus an unbounded numbered medical-problem family. Six repeating record types are vehicles, providers, medications, jobs, spouse details and children. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 119.
+There are **120 fixed field definitions across 21 categories**, plus an unbounded numbered medical-problem family. Six repeating record types are vehicles, providers, medications, jobs, spouse details and children. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 120.
 
 The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's existing `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.0.0 SSA projection and automation behavior are not the canonical client-data schema. No SSA rules, schema version or automation were expanded.
 
@@ -191,6 +191,7 @@ The following rows reconcile every registered definition to its category, source
 | other-names | other-names.other-last-name | OTHER NAMES | Other last name | text | Fixed |
 | remarks | remarks.remarks-comments | REMARKS/COMMENTS | Remarks/Comments | text | Fixed |
 | disability | disability.onset-date-of-disability | DISABILITY INFORMATION | Onset date of disability | date | Fixed |
+| medical-information | medical-information.blindorhavelowvision | MEDICAL INFORMATION | BlindOrHaveLowVision | boolean | Fixed |
 | financial-support | financial-support.veteran-benefits-receive-veteran-benefits | FINANCIAL SUPPORT | Veteran Benefits - Receive Veteran Benefits | boolean | Fixed |
 | financial-support | financial-support.retirement-pension-receive-retirement-pension | FINANCIAL SUPPORT | Retirement/Pension - Receive Retirement/Pension | boolean | Fixed |
 | financial-support | financial-support.borrowing-money-borrowing-money | FINANCIAL SUPPORT | Borrowing Money - Borrowing Money | boolean | Fixed |
@@ -226,4 +227,5 @@ The following rows reconcile every registered definition to its category, source
 | other-names | 3 |
 | remarks | 1 |
 | disability | 1 |
+| medical-information | 1 |
 | financial-support | 11 |

@@ -12,11 +12,12 @@ const canonical = () => createClientData(createIntakeSession(parseIntake(complet
 
 test('canonical Checker data projects only exact ready practice questions', () => {
   const data = canonical(), profile = canonicalPracticeProfile(data);
-  const ids = mappings.filter(mapping => mapping.definitionId).map(mapping => mapping.definitionId);
+  const ids = mappings.filter(mapping => mapping.definitionId).map(mapping => mapping.recordCategory === 'spouse'
+    ? `${mapping.definitionId}@current-spouse` : mapping.definitionId).concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
   assert.equal(profile.schemaVersion, '3.0.0');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 42);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 51);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -225,4 +226,46 @@ test('other names transfer exact first and last only, with no invented middle or
   const last = data.fields.find(field => field.definitionId === 'other-names.other-last-name');
   last.validation.hasErrors = true;
   assert(!canonicalPracticeProfile(data).fields.some(field => field.id === last.definitionId));
+});
+
+test('staff-approved Gender and BlindOrHaveLowVision answers keep their exact values', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Gender:** Synthetic', '**Gender:** Female')
+    .replace('**BlindOrHaveLowVision:** No', '**BlindOrHaveLowVision:** Yes');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  let profile = canonicalPracticeProfile(data);
+  assert.equal(profile.fields.find(field => field.id === 'personal.gender')?.value, 'Female');
+  assert.equal(profile.fields.find(field => field.id === 'medical-information.blindorhavelowvision')?.value, true);
+  const blind = data.fields.find(field => field.definitionId === 'medical-information.blindorhavelowvision');
+  blind.valueStatus = 'ambiguous'; blind.value = null;
+  profile = canonicalPracticeProfile(data);
+  assert(!profile.fields.some(field => field.id === blind.definitionId));
+});
+
+test('only one exact Current Spouse record transfers; duplicate spouses and partial dates pause', () => {
+  const input = completeSyntheticIntake().replace('**Age:** Synthetic', '**Age:** 45')
+    .replace('**Social Security Number:** 000-12-3456', '**Social Security Number:** 000-12-3456');
+  const data = createClientData(createIntakeSession(parseIntake(input)));
+  const profile = canonicalPracticeProfile(data);
+  assert.equal(profile.fields.find(field => field.id === 'spouse.age@current-spouse')?.value, '45');
+  assert.equal(profile.fields.find(field => field.id === 'spouse.marriage-date@current-spouse')?.precision, 'day');
+  const marriageDate = data.fields.find(field => field.definitionId === 'spouse.marriage-date');
+  marriageDate.precision = 'month';
+  assert(!canonicalPracticeProfile(data).fields.some(field => field.definitionId === 'spouse.marriage-date'));
+  const duplicate = input.replace('#### Current Spouse\n', '#### Current Spouse\n');
+  const repeated = duplicate.replace(/(## MARRIAGE INFORMATION\n[\s\S]*?)(?=\n## )/,
+    '$1\n#### Current Spouse\n**First Name:** Other\n**Last Name:** Partner');
+  const duplicateData = createClientData(createIntakeSession(parseIntake(repeated)));
+  duplicateData.validationIssues.forEach(issue => { issue.dismissed = true; });
+  duplicateData.reviewItems.forEach(item => { item.reviewed = true; });
+  assert(!canonicalPracticeProfile(duplicateData).fields.some(field => field.definitionId.startsWith('spouse.')));
+});
+
+test('child first and last names retain separate repeating record identities', () => {
+  const input = completeSyntheticIntake().replace(/(## CHILDREN INFORMATION\n[\s\S]*?)(?=\n## )/,
+    '$1\n#### Child 2\n**First Name:** Second\n**Last Name:** Fictional');
+  const profile = canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(input))));
+  assert.equal(profile.fields.find(field => field.id === 'children.first-name@child-1')?.value, 'Synthetic');
+  assert.equal(profile.fields.find(field => field.id === 'children.first-name@child-2')?.value, 'Second');
+  assert.equal(profile.fields.find(field => field.id === 'children.last-name@child-2')?.value, 'Fictional');
 });

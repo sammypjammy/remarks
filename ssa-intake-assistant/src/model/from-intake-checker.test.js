@@ -13,17 +13,17 @@ const session = text => createIntakeSession(parseIntake(text));
 const field = (profile, id) => profile.fields.find(item => item.id === id);
 const profile = text => fromIntakeChecker(session(text));
 
-test('catalog covers every existing fixed parser label, all 119 meanings and the medical problem family', () => {
+test('catalog covers every existing fixed parser label, all 120 meanings and the medical problem family', () => {
   const knownLabels = new Set(fieldDefinitions.map(item => item.label));
   const rules = [...Object.values(intakeRules.sections), ...Object.values(intakeRules.records)];
   for (const label of [...rules.flatMap(rule => [...(rule.required || []), ...(rule.optional || []), ...(rule.currentYearAddress || [])]), ...reviewFields,
     'Last Visit Date', 'Have you ever worked', 'Used other names in medical records', 'Other first name', 'Other last name', 'Remarks/Comments']) assert(knownLabels.has(label));
-  assert.equal(fieldDefinitions.length, 119);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 119);
+  assert.equal(fieldDefinitions.length, 120);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 120);
   const result = profile(completeSyntheticIntake());
-  assert.equal(result.fields.length, 120);
-  assert.equal(result.fields.filter(item => item.sources.length).length, 120);
-  assert.equal(readyFields(result).length, 120);
+  assert.equal(result.fields.length, 121);
+  assert.equal(result.fields.filter(item => item.sources.length).length, 121);
+  assert.equal(readyFields(result).length, 121);
   for (const definition of fieldDefinitions) {
     assert(result.fields.some(item => item.definitionId === definition.id));
     assert(FIELD_TYPES.includes(definition.dataType));
@@ -192,7 +192,7 @@ test('profile and correction code use no persistence, navigation or client-data 
 test('documented schema catalog matches every stable ID, scope and type', () => {
   const documentation = readFileSync(new URL('../../PROFILE-CONTRACT.md', import.meta.url), 'utf8');
   const rows = documentation.split(/\r?\n/).filter(line => /^\| [a-z-]+\.[a-z0-9-]+ \|/.test(line));
-  assert.equal(rows.length, 119);
+  assert.equal(rows.length, 120);
   assert.deepEqual(rows, fieldDefinitions.map(item => `| ${item.id} | ${item.section}${item.record ? ' / record' : ''} | ${item.label} | ${item.dataType} |`));
 });
 

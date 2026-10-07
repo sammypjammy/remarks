@@ -1,4 +1,4 @@
-import { mappings, schemaVersion } from './mapping.js';
+import { mappings, schemaVersion, childDefinitionIds } from './mapping.js';
 export const BRIDGE_NAME = 'packard-synthetic-practice-v1';
 export const SOURCE_URL = 'http://127.0.0.1:5173/intake-checker/';
 export const HOSTED_PILOT_URL = 'https://packardtoolkit.vercel.app/intake-checker/';
@@ -16,8 +16,21 @@ export function projectReady(profile) {
     const matches = profile.fields.filter(field => field.definitionId === mapping.definitionId);
     if (matches.length !== 1) continue;
     const field = matches[0];
-    if (field.recordId != null || field.id !== mapping.definitionId || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean' : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)) continue;
-    fields.push({ id: field.id, definitionId: field.definitionId, recordId: null, dataType: field.dataType, value: field.value, precision: ['day','month'].includes(field.precision) ? field.precision : null, readiness: 'ready', blockingReasons: [] });
+    const recordId = mapping.recordCategory === 'spouse' ? 'current-spouse' : null;
+    if (field.recordId !== recordId || field.id !== (recordId ? `${mapping.definitionId}@${recordId}` : mapping.definitionId)
+      || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length
+      || field.dataType !== mapping.type || (mapping.type === 'boolean' ? typeof field.value !== 'boolean'
+        : typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500)) continue;
+    fields.push({ id: field.id, definitionId: field.definitionId, recordId, dataType: field.dataType, value: field.value, precision: ['day','month'].includes(field.precision) ? field.precision : null, readiness: 'ready', blockingReasons: [] });
+  }
+  for (const field of profile.fields) {
+    if (!childDefinitionIds.includes(field.definitionId) || !/^child-([1-9]|[12]\d|30)$/.test(field.recordId)
+      || field.id !== `${field.definitionId}@${field.recordId}`
+      || profile.fields.filter(item => item.id === field.id).length !== 1
+      || field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length
+      || field.dataType !== 'text' || typeof field.value !== 'string' || !field.value.trim() || field.value.length > 500) continue;
+    fields.push({ id: field.id, definitionId: field.definitionId, recordId: field.recordId,
+      dataType: 'text', value: field.value, precision: null, readiness: 'ready', blockingReasons: [] });
   }
   return { schema: profile.schema, schemaVersion, fields };
 }

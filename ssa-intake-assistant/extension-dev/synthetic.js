@@ -6,7 +6,8 @@ export function syntheticProfile() {
     ['personal.middle-name', null, 'text'],
     ['personal.suffix', 'Example', 'text'],
     ['personal.nickname', 'Sample', 'text'],
-    ['personal.gender', 'Synthetic', 'text'],
+    ['personal.gender', 'Female', 'text'],
+    ['medical-information.blindorhavelowvision', true, 'boolean'],
     ['personal.social-security-number', '000-12-3456', 'text'],
     ['personal.phone-number', '202-555-0142', 'text'],
     ['personal.alternate-phone', '202-555-0143', 'text'],
@@ -28,6 +29,16 @@ export function syntheticProfile() {
     ['vitals.weight-pounds', '150', 'text'],
     ['other-names.other-first-name', 'Alternate', 'text'],
     ['other-names.other-last-name', 'Example', 'text'],
+    ['spouse.first-name', 'Fictional', 'text', null, 'current-spouse'],
+    ['spouse.last-name', 'Partner', 'text', null, 'current-spouse'],
+    ['spouse.social-security-number', '000-98-7654', 'text', null, 'current-spouse'],
+    ['spouse.age', '45', 'text', null, 'current-spouse'],
+    ['spouse.marriage-date', '2010-01-02', 'date', 'day', 'current-spouse'],
+    ['spouse.city-of-marriage', 'Example City', 'text', null, 'current-spouse'],
+    ['spouse.state-of-marriage', 'EX', 'text', null, 'current-spouse'],
+    ['spouse.type-of-marriage', 'Example Type', 'text', null, 'current-spouse'],
+    ['children.first-name', 'Fictional', 'text', null, 'child-1'],
+    ['children.last-name', 'Child', 'text', null, 'child-1'],
     ['birth.date-of-birth', '2000-01-02', 'date', 'day'],
     ['birth.city-of-birth', 'Example City', 'text'],
     ['birth.state-of-birth', 'Example State', 'text'],
@@ -44,5 +55,9 @@ export function syntheticProfile() {
     ['disability.onset-date-of-disability', '2020-03', 'date', 'month'],
     ['employment.when-did-you-last-work', '2020-02', 'date', 'month'],
   ];
-  return { schema: 'packard.intake-client-profile', schemaVersion: '3.0.0', fields: values.map(([id, value, dataType, precision = null]) => ({ id, definitionId: id, recordId: null, value, dataType, precision, readiness: value === null ? 'blocked' : 'ready', blockingReasons: value === null ? [{ code: 'missing' }] : [] })) };
+  return { schema: 'packard.intake-client-profile', schemaVersion: '3.0.0', fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
+    id: recordId ? `${definitionId}@${recordId}` : definitionId, definitionId, recordId,
+    value, dataType, precision, readiness: value === null ? 'blocked' : 'ready',
+    blockingReasons: value === null ? [{ code: 'missing' }] : [],
+  })) };
 }

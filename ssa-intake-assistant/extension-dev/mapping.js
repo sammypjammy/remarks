@@ -7,6 +7,7 @@ export const mappings = Object.freeze([
   ['suffix', 'Suffix (optional)', 'personal.suffix', 'text'],
   ['nickname', 'Nickname (optional)', 'personal.nickname', 'text'],
   ['gender', 'Gender as recorded in intake', 'personal.gender', 'text'],
+  ['applicant-blind', 'Blind or low vision as recorded in intake', 'medical-information.blindorhavelowvision', 'boolean'],
   ['ssn', 'Social Security number', 'personal.social-security-number', 'text'],
   ['phone', 'Phone number', 'personal.phone-number', 'text'],
   ['alternate-phone', 'Alternate phone (optional)', 'personal.alternate-phone', 'text'],
@@ -30,6 +31,14 @@ export const mappings = Object.freeze([
   ['other-middle-name', 'Other middle name — not mapped', null, 'text'],
   ['other-last-name', 'Other last name', 'other-names.other-last-name', 'text'],
   ['other-suffix', 'Other suffix — not mapped', null, 'text'],
+  ['current-spouse-first', 'Current spouse first name', 'spouse.first-name', 'text', 'day', 'spouse'],
+  ['current-spouse-last', 'Current spouse last name', 'spouse.last-name', 'text', 'day', 'spouse'],
+  ['current-spouse-ssn', 'Current spouse SSN', 'spouse.social-security-number', 'text', 'day', 'spouse'],
+  ['current-spouse-age', 'Current spouse age', 'spouse.age', 'text', 'day', 'spouse'],
+  ['current-marriage-date', 'Current marriage date', 'spouse.marriage-date', 'date', 'day', 'spouse'],
+  ['current-marriage-city', 'Current marriage city', 'spouse.city-of-marriage', 'text', 'day', 'spouse'],
+  ['current-marriage-state', 'Current marriage state', 'spouse.state-of-marriage', 'text', 'day', 'spouse'],
+  ['current-marriage-type', 'Current marriage type', 'spouse.type-of-marriage', 'text', 'day', 'spouse'],
   ['birth-date', 'Date of birth (full date)', 'birth.date-of-birth', 'date'],
   ['birth-city', 'City of birth', 'birth.city-of-birth', 'text'],
   ['birth-state', 'State of birth', 'birth.state-of-birth', 'text'],
@@ -46,7 +55,9 @@ export const mappings = Object.freeze([
   ['onset', 'Disability onset (month accepted)', 'disability.onset-date-of-disability', 'date', 'month'],
   ['last-worked', 'Last day worked (full date)', 'employment.when-did-you-last-work', 'date'],
   ['work-stopped', 'Date work stopped — not mapped', null, 'date'],
-].map(([target, label, definitionId, type, precision = 'day']) => Object.freeze({ target, label, definitionId, type, precision })));
+].map(([target, label, definitionId, type, precision = 'day', recordCategory = null]) => Object.freeze({ target, label, definitionId, type, precision, recordCategory })));
+
+export const childDefinitionIds = Object.freeze(['children.first-name', 'children.last-name']);
 
 export function planPractice(profile) {
   const supported = profile?.schema === 'packard.intake-client-profile' && profile.schemaVersion === schemaVersion && Array.isArray(profile.fields);
@@ -55,7 +66,8 @@ export function planPractice(profile) {
     if (!supported) return pause('Unsupported profile contract.');
     if (!mapping.definitionId) return pause('No exact Checker field. Employee input required; no answer will be guessed.');
     const candidates = profile.fields.filter(field => field.definitionId === mapping.definitionId);
-    if (candidates.length !== 1 || candidates[0].recordId != null) return pause('No unique singleton answer.');
+    if (candidates.length !== 1 || (mapping.recordCategory === 'spouse'
+      ? candidates[0].recordId !== 'current-spouse' : candidates[0].recordId != null)) return pause('No unique matching answer.');
     const field = candidates[0];
     if (field.readiness !== 'ready' || !Array.isArray(field.blockingReasons) || field.blockingReasons.length || field.value == null) return pause('No ready answer. Leave blank for employee input if needed.');
     if (field.dataType !== mapping.type || (mapping.type === 'boolean'

@@ -23,16 +23,20 @@ function makeField(labelText, target = null, key = null) {
   return label;
 }
 for (const section of formSections) {
-  const group = document.createElement('section'); group.className = 'practice-section';
+  const group = document.createElement('section'); group.className = 'practice-section'; group.dataset.practiceSection = section.title;
   const heading = document.createElement('h2'); heading.textContent = section.title; group.append(heading);
-  if (section.title !== 'Date of Birth' && section.rows.every(row => !row.target)) {
+  if (section.title === 'Children' || section.title !== 'Date of Birth' && section.rows.every(row => !row.target)) {
     const note = document.createElement('p'); note.className = 'mapping-note';
-    note.textContent = 'No automatic mapping yet. These boxes remain empty.'; group.append(note);
+    note.textContent = section.title === 'Children' ? 'Only parsed child first and last names are available so far.'
+      : 'No automatic mapping yet. These boxes remain empty.'; group.append(note);
   }
   const grid = document.createElement('div'); grid.className = 'practice-grid';
   for (const row of section.rows) grid.append(makeField(row.label, row.target, row.key));
   if (section.title === 'Date of Birth') {
     const source = makeField('Full date source', 'birth-date'); source.hidden = true; grid.append(source);
+  }
+  if (section.title === 'Marriage Information — Current Spouse') {
+    const source = makeField('Full marriage date source', 'current-marriage-date'); source.hidden = true; grid.append(source);
   }
   group.append(grid); root.append(group);
 }
@@ -42,26 +46,54 @@ const priorHeading = document.createElement('summary'); priorHeading.textContent
 const priorGrid = document.createElement('div'); priorGrid.className = 'practice-grid';
 for (const mapping of remaining) priorGrid.append(makeField(mapping.label, mapping.target));
 prior.append(priorHeading, priorGrid); root.append(prior);
-function showBirthParts() {
-  const source = root.querySelector('[data-practice-field="birth-date"]')?.value || '';
+function showDateParts(target, prefix) {
+  const source = root.querySelector(`[data-practice-field="${target}"]`)?.value || '';
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(source);
   if (!match) return;
-  for (const [key, value] of [['birth-month', match[2]], ['birth-day', match[3]], ['birth-year', match[1]]]) {
+  for (const [key, value] of [[`${prefix}month`, match[2]], [`${prefix}day`, match[3]], [`${prefix}year`, match[1]]]) {
     const input = root.querySelector(`[data-practice-placeholder="${key}"]`);
     if (input && !input.value) input.value = value;
   }
+}
+function showChildNames(profile) {
+  const grid = root.querySelector('[data-practice-section="Children"] .practice-grid');
+  if (!grid || grid.querySelector('[data-generated-child]')) return 0;
+  const records = new Map();
+  for (const field of profile.fields || []) {
+    if (!/^child-([1-9]|[12]\d|30)$/.test(field.recordId) || !['children.first-name', 'children.last-name'].includes(field.definitionId)
+      || field.id !== `${field.definitionId}@${field.recordId}` || field.readiness !== 'ready'
+      || field.blockingReasons?.length || typeof field.value !== 'string' || !field.value.trim()) continue;
+    const record = records.get(field.recordId) || new Map();
+    record.set(field.definitionId, field.value); records.set(field.recordId, record);
+  }
+  if (!records.size) return 0;
+  grid.querySelector('[data-practice-placeholder="children-not-mapped"]')?.closest('label')?.setAttribute('hidden', '');
+  let filled = 0;
+  for (const [recordId, values] of [...records].sort((a, b) => Number(a[0].slice(6)) - Number(b[0].slice(6)))) {
+    const ordinal = Number(recordId.slice(6));
+    for (const [definitionId, label] of [['children.first-name', 'First Name'], ['children.last-name', 'Last Name']]) {
+      const control = makeField(`Child ${ordinal} — ${label}`, null, `${recordId}-${label.toLowerCase().replace(' ', '-')}`);
+      control.dataset.generatedChild = recordId;
+      const input = control.querySelector('input'); input.value = values.get(definitionId) || '';
+      if (input.value) filled++;
+      grid.append(control);
+    }
+  }
+  return filled;
 }
 const results = document.getElementById('results');
 const status = document.getElementById('status');
 document.getElementById('fill').addEventListener('click', () => {
   const plan = fillPractice(received || syntheticProfile(), root);
-  if (plan.some(item => item.target === 'birth-date' && item.status === 'filled')) showBirthParts();
+  if (plan.some(item => item.target === 'birth-date' && item.status === 'filled')) showDateParts('birth-date', 'birth-');
+  if (plan.some(item => item.target === 'current-marriage-date' && item.status === 'filled')) showDateParts('current-marriage-date', 'current-marriage-');
+  const childCount = showChildNames(received || syntheticProfile());
   results.replaceChildren(...plan.map(item => {
     const li = document.createElement('li');
     li.textContent = `${item.label}: ${item.status === 'filled' ? 'Filled synthetic answer.' : item.reason}`;
     return li;
   }));
-  status.textContent = `${plan.filter(item => item.status === 'filled').length} filled; ${plan.filter(item => item.status === 'pause').length} paused. No uploads or saved data.`;
+  status.textContent = `${plan.filter(item => item.status === 'filled').length + childCount} filled; ${plan.filter(item => item.status === 'pause').length} paused. No uploads or saved data.`;
 });
 function clear() {
   disconnect(); disconnect = () => {}; received = null; waiting = false;
@@ -71,6 +103,8 @@ function clear() {
 }
 function clearAnswers() {
   root.querySelectorAll('input,select').forEach(input => { input.value = ''; });
+  root.querySelectorAll('[data-generated-child]').forEach(label => label.remove());
+  root.querySelector('[data-practice-placeholder="children-not-mapped"]')?.closest('label')?.removeAttribute('hidden');
   results.replaceChildren(); status.textContent = 'Practice cleared. Nothing saved.';
 }
 document.getElementById('receive').addEventListener('click', () => {
