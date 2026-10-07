@@ -191,7 +191,7 @@ test('profile and correction code use no persistence, navigation or client-data 
 
 test('documented schema catalog matches every stable ID, scope and type', () => {
   const documentation = readFileSync(new URL('../../PROFILE-CONTRACT.md', import.meta.url), 'utf8');
-  const rows = documentation.split('\n').filter(line => /^\| [a-z-]+\.[a-z0-9-]+ \|/.test(line));
+  const rows = documentation.split(/\r?\n/).filter(line => /^\| [a-z-]+\.[a-z0-9-]+ \|/.test(line));
   assert.equal(rows.length, 119);
   assert.deepEqual(rows, fieldDefinitions.map(item => `| ${item.id} | ${item.section}${item.record ? ' / record' : ''} | ${item.label} | ${item.dataType} |`));
 });

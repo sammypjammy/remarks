@@ -3,14 +3,17 @@ import { parseIntake } from "./parser.js";
 import { createIntakeSession, correctIntakeField } from "./session.js";
 import { issueSource, findInTextarea } from "./source-location.js";
 import { validationSummary } from "./acknowledgements.js";
+import { createClientDataView } from './client-data-view.js';
 
 const input = document.getElementById("intakeText");
 const results = document.getElementById("intakeResults");
 const message = document.getElementById("intakeMessage");
 let activeIntake = null;
+const clientDataView = createClientDataView({ getSession: () => activeIntake, onLocate: range => findInTextarea(input, range) });
 const handoff = createIntakeHandoff({ onSource: range => findInTextarea(input, range), onAccessLost: () => reset(), onCorrect: applyCorrection });
 function clearResults() {
   activeIntake = null;
+  clientDataView.refresh();
   document.getElementById("intakeCorrections").replaceChildren();
   document.querySelector('#intakeNormalizations ul').replaceChildren();
   document.getElementById('intakeNormalizations').hidden = true;
@@ -47,9 +50,10 @@ document.getElementById("intakeForm").addEventListener("submit", event => {
   }
   const parsed = parseIntake(input.value);
   const partial = !parsed.sections.length || parsed.unparsed.length > 0;
+  activeIntake = createIntakeSession(parsed, { validate: parsed.sections.length > 0 });
+  clientDataView.refresh();
   message.textContent = "Intake checked. Select Find in Intake to locate an issue.";
   if (parsed.sections.length) {
-    activeIntake = createIntakeSession(parsed);
     renderNormalizations(activeIntake.report.formats);
     renderReview(activeIntake.review, activeIntake.reviewState);
     renderReport(activeIntake.report, partial, parsed, activeIntake.validationState);
@@ -92,6 +96,7 @@ function renderReport(report, partial, parsed, state) {
     actions.append(reviewedButton(row, title.textContent, () => {
       state.review(issue);
       updateSummary();
+      clientDataView.refresh();
     }, summary, "Ignore"));
     row.append(actions);
     if (issue.record && issue.location) {
@@ -188,6 +193,7 @@ function renderReview(review, state) {
     actions.append(cannedRemarks);
     actions.append(reviewedButton(row, item.message, () => {
       state.review(item);
+      clientDataView.refresh();
     }, client.querySelector("button") || document.getElementById("reviewTitle")));
     row.append(actions);
     list.append(row);
@@ -214,5 +220,6 @@ function applyCorrection(session, target, value) {
     list.append(item);
   }
   corrections.append(list);
+  clientDataView.refresh();
   return true;
 }

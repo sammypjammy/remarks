@@ -5,10 +5,10 @@ import { incomeFields } from './review-fields.js';
 import { intakeRules } from './rules.js';
 import { sourceRange } from './parser.js';
 
-export function createIntakeSession(parsed) {
-  const report = validateIntake(parsed);
-  const review = reviewIntake(parsed, report.formats);
-  return { parsed, report, review, revision: 0, edits: new Map(),
+export function createIntakeSession(parsed, { validate = true } = {}) {
+  const report = validate ? validateIntake(parsed) : { issues: [], deferred: [...intakeRules.deferred], formats: new Map() };
+  const review = validate ? reviewIntake(parsed, report.formats) : { identifier: '', email: '', items: [] };
+  return { parsed, report, review, validationPerformed: validate, revision: 0, edits: new Map(),
     validationState: createAcknowledgements(report.issues), reviewState: createAcknowledgements(review.items) };
 }
 

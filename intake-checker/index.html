@@ -51,10 +51,19 @@
           </div>
         </section>
       </section>
+      <details id="clientDataInspector" class="panel client-data-inspector" hidden>
+        <summary>Inspect structured intake data <span id="clientDataCount"></span></summary>
+        <p>Compare all parsed answers with the original intake. Missing fields and unmapped text are preserved. Ignoring an issue does not repair its value.</p>
+        <p>Data stays in this page until you choose Copy or Download. Those actions create a clipboard or file copy containing the original intake and current results. Reload, Clear, or sign-out clears this page, but cannot erase copies you made.</p>
+        <div class="intake-actions"><button id="copyClientData" class="secondary-btn" type="button">Copy JSON</button><button id="downloadClientData" class="secondary-btn" type="button">Download JSON</button></div>
+        <p id="clientDataStatus" role="status"></p>
+        <div class="client-data-table"><table><caption>Complete intake fields</caption><thead><tr><th scope="col">Field / group</th><th scope="col">Value</th><th scope="col">State</th><th scope="col">Source</th></tr></thead><tbody id="clientDataFields"></tbody></table></div>
+        <details><summary>Complete JSON, including original values and review decisions</summary><pre id="clientDataJson" tabindex="0"></pre></details>
+      </details>
       </div>
       <section id="ssaIntakeView" hidden aria-label="SSA Intake Assistant"></section>
     </main>
-    <div data-app-footer data-app-version="Intake Checker v1.11.0"></div>
+    <div data-app-footer data-app-version="Intake Checker v1.12.0"></div>
     <script src="../shared/settings-storage.js"></script>
     <script src="../shared/app-shell.js"></script>
     <script type="module" src="./intake-checker.js"></script>

@@ -1,4 +1,5 @@
 import { medicalProblemGroups } from '../../../intake-checker/medical-problems.js';
+import { INTAKE_CHECKER_VERSION } from '../../../intake-checker/field-catalog.js';
 import { resolveAnswers } from '../../../intake-checker/answers.js';
 import { sourceRange } from '../../../intake-checker/parser.js';
 import { intakeRules } from '../../../intake-checker/rules.js';
@@ -127,7 +128,7 @@ export function fromIntakeChecker(session) {
   }
   return {
     schema: 'packard.intake-client-profile', schemaVersion: PROFILE_SCHEMA_VERSION, revision: session.revision || 0,
-    source: { kind: 'intake-checker', toolVersion: '1.11.0' }, fields,
+    source: { kind: 'intake-checker', toolVersion: INTAKE_CHECKER_VERSION }, fields,
     validationIssues, reviewDecisions,
     requirements: validationIssues.filter(issue => !associatedIssues.has(issue.id)),
     unparsed: parsed.unparsed.map(item => ({ ...item })), deferred: [...report.deferred],

@@ -1,8 +1,8 @@
 # Intake Checker
 
-Part of the Toolkit's existing Vite build. No intake data is automatically sent, logged, or persisted; Clear and leaving the page remove the current input/results. Deliberate identifier/email copying writes to the OS clipboard, which may remain after page close.
+Part of the Toolkit's existing Vite build. Intake Checker v1.12.0 owns the canonical client-data schema 1.0.0 documented in [CLIENT-DATA.md](CLIENT-DATA.md), including the complete coverage audit and field inventory. No intake data is automatically sent, logged, or persisted; Clear and leaving the page remove the current input/results. Deliberate Copy actions write to the OS clipboard and Download JSON saves a local file; these copies remain after page close.
 
-`parseIntake(text)` returns `{ sections, unparsed }`. Sections and subsections have an exact `title`, ordered `fields: [{ label, value }]`, and `subsections`. Arrays intentionally preserve repeated labels and identically named records. `unparsed` retains unmatched text with source line numbers; it drives parsing completeness handling. There is no user-facing JSON/debug view.
+`parseIntake(text)` returns `{ sections, unparsed }`. Sections and subsections have an exact `title`, ordered `fields: [{ label, value }]`, and `subsections`. Arrays intentionally preserve repeated labels and identically named records. `unparsed` retains unmatched text with source line numbers; it drives parsing completeness handling. **Inspect structured intake data** shows a read-only table and complete JSON built by `createClientData(session)`. Copy and Download include original source text, every supported/unmapped field, validation/review decisions and employee corrections. These actions never upload the intake.
 
 Supported format:
 

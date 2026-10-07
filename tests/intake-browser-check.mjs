@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { checkReview } from "./intake-review-browser-check.mjs";
 import { checkValidationReviewed } from "./intake-validation-reviewed-browser-check.mjs";
+import { checkClientData } from './intake-client-data-browser-check.mjs';
 // All fixtures are synthetic and were not copied from real clients or intakes.
 import { intakeRules } from "../intake-checker/rules.js";
 import { syntheticValue } from './synthetic-intake-values.js';
@@ -86,5 +87,6 @@ export async function checkIntake({ visit, click, evaluate, width, capture }) {
   await visit("/intake-checker/");
   await evaluate("window.intakeRequests = 0; window.fetch = () => { window.intakeRequests++; throw new Error('No intake requests allowed'); }");
   await checkValidationReviewed({ evaluate, visit, complete, width });
+  await checkClientData({ evaluate, visit, width, capture });
   console.log(`PASS (${width}px): Intake direct route, unchanged Toolkit navigation, parsing, summary, locate actions, missing values, safe rendering, no storage/fetch, edit/reset, unsupported input.`);
 }

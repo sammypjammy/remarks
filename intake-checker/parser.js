@@ -1,22 +1,19 @@
 import { intakeRules } from "./rules.js";
-import { reviewFields } from "./review-fields.js";
+import { fieldDefinitions } from "./field-catalog.js";
 
 const definitions = [...Object.values(intakeRules.sections), ...Object.values(intakeRules.records)];
 const plainSections = new Set([
   ...Object.keys(intakeRules.sections), ...intakeRules.optionalSections,
   ...definitions.flatMap(rule => [rule.section, rule.parent].filter(Boolean)), "MEDICAL PROBLEMS"
 ]);
-const plainFields = new Set(definitions.flatMap(rule => [
-  ...(rule.required || []), ...(rule.optional || []), ...(rule.currentYearAddress || [])
-]));
-// Known conditional/optional labels not listed in the required-field configuration.
-for (const label of ["Last Visit Date", "Have you ever worked", "Used other names in medical records", "Other first name", "Other last name", "Remarks/Comments"]) plainFields.add(label);
+const plainFields = new Set(fieldDefinitions.map(definition => definition.label));
 const plainRecords = Object.values(intakeRules.records).filter(rule => rule.heading);
-for (const label of reviewFields) plainFields.add(label);
 
 // Internal metadata follows node lifetime; it does not change the validation data shape.
 const sourceRanges = new WeakMap();
 const unparsedScopes = new WeakMap();
+const intakeSources = new WeakMap();
+export const intakeSource = intake => intakeSources.get(intake) || null;
 export const unparsedScope = item => unparsedScopes.get(item) || null;
 export const sourceRange = node => sourceRanges.get(node) || null;
 
@@ -28,6 +25,7 @@ export function parseIntake(rawText) {
   // Keep raw input intact so all later source offsets remain exact.
   const documentHeader = String(rawText).match(/^\s*Print as PDF[ \t]*\r?\n[ \t]*Intake Form[ \t]*\r?\n[ \t]*[\p{L}\p{M} .,'’\-]+[ \t]*\r?\n[ \t]*Generated on (?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4} at \d{1,2}:\d{2} (?:AM|PM)[ \t]*(?:\r?\n\s*)+(?=PERSONAL INFORMATION(?:[ \t]*\r?\n|[ \t]*$))/u);
   const documentHeaderEnd = documentHeader?.[0].length || 0;
+  intakeSources.set(result, { text: String(rawText), documentHeaderRange: documentHeaderEnd ? { start: 0, end: documentHeaderEnd } : null });
   let section = null;
   let stack = [];
   let field = null;
