@@ -19,7 +19,7 @@ export default function ClientFiling({ data, onBack }) {
     <button type="button" className="button primary" aria-expanded={open} aria-controls="clientFilingText" onClick={() => setOpen(true)}>Open client filing</button>
     {open && <textarea ref={textBox} id="clientFilingText" aria-label="Client filing data" readOnly spellCheck={false} autoComplete="off" value={clientFilingText(data)} />}
     {open && (localPractice || hostedPilot) && <Suspense fallback={null}>
-      <DevelopmentBridge profile={practiceProfile} hostedPilot={hostedPilot} />
+      <DevelopmentBridge profile={practiceProfile} />
     </Suspense>}
   </section>;
 }

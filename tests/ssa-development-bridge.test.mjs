@@ -6,6 +6,11 @@ import { projectReady, trustedSender, receiveBridge, BRIDGE_NAME, SOURCE_URL, HO
 import { sendDevelopmentProfile } from '../ssa-intake-assistant/src/model/development-bridge.js';
 import { DEVELOPMENT_EXTENSION_ID } from '../ssa-intake-assistant/src/model/development-extension-id.js';
 import { syntheticProfile } from '../ssa-intake-assistant/extension-dev/synthetic.js';
+import { canonicalPracticeProfile } from '../ssa-intake-assistant/src/model/canonical-practice-profile.js';
+import { createClientData } from '../intake-checker/client-data.js';
+import { createIntakeSession } from '../intake-checker/session.js';
+import { parseIntake } from '../intake-checker/parser.js';
+import { completeSyntheticIntake } from '../ssa-intake-assistant/tests/complete-intake.mjs';
 const nonce='11111111-1111-1111-1111-111111111111', session='22222222-2222-2222-2222-222222222222';
 const sender=()=>({url:SOURCE_URL,origin:'http://127.0.0.1:5173',frameId:0,tab:{id:7}});
 function event() { const listeners=new Set();return {addListener:f=>listeners.add(f),removeListener:f=>listeners.delete(f),emit:m=>[...listeners].forEach(f=>f(m))}; }
@@ -31,19 +36,37 @@ test('only exact local URL, origin, top frame and browser tab are accepted',()=>
   for(const change of [{url:'https://ssa.gov/'},{url:SOURCE_URL+'?profile=x'},{url:SOURCE_URL.replace(':5173',':5174')},{origin:'https://untrusted.invalid'},{frameId:1},{tab:null},{id:'another-extension'}]) assert(!trustedSender({...sender(),...change}));
   for(const url of [HOSTED_PILOT_URL+'?profile=x',HOSTED_PILOT_URL+'#x','http://packardtoolkit.vercel.app/intake-checker/','https://other.vercel.app/intake-checker/']) assert(!trustedSender({...sender(),url,origin:new URL(url).origin}));
 });
-test('hosted pilot ignores active intake and sends only fixed fictional values',async()=>{
+test('hosted pilot transfers only approved eligible fields from the current fictional intake',async()=>{
   let port;
   const runtime={connect(id){assert.equal(id,DEVELOPMENT_EXTENSION_ID);port={onDisconnect:event(),onMessage:event(),postMessage(packet){if(packet.type==='profile')this.sent=packet.profile;},disconnect(){}};return port;}};
   const windowObject={location:{href:HOSTED_PILOT_URL},addEventListener(){},removeEventListener(){}};windowObject.top=windowObject;
-  const client=syntheticProfile();client.fields[0].value='PRIVATE_CLIENT_VALUE';
+  const client=canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(
+    completeSyntheticIntake().replace('**First Name:** Synthetic','**First Name:** Fictional Change')))));
+  client.fields[0].sources=[{rawValue:'Do not send source text'}];
+  client.fields[1].readiness='blocked';
   const stop=sendDevelopmentProfile(client,{runtime,windowObject,onStatus(){},checkAccess:async()=>true});
   for(let i=0;i<10&&!port;i++)await new Promise(resolve=>setTimeout(resolve,0));
   assert(port);
   port.onMessage.emit({type:'challenge',receiver:nonce});
   assert(port.sent);
-  assert.equal(port.sent.fields.find(field=>field.id==='personal.first-name').value,'Synthetic');
-  assert(!JSON.stringify(port.sent).includes('PRIVATE_CLIENT_VALUE'));
+  assert.equal(port.sent.fields.find(field=>field.id==='personal.first-name').value,'Fictional Change');
+  assert(!port.sent.fields.some(field=>field.id==='personal.last-name'));
+  assert(!JSON.stringify(port.sent).includes('Do not send source text'));
   stop();
+});
+test('hosted pilot refuses transfer without authenticated access or an exact source URL',async()=>{
+  let connections=0;
+  const runtime={connect(){connections++;throw Error('Must not connect');}};
+  const statuses=[];
+  const source={location:{href:HOSTED_PILOT_URL},addEventListener(){},removeEventListener(){}};
+  source.top=source;
+  sendDevelopmentProfile(syntheticProfile(),{runtime,windowObject:source,onStatus:status=>statuses.push(status),checkAccess:async()=>false});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(connections,0);
+  source.location.href=HOSTED_PILOT_URL+'?intake=forbidden';
+  sendDevelopmentProfile(syntheticProfile(),{runtime,windowObject:source,onStatus:status=>statuses.push(status),checkAccess:async()=>true});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(connections,0);
 });
 test('receiver binds nonce and session, clears on revoke and rejects repeated payloads',()=>{
   const h=harness();assert.equal(h.messages[0].type,'challenge');assert.equal(h.timer.delay,LEASE_MS);
