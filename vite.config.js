@@ -144,6 +144,7 @@ export default defineConfig({
         home: resolve(import.meta.dirname, "index.html"),
         faxSender: resolve(import.meta.dirname, "fax-sender/index.html"),
         intakeChecker: resolve(import.meta.dirname, "intake-checker/index.html"),
+        contractSplitter: resolve(import.meta.dirname, "contract-splitter/index.html"),
         ssaIntakeAssistant: resolve(import.meta.dirname, "ssa-intake-assistant/index.html"),
         cannedRemarks: resolve(import.meta.dirname, "canned-remarks/index.html"),
         medTabsGenerator: resolve(import.meta.dirname, "med-tabs-generator/index.html"),
