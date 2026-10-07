@@ -14,11 +14,9 @@ export default function DevelopmentBridge({ profile, hostedPilot = false }) {
     stop.current = sendDevelopmentProfile(profile, { runtime:window.chrome?.runtime, onStatus:setStatus, checkAccess });
     setApproved(false);
   }
-  return <section className="review-card" aria-label="Synthetic extension connection">
-    <h3>{hostedPilot ? 'Chrome practice pilot' : 'Development practice connection'}</h3>
-    <p>{hostedPilot ? 'This pilot sends a fixed fictional profile. Your active intake is never sent to the extension.' : 'Open the updated extension practice page first. Only mapped ready answers are shared in browser memory for up to five minutes.'} Back, edits, reload, logout or disconnect clear the practice answers.</p>
+  return <section className="practice-connection" aria-label="Synthetic extension connection">
     <label><input type="checkbox" checked={approved} onChange={event => setApproved(event.target.checked)} /> {hostedPilot ? 'I approve sending the built-in fictional practice profile.' : 'This intake is synthetic, and I approve sharing its ready practice fields.'}</label>
     <div className="upload-actions"><button type="button" className="button primary" disabled={!approved} onClick={send}>Send to practice extension</button><button type="button" className="button quiet" onClick={() => stop.current()}>Disconnect practice</button></div>
-    <p role="status">{status}</p>
+    <p role="status">{status === 'No profile shared.' ? 'Open the Chrome practice page and select Receive from Toolkit.' : status}</p>
   </section>;
 }

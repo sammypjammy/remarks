@@ -1,10 +1,10 @@
 # Chrome synthetic practice pilot 0.3.0
 
-The current SSA Intake Assistant handoff shows only the local client-filing preview. It does not mount the practice bridge controls. The bridge instructions and dedicated bridge browser harness below describe the retained earlier pilot; they require its connection UI and are not a test of the current filing-preview page. The extension's isolated synthetic practice page and protocol unit tests remain available. No extension or SSA access is added by the filing preview.
+The SSA Intake Assistant filing preview includes the existing practice connection on the exact local development Toolkit URL. It projects only mapped, valid, unique answers from the Checker-owned canonical data after every Checker issue and flag has been handled and the employee explicitly approves synthetic data. The hosted Toolkit connection still sends only a fixed fictional profile. No SSA access or new extension permission is added. Open client filing before using the connection controls below.
 
 ## Hosted Chrome pilot
 
-In Chrome, open `chrome://extensions`, enable Developer mode, load this `extension-dev` folder as unpacked, or select Reload if it is already installed. Reopen the practice page after an update. Use the authenticated Toolkit at `https://packardtoolkit.vercel.app/intake-checker/`, check an intake, and continue to SSA Intake Assistant. Open the extension practice page, select **Receive from Toolkit**, then approve **Send to practice extension** in the Toolkit. Finally select **Fill received answers** in the extension.
+In Chrome, open `chrome://extensions`, enable Developer mode, load this `extension-dev` folder as unpacked, or select Reload if it is already installed. Reopen the practice page after an update. Use the authenticated Toolkit at `https://packardtoolkit.vercel.app/intake-checker/`, check and acknowledge all intake notifications, continue to SSA Intake Assistant, and select **Open client filing**. Open the extension practice page, select **Receive from Toolkit**, then approve **Send to practice extension** in the Toolkit. Finally select **Fill received answers** in the extension.
 
 The hosted Toolkit sends a fixed fictional profile. The active intake never enters the extension, even if it contains real information. The hosted sender enforces this in code. The local development flow below still transfers approved synthetic intake data and must not be used with client information. Both flows use the same memory-only, short-lived channel. This unpacked package is for a Chrome pilot, not managed staff distribution; a Chrome Web Store or enterprise package needs a confirmed production extension ID and update plan.
 
@@ -21,7 +21,7 @@ If managed browser policy disables unpacked extensions, ask the administrator fo
 ## Manual synthetic bridge test
 
 1. Start the Toolkit's existing authenticated local development setup with `npm.cmd run dev -- --host 127.0.0.1`. For the existing local sign-in configuration use `http://localhost:5173/intake-checker/`. The exact loopback alternative `http://127.0.0.1:5173/intake-checker/` is also allowed when authentication is configured for that origin. Local login must use the existing Toolkit authentication; do not disable it or copy tokens into the extension. If local authentication is not configured, complete the existing local-auth setup before manual testing.
-2. Paste a clearly synthetic intake, check it, and Continue to SSA Intake Assistant. Existing parsing, edits and review rules are reused.
+2. Paste a clearly synthetic intake, check it, resolve or ignore every Checker notification, Continue to SSA Intake Assistant, and select **Open client filing**. Existing parsing, edits and review rules are reused.
 3. In the extension practice page select **Receive from Toolkit**. This arms one transfer; it does not request or retrieve a profile.
 4. In the Toolkit development connection, select the synthetic-data approval checkbox and **Send to practice extension**.
 5. The extension reports how many ready practice fields it received. Nothing fills automatically. Select **Fill received answers**.

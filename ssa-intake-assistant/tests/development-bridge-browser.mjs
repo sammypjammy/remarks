@@ -50,7 +50,12 @@ try{
   async function parse(text){
     await until(()=>source.evaluate("document.readyState==='complete' && typeof PackardSettings!=='undefined' && PackardSettings.accountPreferencesStatus()==='saved'"),'Toolkit initialized');
     await source.evaluate(`document.getElementById('intakeText').value=${JSON.stringify(text)};document.getElementById('intakeText').dispatchEvent(new Event('input',{bubbles:true}))`);
-    await click(source,'Check Intake');await until(()=>source.evaluate("!document.getElementById('continueToSsa').hidden"),'parsed intake');await click(source,'Continue to SSA Intake Assistant');
+    await click(source,'Check Intake');await until(()=>source.evaluate("!document.getElementById('continueToSsa').hidden"),'parsed intake');
+    await source.evaluate("document.querySelectorAll('#validationIssues .intake-reviewed, #reviewItems .intake-reviewed').forEach(button => button.click())");
+    await until(()=>source.evaluate("!document.getElementById('continueToSsa').disabled"),'Checker notices handled');
+    await click(source,'Continue to SSA Intake Assistant');
+    await until(()=>source.evaluate("[...document.querySelectorAll('button')].some(button => button.textContent === 'Open client filing')"),'filing preview');
+    await click(source,'Open client filing');
     await until(()=>source.evaluate("!!document.querySelector('[aria-label=\"Synthetic extension connection\"]')"));
   }
   async function send(){
@@ -70,7 +75,11 @@ try{
   assert(await extension.evaluate("document.querySelector('[data-practice-field=middle-name]').value==='' && document.querySelector('[data-practice-field=work-stopped]').value==='' && document.querySelector('[data-practice-field=last-worked]').value===''"));
   await click(source,'Back to Intake Checker');await until(empty,'Back clears receiver');
   assert.equal(await source.evaluate('intakeText.value'),text);
-  await click(source,'Continue to SSA Intake Assistant');await send();await click(extension,'Fill received answers');
+  await click(source,'Continue to SSA Intake Assistant');
+  await until(()=>source.evaluate("[...document.querySelectorAll('button')].some(button => button.textContent === 'Open client filing')"),'filing preview after Back');
+  await click(source,'Open client filing');
+  await until(()=>source.evaluate("!!document.querySelector('[aria-label=\"Synthetic extension connection\"]')"),'practice connection after Back');
+  await send();await click(extension,'Fill received answers');
   await cdp('Page.reload',{},extension.sessionId);await until(empty,'receiver reload clears');
   await until(()=>source.evaluate("document.querySelector('[aria-label=\"Synthetic extension connection\"]').textContent.includes('Disconnected')"));
   await send();await click(extension,'Fill received answers');
