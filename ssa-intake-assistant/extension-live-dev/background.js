@@ -58,7 +58,8 @@ async function inspectTab(tabId) {
       session.lastReason = 'selected';
     } else if (result === 'filled') {
       endSession(session, 'filled');
-    } else if (['missing-controls', 'ambiguous-controls', 'unverified-controls'].includes(result)) {
+    } else if (['missing-controls', 'ambiguous-controls', 'missing-ssn-input', 'missing-reentry-input',
+      'ambiguous-ssn-input', 'ambiguous-reentry-input', 'unverified-controls'].includes(result)) {
       endSession(session, result);
     } else if (result === 'wrong-page' && !['/iClaim/dib', '/iClaim/dib/'].includes(new URL(tab.url).pathname)
         && !session.returnSelected) {

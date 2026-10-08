@@ -12,10 +12,17 @@ const statuses = {
   'wrong-page': 'The SSA page did not match the verified controls. No fields were filled, and the temporary handoff values were cleared.',
   'missing-controls': 'The identity page was recognized, but one or both expected fields were missing. No values were filled; the temporary handoff values were cleared.',
   'ambiguous-controls': 'The identity controls were duplicated or ambiguous. No values were filled; the temporary handoff values were cleared.',
+  'missing-ssn-input': 'The identity page was recognized, but the SSN input was missing. No values were filled; the temporary handoff values were cleared.',
+  'missing-reentry-input': 'The identity page was recognized, but the re-entry input was missing. No values were filled; the temporary handoff values were cleared.',
+  'ambiguous-ssn-input': 'The SSN input was ambiguous. No values were filled; the temporary handoff values were cleared.',
+  'ambiguous-reentry-input': 'The re-entry input was ambiguous. No values were filled; the temporary handoff values were cleared.',
   'unverified-controls': 'The identity values could not be verified. Both fields were cleared, and the temporary handoff values were cleared.',
   filled: 'The SSN and re-entry number were filled and verified. The extension cleared its temporary values. Review the page and continue manually; it did not click Next.',
 };
-const terminalReasons = new Set(['wrong-page', 'missing-controls', 'ambiguous-controls', 'unverified-controls', 'filled']);
+const terminalReasons = new Set([
+  'wrong-page', 'missing-controls', 'ambiguous-controls', 'missing-ssn-input', 'missing-reentry-input',
+  'ambiguous-ssn-input', 'ambiguous-reentry-input', 'unverified-controls', 'filled',
+]);
 
 export default function LiveLaunch({ ssn }) {
   const [reentry, setReentry] = useState('');

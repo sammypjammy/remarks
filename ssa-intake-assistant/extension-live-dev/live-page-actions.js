@@ -21,65 +21,97 @@ export function livePageAction(values) {
     return [...element.querySelectorAll('input')];
   }
 
+  function inputsWithin(element) {
+    return [...(element instanceof HTMLInputElement ? [element] : []), ...descendantInputs(element)];
+  }
+
   function labelTextWithoutLinks(element) {
     function collectText(node) {
       if (node.nodeType === Node.TEXT_NODE) return node.textContent;
-      if (node !== element && node instanceof HTMLAnchorElement) return '';
+      if (node !== element && (node instanceof HTMLAnchorElement || !isVisible(node))) return '';
       return [...node.childNodes].map(collectText).join(' ');
     }
     return normalizeText(collectText(element));
   }
 
-  function findLabelElements(labelText, matchPrefix = false) {
+  function findLabelElements(matchesText) {
     const elements = [...document.querySelectorAll('label, th, td, div, p, span')]
-      .filter(element => {
-        if (!isVisible(element)) return false;
-        const text = matchPrefix ? labelTextWithoutLinks(element) : normalizeText(element.textContent);
-        return matchPrefix ? text.startsWith(labelText) : text === labelText;
-      });
+      .filter(element => isVisible(element) && matchesText(labelTextWithoutLinks(element)));
     return elements.filter(element => !elements.some(other => other !== element
       && (other.tagName === 'LABEL' && other.contains(element)
         || element.tagName !== 'LABEL' && element.contains(other))));
+  }
+
+  function inputsOutsideLinks(element) {
+    return inputsWithin(element).filter(input => {
+      for (let ancestor = input.parentElement; ancestor; ancestor = ancestor.parentElement)
+        if (ancestor instanceof HTMLAnchorElement) return false;
+      return true;
+    });
+  }
+
+  function eligibleInputs(elements) {
+    return [...new Set(elements)].filter(input => input instanceof HTMLInputElement
+      && isVisible(input) && !input.disabled && !input.readOnly);
+  }
+
+  function containsFieldLabel(element) {
+    return [...element.querySelectorAll('label, th, td, div, p, span')].some(candidate => {
+      const text = labelTextWithoutLinks(candidate);
+      return text === ssnLabel || text.endsWith(ssnLabel) || text.startsWith(reentryLabel);
+    });
+  }
+
+  function nextSiblingWithInputs(siblings, element) {
+    const index = siblings.indexOf(element);
+    if (index < 0 || index + 1 >= siblings.length) return [];
+    const next = siblings[index + 1];
+    return containsFieldLabel(next) ? [] : eligibleInputs(inputsOutsideLinks(next));
   }
 
   function findAssociatedInputs(labelElement) {
     const forId = labelElement.getAttribute('for');
     if (forId) {
       const target = document.getElementById(forId);
-      return target instanceof HTMLInputElement ? [target] : [];
+      return target instanceof HTMLInputElement && inputsOutsideLinks(target.parentElement ?? target).includes(target)
+        ? eligibleInputs([target]) : [];
     }
-    if (labelElement.tagName === 'LABEL') return descendantInputs(labelElement);
+    if (labelElement.tagName === 'LABEL') return eligibleInputs(inputsOutsideLinks(labelElement));
+
+    const cell = labelElement.closest('td, th');
+    if (cell) {
+      const inCell = eligibleInputs(inputsOutsideLinks(cell));
+      if (inCell.length) return inCell;
+
+      const row = cell.closest('tr, [role="row"]');
+      const cells = row ? [...row.children].filter(child => ['TD', 'TH'].includes(child.tagName)) : [];
+      const adjacentCellInputs = nextSiblingWithInputs(cells, cell);
+      if (adjacentCellInputs.length) return adjacentCellInputs;
+
+      if (row?.parentElement) {
+        const rows = [...row.parentElement.children].filter(child =>
+          child.tagName === 'TR' || child.getAttribute('role') === 'row');
+        const nextRowInputs = nextSiblingWithInputs(rows, row);
+        if (nextRowInputs.length) return nextRowInputs;
+      }
+      return [];
+    }
 
     let branch = labelElement;
-    for (let depth = 0; depth < 5 && branch.parentElement; depth += 1) {
+    for (let depth = 0; depth < 3 && branch.parentElement
+        && !['BODY', 'HTML', 'FORM'].includes(branch.parentElement.tagName); depth += 1) {
       const parent = branch.parentElement;
-      if (parent.tagName === 'TR' || parent.getAttribute('role') === 'row') {
-        const cell = branch.closest('td, th');
-        if (cell) {
-          const inputs = [...parent.children]
-            .filter(sibling => sibling !== cell)
-            .flatMap(descendantInputs);
-          if (inputs.length) return inputs;
-        }
+      if (depth === 0) {
+        const siblings = [...parent.children];
+        const branchIndex = siblings.indexOf(branch);
+        const inContainer = eligibleInputs(siblings.slice(branchIndex + 1).flatMap(inputsOutsideLinks));
+        if (inContainer.length) return inContainer;
       }
-
-      const branchIndex = [...parent.children].indexOf(branch);
-      const ranked = [...parent.children].filter(sibling => sibling !== branch)
-        .map(sibling => ({ sibling, index: [...parent.children].indexOf(sibling), inputs: descendantInputs(sibling) }))
-        .filter(item => item.inputs.length);
-      if (ranked.length) {
-        const distance = Math.min(...ranked.map(item => Math.abs(item.index - branchIndex)));
-        return ranked.filter(item => Math.abs(item.index - branchIndex) === distance)
-          .flatMap(item => item.inputs);
-      }
+      const followingInputs = nextSiblingWithInputs([...parent.children], branch);
+      if (followingInputs.length) return followingInputs;
       branch = parent;
     }
     return [];
-  }
-
-  function eligibleInputs(elements) {
-    return [...new Set(elements)].filter(input => input instanceof HTMLInputElement
-      && isVisible(input) && !input.disabled && !input.readOnly);
   }
 
   function dispatchValueEvents(input) {
@@ -137,16 +169,18 @@ export function livePageAction(values) {
     return clickReturnControl();
   }
 
-  const ssnLabels = findLabelElements(ssnLabel);
-  const reentryLabels = findLabelElements(reentryLabel, true);
+  const ssnLabels = findLabelElements(text => text === ssnLabel || text.endsWith(ssnLabel));
+  const reentryLabels = findLabelElements(text => text.startsWith(reentryLabel));
   if (!ssnLabels.length || !reentryLabels.length) return 'missing-controls';
   if (ssnLabels.length !== 1 || reentryLabels.length !== 1) return 'ambiguous-controls';
 
-  const ssnInputs = eligibleInputs(findAssociatedInputs(ssnLabels[0]));
-  const reentryInputs = eligibleInputs(findAssociatedInputs(reentryLabels[0]));
-  if (!ssnInputs.length || !reentryInputs.length) return 'missing-controls';
-  if (ssnInputs.length !== 1 || reentryInputs.length !== 1 || ssnInputs[0] === reentryInputs[0])
-    return 'ambiguous-controls';
+  const ssnInputs = findAssociatedInputs(ssnLabels[0]);
+  const reentryInputs = findAssociatedInputs(reentryLabels[0]);
+  if (!ssnInputs.length) return 'missing-ssn-input';
+  if (!reentryInputs.length) return 'missing-reentry-input';
+  if (ssnInputs.length > 1) return 'ambiguous-ssn-input';
+  if (reentryInputs.length > 1) return 'ambiguous-reentry-input';
+  if (ssnInputs[0] === reentryInputs[0]) return 'ambiguous-ssn-input';
 
   const ssnInput = ssnInputs[0];
   const reentryInput = reentryInputs[0];

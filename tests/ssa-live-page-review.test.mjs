@@ -70,7 +70,7 @@ function syntheticPage(pathname, build) {
       return this.descendants().filter(element => matches(element, selector));
     }
     closest(selector) {
-      for (let current = this; current; current = current.parentElement)
+      for (let current = this; current?.tagName; current = current.parentElement)
         if (matches(current, selector)) return current;
       return null;
     }
@@ -144,6 +144,12 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       const reentryLabel = node('label', '', { for: 'reentry-field' }).append(node('span', 'Re-entry Number:'));
       ssn.attributes.id = 'ssn-field'; reentry.attributes.id = 'reentry-field';
       document.append(ssnLabel, ssn, reentryLabel, reentry);
+    } else if (layout === 'table-same-cell') {
+      const ssnRow = node('tr');
+      ssnRow.append(node('td').append(node('span', "Applicant's Social Security Number (SSN):"), ssn));
+      const reentryRow = node('tr');
+      reentryRow.append(node('td').append(node('span', 'Re-entry Number:'), reentry));
+      document.append(ssnRow, reentryRow);
     } else if (layout === 'table') {
       const row = node('tr');
       row.append(node('td', "Applicant's Social Security Number (SSN):"), node('td').append(ssn));
@@ -151,6 +157,29 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       const secondRow = node('tr');
       secondRow.append(node('th', 'Re-entry Number:'), node('td').append(reentry));
       document.append(secondRow);
+    } else if (layout === 'table-next-row') {
+      const ssnLabelRow = node('tr').append(node('td', "Applicant's Social Security Number (SSN):"));
+      const ssnInputRow = node('tr').append(node('td').append(ssn));
+      const reentryLabelRow = node('tr').append(node('td', 'Re-entry Number:'));
+      const reentryInputRow = node('tr').append(node('td').append(reentry));
+      document.append(ssnLabelRow, ssnInputRow, reentryLabelRow, reentryInputRow);
+    } else if (layout === 'div-same-container') {
+      const priorSsn = input();
+      const priorReentry = input();
+      unrelatedInputs.push(priorSsn, priorReentry);
+      const ssnGroup = node('div').append(priorSsn, node('p', "Applicant's Social Security Number (SSN):"), ssn);
+      const reentryGroup = node('div').append(priorReentry, node('p', 'Re-entry Number:'), reentry);
+      document.append(ssnGroup, reentryGroup);
+    } else if (layout === 'div-next-container') {
+      const ssnGroup = node('div').append(node('p', "Applicant's Social Security Number (SSN):"));
+      const ssnInputs = node('div').append(ssn);
+      const reentryGroup = node('div').append(node('p', 'Re-entry Number:'));
+      const reentryInputs = node('div').append(reentry);
+      document.append(node('section').append(ssnGroup, ssnInputs, reentryGroup, reentryInputs));
+    } else if (layout === 'ssn-label-suffix') {
+      const ssnRow = node('tr').append(node('td', `Applicant ID: ${"Applicant's Social Security Number (SSN):"}`), node('td').append(ssn));
+      const reentryRow = node('tr').append(node('td', 'Re-entry Number:'), node('td').append(reentry));
+      document.append(ssnRow, reentryRow);
     } else if (layout === 'spans') {
       const ssnGroup = node('div');
       ssnGroup.append(node('span', "Applicant's Social Security Number (SSN):"), node('span').append(ssn));
@@ -161,8 +190,10 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       const ssnRow = node('tr');
       ssnRow.append(node('td', "Applicant's Social Security Number (SSN):"), node('td').append(ssn));
       const reentryGroup = node('div');
+      const helpInput = input();
+      unrelatedInputs.push(helpInput);
       reentryGroup.append(
-        node('div', 'Re-entry Number:').append(anchor('Forgot or lost Re-entry Number', '/iClaim/forgot')),
+        node('div', 'Re-entry Number:').append(anchor('Forgot or lost Re-entry Number', '/iClaim/forgot').append(helpInput)),
         node('div').append(reentry),
       );
       const unrelated = input();
@@ -259,15 +290,19 @@ test('Intake Assistant launch sends only a ready SSN and temporary re-entry numb
 });
 
 test('identity-page action recognizes label/for, table-cell and separate div/paragraph layouts', () => {
-  for (const layout of ['labels', 'table', 'divs', 'spans']) {
+  for (const layout of [
+    'labels', 'table-same-cell', 'table', 'table-next-row', 'div-same-container',
+    'div-next-container', 'ssn-label-suffix', 'divs', 'spans',
+  ]) {
     const page = identityPage(layout);
     const values = { ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, allowReturnClick: true };
     try {
       let result;
       try { result = livePageAction(values); } catch (error) { error.message += ` (${layout})`; throw error; }
       assert.equal(result, 'filled', layout);
-      assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
-      assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']]);
+      assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY], layout);
+      assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']], layout);
+      assert(page.unrelatedInputs.every(input => input.value === ''), layout);
       assert.equal(values.ssn, '');
       assert.equal(values.reentry, '');
     } finally { page.restore(); }
@@ -290,9 +325,64 @@ test('identity-page action ignores a re-entry help link and fills only its assoc
   try {
     assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
     assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
-    assert.deepEqual(page.unrelatedInputs.map(input => input.value), ['']);
+    assert.deepEqual(page.unrelatedInputs.map(input => input.value), ['', '']);
     assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']]);
   } finally { page.restore(); }
+});
+
+test('identity-page action returns field-specific missing and ambiguous input reasons without filling', () => {
+  for (const [failure, expected] of [
+    ['missing-ssn', 'missing-ssn-input'],
+    ['missing-reentry', 'missing-reentry-input'],
+    ['ambiguous-ssn', 'ambiguous-ssn-input'],
+    ['ambiguous-reentry', 'ambiguous-reentry-input'],
+  ]) {
+    const inputs = [];
+    const page = syntheticPage('/iClaim/Msg024View.action', ({ node, input }) => {
+      document.append(node('h1', 'Return to Saved Application Process'));
+      const ssnLabel = node('td', "Applicant's Social Security Number (SSN):");
+      const reentryLabel = node('td', 'Re-entry Number:');
+      const ssnCell = node('td');
+      const reentryCell = node('td');
+      if (failure !== 'missing-ssn') {
+        const ssn = input();
+        inputs.push(ssn);
+        ssnCell.append(ssn);
+        if (failure === 'ambiguous-ssn') {
+          const duplicate = input();
+          inputs.push(duplicate);
+          ssnCell.append(duplicate);
+        }
+      }
+      if (failure !== 'missing-reentry') {
+        const reentry = input();
+        inputs.push(reentry);
+        reentryCell.append(reentry);
+        if (failure === 'ambiguous-reentry') {
+          const duplicate = input();
+          inputs.push(duplicate);
+          reentryCell.append(duplicate);
+        }
+      }
+      document.append(node('tr').append(ssnLabel, ssnCell), node('tr').append(reentryLabel, reentryCell));
+    });
+
+    try {
+      assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), expected, failure);
+      assert(inputs.every(input => input.value === '' && input.events.length === 0), failure);
+    } finally { page.restore(); }
+  }
+});
+
+test('field-specific input diagnostics are status-only and terminal in the Toolkit flow', async () => {
+  const source = await readFile(new URL('../ssa-intake-assistant/src/LiveLaunch.jsx', import.meta.url), 'utf8');
+  const background = await readFile(new URL('../ssa-intake-assistant/extension-live-dev/background.js', import.meta.url), 'utf8');
+  for (const reason of ['missing-ssn-input', 'missing-reentry-input', 'ambiguous-ssn-input', 'ambiguous-reentry-input']) {
+    assert.match(source, new RegExp(`['"]${reason}['"]`));
+    assert.match(background, new RegExp(`['"]${reason}['"]`));
+  }
+  assert.doesNotMatch(source, /000-12-3456|SYNTHETIC-REENTRY/);
+  assert.doesNotMatch(background, /console\.(?:log|warn|error|info|debug)/);
 });
 
 test('identity-page action ignores hidden controls and safely rejects duplicate labels', () => {
@@ -489,7 +579,9 @@ test('background opens only the exact SSA URL and injects only after its landing
       if (message.type === 'opened') assert.deepEqual(Object.keys(message), ['type']);
       else {
         assert.deepEqual(Object.keys(message), ['type', 'reason']);
-        assert(['selected', 'wrong-page', 'missing-controls', 'ambiguous-controls', 'unverified-controls', 'filled'].includes(message.reason));
+        assert(['selected', 'wrong-page', 'missing-controls', 'ambiguous-controls', 'missing-ssn-input',
+          'missing-reentry-input', 'ambiguous-ssn-input', 'ambiguous-reentry-input',
+          'unverified-controls', 'filled'].includes(message.reason));
       }
     }
     assert.doesNotMatch(JSON.stringify(port.messages), /000-12-3456|SYNTHETIC-REENTRY/);
