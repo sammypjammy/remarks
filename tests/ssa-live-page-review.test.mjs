@@ -5,7 +5,8 @@ import { classifyPage, OFFICIAL_START_URL, isSavedApplicationLanding } from '../
 import { selectSavedControl } from '../ssa-intake-assistant/extension-live-dev/select-saved-control.js';
 import { LIVE_PAGE_MAPPINGS, RESERVED_TARGETS, planLiveFields } from '../ssa-intake-assistant/extension-live-dev/live-mappings.js';
 import { createLiveSession } from '../ssa-intake-assistant/extension-live-dev/live-session.js';
-import { isToolkitLaunchRequest } from '../ssa-intake-assistant/extension-live-dev/toolkit-launch.js';
+import { isToolkitLaunchRequest, isIdentityRequest, isIdentityControl } from '../ssa-intake-assistant/extension-live-dev/toolkit-launch.js';
+import { inspectLivePage, selectReturnProcess, fillSavedIdentity } from '../ssa-intake-assistant/extension-live-dev/live-page-actions.js';
 import { LIVE_EXTENSION_ID } from '../ssa-intake-assistant/src/model/live-extension-id.js';
 import { createHash } from 'node:crypto';
 
@@ -70,11 +71,27 @@ test('Toolkit launch accepts only an exact top-level source tab and message with
   assert(!isToolkitLaunchRequest({ type: 'open-ssa-application', ssn: 'synthetic' }, sender));
 });
 
-test('Intake Assistant launch sends no profile or SSN and checks authentication', async () => {
+test('temporary identity request requires a ready-shaped SSN, bounded re-entry and exact Toolkit source', () => {
+  const sender = { tab: { id: 4 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' };
+  const request = { type: 'start-identity', session: '11111111-1111-4111-8111-111111111111',
+    ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' };
+  assert(isIdentityRequest(request, sender));
+  assert(!isIdentityRequest({ ...request, ssn: '123' }, sender));
+  assert(!isIdentityRequest({ ...request, reentry: '' }, sender));
+  assert(!isIdentityRequest({ ...request, rawIntake: 'synthetic' }, sender));
+  assert(!isIdentityRequest(request, { ...sender, frameId: 1 }));
+  assert(isIdentityControl({ type: 'identity-heartbeat', session: request.session }, sender));
+  assert(!isIdentityControl({ type: 'identity-heartbeat', session: request.session, ssn: request.ssn }, sender));
+});
+
+test('Intake Assistant uses a temporary re-entry input and checks authentication', async () => {
   const source = await readFile(new URL('../ssa-intake-assistant/src/LiveLaunch.jsx', import.meta.url), 'utf8');
   assert.match(source, /fetch\('\/api\/auth\/session'/);
-  assert.match(source, /chrome\.runtime\.sendMessage\(LIVE_EXTENSION_ID, \{ type: 'open-ssa-application' \}/);
-  assert.doesNotMatch(source, /\bprofile\b|\bssn\b|re-entry|localStorage|sessionStorage|indexedDB/i);
+  assert.match(source, /type: 'start-identity'/);
+  assert.match(source, /personal\.social-security-number/);
+  assert.match(source, /type="password"/);
+  assert.match(source, /setReentry\(''\)/);
+  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|console\./i);
 });
 
 test('future live field registry starts empty and reserves identity and filing controls', () => {
@@ -106,6 +123,52 @@ test('future approved profile session is one-tab, short-lived and empty before m
   time += 300001;
   assert.deepEqual(session.plannedFor({ tabId: 3, url: OFFICIAL_START_URL, pageKey: 'unverified' }), []);
   session.clear();
+});
+
+test('synthetic SSA page recognition waits at Terms, selects one saved path and fills only exact identity controls', () => {
+  const original = { location: globalThis.location, document: globalThis.document,
+    HTMLInputElement: globalThis.HTMLInputElement, HTMLAnchorElement: globalThis.HTMLAnchorElement };
+  class Input {
+    #current = '';
+    get value() { return this.#current; }
+    set value(value) { this.#current = value; }
+    getClientRects() { return [1]; }
+    dispatchEvent() { this.events = (this.events || 0) + 1; }
+    type = 'text'; disabled = false; readOnly = false;
+  }
+  class Anchor {}
+  const element = text => ({ textContent: text, getClientRects: () => [1], getAttribute: () => null });
+  const social = new Input(), number = new Input();
+  const socialLabel = { ...element("Applicant's Social Security Number (SSN):"), control: social };
+  const numberLabel = { ...element('Re-entry Number:'), control: number };
+  const choice = { ...element('Return to Saved Application Process'), disabled: false, click() { this.clicked = true; } };
+  let heading = element('Benefits Application Terms of Service');
+  try {
+    globalThis.HTMLInputElement = Input; globalThis.HTMLAnchorElement = Anchor;
+    globalThis.location = { origin: 'https://secure.ssa.gov', pathname: '/iClaim/synthetic', href: 'https://secure.ssa.gov/iClaim/synthetic' };
+    globalThis.document = { body: { textContent: '' }, querySelectorAll: selector =>
+      selector === 'h1,h2,h3,h4' ? [heading]
+        : selector === 'label,strong,b,span' ? [socialLabel, numberLabel]
+          : selector.includes('button') ? [choice] : [] };
+    assert.equal(inspectLivePage(), 'terms');
+    assert.equal(selectReturnProcess(), 'wrong-page');
+    heading = element('Apply Online for Disability Benefits');
+    assert.equal(inspectLivePage(), 'choice');
+    assert.equal(selectReturnProcess(), 'selected'); assert.equal(choice.clicked, true);
+    heading = element('Return to Saved Application Process');
+    globalThis.document.body.textContent = "Applicant's Social Security Number (SSN): Re-entry Number:";
+    assert.equal(inspectLivePage(), 'identity');
+    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'filled');
+    assert.equal(social.value, '000-12-3456'); assert.equal(number.value, 'SYNTHETIC-REENTRY');
+    assert.equal(social.events, 2); assert.equal(number.events, 2);
+    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
+    assert.equal(inspectLivePage(), 'identity');
+    social.value = ''; number.value = ''; social.type = 'number';
+    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
+    assert.equal(social.value, ''); assert.equal(number.value, '');
+    globalThis.location.origin = 'https://secure.ssa.gov.evil.invalid';
+    assert.equal(inspectLivePage(), 'outside');
+  } finally { Object.assign(globalThis, original); }
 });
 
 test('background opens only the exact SSA URL and injects only after its landing page completes', async () => {
@@ -150,6 +213,49 @@ test('background opens only the exact SSA URL and injects only after its landing
     await new Promise(resolve => setTimeout(resolve, 0));
     assert.deepEqual(externalReply, { opened: true });
     assert.equal(injected.length, 1, 'Toolkit launch never injects into the SSA page');
+  } finally { globalThis.chrome = saved; }
+});
+
+test('synthetic extension session waits at Terms, selects the saved path, fills identity once and clears on request', async () => {
+  const saved = globalThis.chrome, hooks = {}, calls = [];
+  let page = 'terms';
+  globalThis.chrome = {
+    tabs: { onUpdated: { addListener: fn => { hooks.updated = fn; } },
+      onRemoved: { addListener: fn => { hooks.removed = fn; } },
+      create: async options => { assert.equal(options.url, OFFICIAL_START_URL); return { id: 20, status: 'loading' }; },
+      get: async id => ({ id, status: 'loading' }) },
+    runtime: { onMessage: { addListener: fn => { hooks.message = fn; } },
+      onMessageExternal: { addListener: fn => { hooks.external = fn; } } },
+    scripting: { executeScript: async options => {
+      calls.push(options.func.name);
+      return [{ result: options.func.name === 'inspectLivePage' ? page
+        : options.func.name === 'selectReturnProcess' ? 'selected' : 'filled' }];
+    } },
+  };
+  try {
+    await import(`../ssa-intake-assistant/extension-live-dev/background.js?identity=${Date.now()}`);
+    const sender = { tab: { id: 4 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' };
+    const session = '11111111-1111-4111-8111-111111111111';
+    let reply;
+    assert.equal(hooks.external({ type: 'start-identity', session, ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' },
+      sender, value => { reply = value; }), true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(reply, { opened: true });
+    const complete = () => hooks.updated(20, { status: 'complete' },
+      { id: 20, status: 'complete', url: 'https://secure.ssa.gov/iClaim/synthetic' });
+    complete(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['inspectLivePage']);
+    page = 'choice'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['inspectLivePage', 'inspectLivePage', 'selectReturnProcess']);
+    page = 'identity'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(calls, ['inspectLivePage', 'inspectLivePage', 'selectReturnProcess',
+      'inspectLivePage', 'fillSavedIdentity']);
+    complete(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(calls.filter(name => name === 'fillSavedIdentity').length, 1);
+    hooks.external({ type: 'identity-heartbeat', session }, sender, value => { reply = value; });
+    assert.deepEqual(reply, { alive: true, stage: 'filled' });
+    hooks.external({ type: 'clear-identity', session }, sender, value => { reply = value; });
+    assert.deepEqual(reply, { alive: false });
   } finally { globalThis.chrome = saved; }
 });
 

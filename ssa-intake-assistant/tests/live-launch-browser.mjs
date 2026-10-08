@@ -60,13 +60,15 @@ try {
   assert.equal(await evaluate('document.title'), 'Synthetic Toolkit source');
   await until(() => evaluate("typeof chrome.runtime === 'object'"));
   const result = await evaluate(`new Promise(resolve => chrome.runtime.sendMessage(${JSON.stringify(id)},
-    {type:'open-ssa-application'}, reply => resolve({reply, error:chrome.runtime.lastError?.message || null})))`);
+    {type:'start-identity',session:'11111111-1111-4111-8111-111111111111',
+      ssn:'000-12-3456',reentry:'SYNTHETIC-REENTRY'},
+    reply => resolve({reply, error:chrome.runtime.lastError?.message || null})))`);
   assert.deepEqual(result, { reply: { opened: true }, error: null });
   await until(async () => (await cdp('Target.getTargets')).targetInfos.some(target =>
     target.url === 'https://secure.ssa.gov/iClaim/dib'));
   assert(requests.includes('/intake-checker/'));
   assert(requests.every(path => path === '/intake-checker/' || path === '/favicon.ico'));
-  console.log('PASS actual Chrome extension: exact Toolkit launch message opened one SSA URL; SSA network blocked; no client data');
+  console.log('PASS actual Chrome extension: synthetic identity session opened one SSA URL; SSA network blocked; no client-data service');
 } finally {
   try { await cdp('Browser.close'); } catch { child.kill(); }
   server.close();

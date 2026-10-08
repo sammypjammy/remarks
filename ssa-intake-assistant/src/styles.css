@@ -4,6 +4,11 @@
 .ssa-client-filing .filing-header h2 { margin: 0; }
 .ssa-client-filing .filing-header .button { flex: 0 0 auto; }
 .ssa-client-filing .filing-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .5rem; }
+.ssa-client-filing .live-launch { display: grid; gap: .35rem; width: min(100%, 22rem); }
+.ssa-client-filing .live-launch label { font-weight: 700; }
+.ssa-client-filing .live-launch input { width: 100%; min-height: 2.5rem; padding: .5rem .7rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); }
+.ssa-client-filing .live-launch > span { color: var(--muted); font-size: .8rem; }
+.ssa-client-filing .live-launch .button { justify-self: start; }
 .ssa-client-filing .live-launch p { margin: .4rem 0 0; color: var(--muted); font-size: .85rem; }
 .ssa-client-filing textarea { display: block; width: 100%; min-height: 55vh; max-height: 75vh; margin-top: 1rem; padding: 1rem; resize: vertical; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); color: var(--text); font: .9rem/1.6 ui-monospace, Consolas, monospace; }
 .ssa-client-filing .practice-connection { display: grid; gap: .65rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
