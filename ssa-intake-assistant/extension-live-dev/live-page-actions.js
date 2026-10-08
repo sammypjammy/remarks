@@ -43,11 +43,23 @@ export function fillSavedIdentity({ ssn, reentry }) {
   if (![...document.querySelectorAll('h1,h2,h3,h4')].some(node => node.getClientRects().length
       && exact(node.textContent) === 'Return to Saved Application Process')) return 'wrong-page';
   const find = labelText => {
-    const matches = [...document.querySelectorAll('label,strong,b,span')]
+    const matches = [...document.querySelectorAll('label,th,td,div,p,strong,b,span')]
       .filter(node => node.getClientRects().length && exact(node.textContent) === labelText)
-      .map(node => node.control || (node.getAttribute('for') ? document.getElementById(node.getAttribute('for')) : null)
-        || node.parentElement?.querySelector('input') || node.parentElement?.nextElementSibling?.querySelector('input'))
-      .filter(Boolean);
+      .map(node => {
+        const explicit = node.control || (node.getAttribute('for') ? document.getElementById(node.getAttribute('for')) : null);
+        if (explicit) return explicit;
+        for (let container = node, depth = 0; container && depth < 5; container = container.parentElement, depth++) {
+          if (['FORM', 'BODY', 'HTML'].includes(container.tagName)) break;
+          const inputs = [...container.querySelectorAll('input')].filter(input => input.type !== 'hidden');
+          if (inputs.length === 1) return inputs[0];
+          if (inputs.length > 1) break;
+          const next = container.nextElementSibling;
+          const nextInputs = next instanceof HTMLInputElement ? [next]
+            : next ? [...next.querySelectorAll('input')].filter(input => input.type !== 'hidden') : [];
+          if (nextInputs.length === 1) return nextInputs[0];
+        }
+        return null;
+      }).filter(Boolean);
     return [...new Set(matches)];
   };
   const social = find("Applicant's Social Security Number (SSN):");

@@ -148,7 +148,7 @@ test('synthetic SSA page recognition waits at Terms, selects one saved path and 
     globalThis.location = { origin: 'https://secure.ssa.gov', pathname: '/iClaim/synthetic', href: 'https://secure.ssa.gov/iClaim/synthetic' };
     globalThis.document = { body: { textContent: '' }, querySelectorAll: selector =>
       selector === 'h1,h2,h3,h4' ? [heading]
-        : selector === 'label,strong,b,span' ? [socialLabel, numberLabel]
+        : selector.startsWith('label,th,td,div,p,strong,b,span') ? [socialLabel, numberLabel]
           : selector.includes('button') ? [choice] : [] };
     assert.equal(inspectLivePage(), 'terms');
     assert.equal(selectReturnProcess(), 'wrong-page');
@@ -163,6 +163,13 @@ test('synthetic SSA page recognition waits at Terms, selects one saved path and 
     assert.equal(social.events, 2); assert.equal(number.events, 2);
     assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
     assert.equal(inspectLivePage(), 'identity');
+    social.value = ''; number.value = '';
+    delete socialLabel.control; delete numberLabel.control;
+    socialLabel.tagName = 'TD'; socialLabel.querySelectorAll = () => [];
+    numberLabel.tagName = 'TD'; numberLabel.querySelectorAll = () => [];
+    socialLabel.parentElement = { tagName: 'TR', querySelectorAll: () => [social] };
+    numberLabel.parentElement = { tagName: 'TR', querySelectorAll: () => [number] };
+    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'filled');
     social.value = ''; number.value = ''; social.type = 'number';
     assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
     assert.equal(social.value, ''); assert.equal(number.value, '');
@@ -218,7 +225,7 @@ test('background opens only the exact SSA URL and injects only after its landing
 
 test('synthetic extension session waits at Terms, selects the saved path, fills identity once and clears on request', async () => {
   const saved = globalThis.chrome, hooks = {}, calls = [];
-  let page = 'terms';
+  let page = 'terms', fillOutcome = 'filled';
   globalThis.chrome = {
     tabs: { onUpdated: { addListener: fn => { hooks.updated = fn; } },
       onRemoved: { addListener: fn => { hooks.removed = fn; } },
@@ -229,7 +236,7 @@ test('synthetic extension session waits at Terms, selects the saved path, fills 
     scripting: { executeScript: async options => {
       calls.push(options.func.name);
       return [{ result: options.func.name === 'inspectLivePage' ? page
-        : options.func.name === 'selectReturnProcess' ? 'selected' : 'filled' }];
+        : options.func.name === 'selectReturnProcess' ? 'selected' : fillOutcome }];
     } },
   };
   try {
@@ -256,6 +263,15 @@ test('synthetic extension session waits at Terms, selects the saved path, fills 
     assert.deepEqual(reply, { alive: true, stage: 'filled' });
     hooks.external({ type: 'clear-identity', session }, sender, value => { reply = value; });
     assert.deepEqual(reply, { alive: false });
+    const retrySession = '22222222-2222-4222-8222-222222222222';
+    page = 'terms'; fillOutcome = 'unverified-controls';
+    hooks.external({ type: 'start-identity', session: retrySession, ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' },
+      sender, () => {});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    page = 'identity'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
+    hooks.external({ type: 'identity-heartbeat', session: retrySession }, sender, value => { reply = value; });
+    assert.deepEqual(reply, { alive: true, stage: 'paused', reason: 'unverified-controls' });
+    hooks.external({ type: 'clear-identity', session: retrySession }, sender, () => {});
   } finally { globalThis.chrome = saved; }
 });
 

@@ -28,22 +28,23 @@ async function inspectIdentity(tab) {
     if (page === 'choice' && current.stage === 'terms') {
       const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: selectReturnProcess });
       current.stage = result === 'selected' ? 'choice-selected' : 'paused';
-      if (current.stage === 'paused') { current.ssn = null; current.reentry = null; }
+      if (current.stage === 'paused') { current.reason = result; current.ssn = null; current.reentry = null; }
     } else if (page === 'identity' && ['terms', 'choice-selected'].includes(current.stage)) {
       const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id },
         func: fillSavedIdentity, args: [{ ssn: current.ssn, reentry: current.reentry }] });
       current.stage = result === 'filled' ? 'filled' : 'paused';
+      if (current.stage === 'paused') current.reason = result;
       current.ssn = null; current.reentry = null;
     } else if (page === 'choice' && current.stage === 'choice-selected') {
       // The button may navigate after this inspection; never click it twice.
     } else if (page === 'terms' && current.stage === 'terms') {
       // Wait for the employee to review and continue.
     } else if (current.stage !== 'paused') {
-      current.stage = 'paused'; current.ssn = null; current.reentry = null;
+      current.stage = 'paused'; current.reason = page; current.ssn = null; current.reentry = null;
     }
   } catch {
     if (identitySession === current) {
-      current.stage = 'paused'; current.ssn = null; current.reentry = null;
+      current.stage = 'paused'; current.reason = 'inspection-failed'; current.ssn = null; current.reentry = null;
     }
   } finally { current.busy = false; }
 }
@@ -85,7 +86,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
     if (!current || current.session !== message.session || current.sourceTabId !== sender.tab.id
         || Date.now() >= current.expiresAt) { clearIdentity(); respond({ alive: false }); return false; }
     if (message.type === 'clear-identity') { clearIdentity(); respond({ alive: false }); return false; }
-    current.lastHeartbeat = Date.now(); respond({ alive: true, stage: current.stage }); return false;
+    current.lastHeartbeat = Date.now(); respond({ alive: true, stage: current.stage,
+      ...(current.stage === 'paused' ? { reason: current.reason } : {}) }); return false;
   }
   if (!isIdentityRequest(message, sender) && !isToolkitLaunchRequest(message, sender)) return false;
   clearIdentity();

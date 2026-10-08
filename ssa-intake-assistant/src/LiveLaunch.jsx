@@ -33,7 +33,9 @@ export default function LiveLaunch({ profile }) {
         const reply = await send({ type: 'identity-heartbeat', session: session.current });
         if (!reply?.alive) throw Error('extension');
         if (reply.stage === 'filled') setStatus('SSN and re-entry number were filled on SSA. Review them there before continuing.');
-        if (reply.stage === 'paused') setStatus('The SSA page did not match the verified controls. Continue manually; no further fields were filled.');
+        if (reply.stage === 'paused') setStatus(reply.reason === 'unverified-controls'
+          ? 'The identity inputs could not be matched one-to-one. Continue manually; no further fields were filled.'
+          : 'The SSA page or saved-application control could not be verified. Continue manually; no further fields were filled.');
       } catch {
         const id = session.current; session.current = null;
         if (id) void send({ type: 'clear-identity', session: id });
