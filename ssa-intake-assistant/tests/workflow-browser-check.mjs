@@ -134,6 +134,10 @@ try {
   await evaluate("document.querySelectorAll('#validationIssues .intake-reviewed, #reviewItems .intake-reviewed').forEach(button => button.click())");
   await click('Continue to SSA Intake Assistant');
   await until(() => evaluate("!!document.querySelector('.ssa-client-filing')"));
+  await until(() => evaluate("[...document.querySelectorAll('.ssa-client-filing button')].some(button => button.textContent === 'Open SSA application')"));
+  await click('Open SSA application');
+  await until(() => evaluate("document.querySelector('.live-launch [role=status]').textContent.includes('supported Toolkit page')"));
+  assert(requests.every(request => request.method === 'GET'));
   const stopped = once(child, 'exit');
   await cdp('Browser.close'); await stopped; socket.close();
   const reopened = spawn(browserPath, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', `--user-data-dir=${join(directory, 'profile')}`, '--dump-dom', '--virtual-time-budget=3000', origin + '/intake-checker/'], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });

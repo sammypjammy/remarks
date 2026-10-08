@@ -3,6 +3,7 @@ import { clientFilingText } from './model/client-filing-text.js';
 import { canonicalPracticeProfile } from './model/canonical-practice-profile.js';
 
 const DevelopmentBridge = lazy(() => import('./DevelopmentBridge.jsx'));
+const LiveLaunch = lazy(() => import('./LiveLaunch.jsx'));
 
 export default function ClientFiling({ data, onBack }) {
   const [open, setOpen] = useState(false);
@@ -16,7 +17,10 @@ export default function ClientFiling({ data, onBack }) {
       <h2>SSA Intake Assistant</h2>
       <button type="button" className="button quiet" onClick={onBack}>Back to Intake Checker</button>
     </header>
-    <button type="button" className="button primary" aria-expanded={open} aria-controls="clientFilingText" onClick={() => setOpen(true)}>Open client filing</button>
+    <div className="filing-actions">
+      <button type="button" className="button primary" aria-expanded={open} aria-controls="clientFilingText" onClick={() => setOpen(true)}>Open client filing</button>
+      <Suspense fallback={null}><LiveLaunch /></Suspense>
+    </div>
     {open && <textarea ref={textBox} id="clientFilingText" aria-label="Client filing data" readOnly spellCheck={false} autoComplete="off" value={clientFilingText(data)} />}
     {open && (localPractice || hostedPilot) && <Suspense fallback={null}>
       <DevelopmentBridge profile={practiceProfile} />

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SSA page review</title>
+  <link rel="stylesheet" href="popup.css">
+  <script type="module" src="popup.js"></script>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">DEVELOPMENT · READ ONLY</p>
+    <h1>SSA page review</h1>
+    <p id="page-status" role="status">Checking this tab…</p>
+    <section aria-labelledby="workflow-heading">
+      <h2 id="workflow-heading">Saved application workflow</h2>
+      <ol>
+        <li>Open the SSA disability application and select <strong>Return to a Saved Application</strong>.</li>
+        <li>Enter the applicant’s Social Security number and re-entry number directly on SSA. Complete any login or identity checks yourself.</li>
+        <li>Once inside the application, review each question. The client-profile connection and live field mappings are not enabled yet.</li>
+      </ol>
+    </section>
+    <section aria-labelledby="mapping-heading">
+      <h2 id="mapping-heading">Field mappings</h2>
+      <p id="mapping-status">No live SSA page fields have been verified. Review and enter answers manually.</p>
+    </section>
+    <button id="open-saved" type="button">Open and select saved application</button>
+    <a href="https://secure.ssa.gov/iClaim/dib" target="_blank" rel="noopener noreferrer">Open SSA page without selecting</a>
+    <p class="note">The button above opens the official SSA disability application and selects only a unique “Return to a Saved Application” control. The extension has no SSN or re-entry-number input and receives no client profile.</p>
+  </main>
+</body>
+</html>

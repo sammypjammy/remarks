@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Packard SSA Page Review (Development)",
+  "version": "0.3.0",
+  "description": "Opens the SSA disability application and selects one exact saved-application navigation control. No client profile or form filling.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Review SSA page"
+  },
+  "permissions": ["activeTab", "scripting"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmuEGxd6qOQPpBCVB73z3CaVUNfY8+7L2mO8Jn2RaidFU985tu/sYbmTRjQ3QNFhKKwZxKSspi616p1izXHdooS3LkxwvIZJeMdvo3qgnOJ+H6ojqUYHqKYT/cFpsbEfhQFVgsfUtdX+TfPkHJ2uRqFemylaQ++iy30p+3/kfRrToNsDeIp3yGEuDMfcp59z1flZElkXHi+fI1LUiyNZO7zf2TH9/G5PJ8t+DcbWjypWKUxxL4MVQHGP3qAC/hfngTfQzllq2s4TJ+Vl2IvsXC9WGyDumU7NOuhvYsyWJ6TwsbumAVhxegZUM88p/4u45/dyWjuSfYUTaN6xrn6LbWQIDAQAB",
+  "host_permissions": ["https://secure.ssa.gov/*"],
+  "externally_connectable": {
+    "matches": ["https://packardtoolkit.vercel.app/*", "http://localhost/*", "http://127.0.0.1/*"]
+  },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; form-action 'none'; base-uri 'none'"
+  }
+}

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseIntake } from '../intake-checker/parser.js';
 import { createIntakeSession } from '../intake-checker/session.js';
 import { fromIntakeChecker } from '../ssa-intake-assistant/src/model/from-intake-checker.js';
-import { readyFields } from '../ssa-intake-assistant/src/model/intake-contract.js';
+import { PROFILE_SCHEMA_VERSION, readyFields } from '../ssa-intake-assistant/src/model/intake-contract.js';
 const profile = text => fromIntakeChecker(createIntakeSession(parseIntake(text)));
 const field = (p, id) => p.fields.find(item => item.id === id);
 
@@ -44,6 +44,6 @@ test('parsing errors cannot be dismissed into readiness and disappear only after
 test('unrelated missing fields remain correctable; previous contract consumers must reject new semantics', () => {
   const p = profile('PERSONAL INFORMATION\nFirst Name: Synthetic\nEmail: Not provided\nMEDICAL PROVIDERS\nClinic 1\nUnknown question: Synthetic');
   assert(field(p, 'personal.email').correctionTarget);
-  assert.equal(p.schemaVersion, '3.0.0');
+  assert.equal(p.schemaVersion, PROFILE_SCHEMA_VERSION);
   assert.deepEqual(readyFields({ ...p, schemaVersion: '2.0.0' }), []);
 });

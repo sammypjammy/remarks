@@ -54,7 +54,8 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     for (let repeat = 0; repeat < 2; repeat++) {
       await click('Continue to SSA Intake Assistant');
       await until(() => evaluate("!!document.querySelector('.ssa-client-filing')"));
-      assert(await evaluate("document.querySelectorAll('.ssa-client-filing button').length === 2 && !document.querySelector('.ssa-client-filing textarea, .ssa-client-filing p, .readiness-counts, .blocked-fields, .ready-fields, .development-bridge')"));
+      await until(() => evaluate("document.querySelectorAll('.ssa-client-filing button').length === 3"));
+      assert(await evaluate("!document.querySelector('.ssa-client-filing textarea, .ssa-client-filing p, .readiness-counts, .blocked-fields, .ready-fields, .development-bridge')"));
       await click('Open client filing');
       await until(() => evaluate("!!document.getElementById('clientFilingText')"));
       assert.equal(await evaluate("document.getElementById('clientFilingText').value"), expected);
@@ -73,7 +74,8 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     assert.equal(await evaluate('JSON.stringify([localStorage, sessionStorage])'), storage);
     assert.equal(await evaluate('JSON.stringify([location.href, history.state, history.length])'), history);
     assert.equal(await evaluate('window.clientWrites + window.clientDb + window.clientLogs'), 0);
-    assert(network.slice(start).every(request => request.method === 'GET' && !request.postData && request.url === origin + '/api/auth/session'));
+    assert(network.slice(start).every(request => request.method === 'GET' && !request.postData &&
+      (request.url === origin + '/api/auth/session' || request.url.startsWith(origin + '/assets/LiveLaunch-'))));
     await evaluate("intakeText.dispatchEvent(new Event('input'))");
     assert(await evaluate("document.getElementById('continueToSsa').hidden && !document.getElementById('ssaIntakeView').children.length"));
     await check(readinessIntake);
