@@ -2,7 +2,7 @@ import { classifyPage } from './page-scope.js';
 import { LIVE_PAGE_MAPPINGS } from './live-mappings.js';
 
 const status = document.getElementById('page-status');
-document.getElementById('mapping-status').textContent = `${LIVE_PAGE_MAPPINGS.length} verified live field mappings. Review and enter answers manually.`;
+document.getElementById('mapping-status').textContent = `No later application fields are mapped (${LIVE_PAGE_MAPPINGS.length} mappings). Identity markup must match exactly or the handoff pauses.`;
 try {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   status.textContent = classifyPage(tab?.url).label;

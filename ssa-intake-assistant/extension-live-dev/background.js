@@ -1,106 +1,156 @@
-import { OFFICIAL_START_URL, isSavedApplicationLanding } from './page-scope.js';
+import { isSavedApplicationLanding, isSsaApplicationPage, OFFICIAL_START_URL } from './page-scope.js';
+import { livePageAction } from './live-page-actions.js';
+import { createLiveIdentitySessionStore } from './live-identity-session.js';
 import { selectSavedControl } from './select-saved-control.js';
-import { isToolkitLaunchRequest, isIdentityRequest, isIdentityControl } from './toolkit-launch.js';
-import { inspectLivePage, selectReturnProcess, fillSavedIdentity } from './live-page-actions.js';
+import { isToolkitLaunchRequest } from './toolkit-launch.js';
 
-const pendingTabs = new Map();
-let identitySession = null;
-const IDENTITY_AGE_MS = 300000;
+const CHANNEL = 'ssa-identity-handoff';
+const liveSessions = createLiveIdentitySessionStore();
+const pollTimers = new Map();
+const popupTabs = new Map();
 
-function clearIdentity() {
-  if (identitySession?.timer) clearTimeout(identitySession.timer);
-  identitySession = null;
-}
-
-async function inspectIdentity(tab) {
-  const current = identitySession;
-  if (!current || current.tabId !== tab?.id || tab.status !== 'complete'
-      || current.busy || current.stage === 'filled') return;
-  if (Date.now() >= current.expiresAt || Date.now() - current.lastHeartbeat > 15000) return clearIdentity();
-  let url;
-  try { url = new URL(tab.url); } catch { return; }
-  if (url.protocol !== 'https:' || url.hostname !== 'secure.ssa.gov'
-      || !/^\/iClaim(?:\/|$)/.test(url.pathname)) return clearIdentity();
-  current.busy = true;
-  try {
-    const [{ result: page }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: inspectLivePage });
-    if (identitySession !== current) return;
-    if (page === 'choice' && current.stage === 'terms') {
-      const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: selectReturnProcess });
-      current.stage = result === 'selected' ? 'choice-selected' : 'paused';
-      if (current.stage === 'paused') { current.reason = result; current.ssn = null; current.reentry = null; }
-    } else if (page === 'identity' && ['terms', 'choice-selected'].includes(current.stage)) {
-      const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id },
-        func: fillSavedIdentity, args: [{ ssn: current.ssn, reentry: current.reentry }] });
-      current.stage = result === 'filled' ? 'filled' : 'paused';
-      if (current.stage === 'paused') current.reason = result;
-      current.ssn = null; current.reentry = null;
-    } else if (page === 'choice' && current.stage === 'choice-selected') {
-      // The button may navigate after this inspection; never click it twice.
-    } else if (page === 'terms' && current.stage === 'terms') {
-      // Wait for the employee to review and continue.
-    } else if (current.stage !== 'paused') {
-      current.stage = 'paused'; current.reason = page; current.ssn = null; current.reentry = null;
-    }
-  } catch {
-    if (identitySession === current) {
-      current.stage = 'paused'; current.reason = 'inspection-failed'; current.ssn = null; current.reentry = null;
-    }
-  } finally { current.busy = false; }
-}
-
-async function inspectLoadedTab(tab) {
-  if (!pendingTabs.has(tab?.id) || tab.status !== 'complete') return;
-  clearTimeout(pendingTabs.get(tab.id));
-  pendingTabs.delete(tab.id);
+async function inspectPopupTab(tab) {
+  if (!popupTabs.has(tab?.id) || tab.status !== 'complete') return;
+  clearTimeout(popupTabs.get(tab.id));
+  popupTabs.delete(tab.id);
   if (!isSavedApplicationLanding(tab.url)) return;
   try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: selectSavedControl });
-  } catch { /* Leave the page untouched; the employee can select it manually. */ }
+  } catch { /* Leave the page untouched; the popup offers a manual link. */ }
+}
+
+function notify(session, reason) {
+  try { session.port.postMessage({ type: 'status', reason }); } catch { /* Disconnect cleanup handles failed delivery. */ }
+}
+
+function endSession(session, reason) {
+  if (!session || !liveSessions.forTab(session.tabId)) return;
+  if (reason) notify(session, reason);
+  liveSessions.clearTab(session.tabId);
+  try { session.port.disconnect(); } catch { /* The port may already be disconnected. */ }
+}
+
+function closeSourceSessions(sourceTabId) {
+  for (const session of liveSessions.clearSource(sourceTabId)) {
+    try { session.port.disconnect(); } catch { /* The Toolkit tab may already be gone. */ }
+  }
+}
+
+async function inspectTab(tabId) {
+  const session = liveSessions.forTab(tabId);
+  if (!session || session.busy) return;
+  session.busy = true;
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab.status !== 'complete') return;
+    if (!isSsaApplicationPage(tab.url)) {
+      endSession(session, 'wrong-page');
+      return;
+    }
+    const [{ result }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: livePageAction,
+      args: [{ ssn: session.ssn, reentry: session.reentry, allowReturnClick: !session.returnSelected }],
+    });
+    if (result === 'selected') {
+      session.returnSelected = true;
+      if (session.lastReason !== 'selected') notify(session, 'selected');
+      session.lastReason = 'selected';
+    } else if (result === 'filled') {
+      endSession(session, 'filled');
+    } else if (['missing-controls', 'ambiguous-controls', 'unverified-controls'].includes(result)) {
+      endSession(session, result);
+    } else if (result === 'wrong-page' && !['/iClaim/dib', '/iClaim/dib/'].includes(new URL(tab.url).pathname)
+        && !session.returnSelected) {
+      endSession(session, 'wrong-page');
+    }
+  } catch {
+    endSession(session, 'unverified-controls');
+  } finally {
+    session.busy = false;
+  }
+}
+
+function validLaunch(message) {
+  return message && Object.keys(message).length === 3
+    && message.type === 'open-ssa-application'
+    && typeof message.ssn === 'string' && /^\d{3}-\d{2}-\d{4}$/.test(message.ssn)
+    && typeof message.reentry === 'string' && message.reentry.trim().length > 0
+    && message.reentry.length <= 128;
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && pendingTabs.has(tabId)) void inspectLoadedTab(tab);
-  if (identitySession?.sourceTabId === tabId && changeInfo.status === 'loading') clearIdentity();
-  if (changeInfo.status === 'complete' && identitySession?.tabId === tabId) void inspectIdentity(tab);
+  if (changeInfo.status === 'loading') closeSourceSessions(tabId);
+  if (changeInfo.status === 'complete' && popupTabs.has(tabId)) void inspectPopupTab(tab);
+  if (changeInfo.status === 'complete' && liveSessions.forTab(tabId)) void inspectTab(tabId);
 });
+
 chrome.tabs.onRemoved.addListener(tabId => {
-  if (pendingTabs.has(tabId)) clearTimeout(pendingTabs.get(tabId));
-  pendingTabs.delete(tabId);
-  if (identitySession && [identitySession.tabId, identitySession.sourceTabId].includes(tabId)) clearIdentity();
+  const session = liveSessions.forTab(tabId);
+  if (session) endSession(session, 'wrong-page');
+  if (popupTabs.has(tabId)) clearTimeout(popupTabs.get(tabId));
+  popupTabs.delete(tabId);
+  closeSourceSessions(tabId);
 });
+
 chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-  if (message?.type !== 'open-saved-application') return false;
+  if (message?.type !== 'open-saved-application' || Object.keys(message).length !== 1) return false;
   chrome.tabs.create({ url: OFFICIAL_START_URL, active: true }).then(tab => {
-    pendingTabs.set(tab.id, setTimeout(() => pendingTabs.delete(tab.id), 30000));
+    popupTabs.set(tab.id, setTimeout(() => popupTabs.delete(tab.id), 30000));
     respond({ opened: true });
-    void chrome.tabs.get(tab.id).then(inspectLoadedTab).catch(() => {});
+    void chrome.tabs.get(tab.id).then(inspectPopupTab).catch(() => {});
   }).catch(() => respond({ opened: false }));
   return true;
 });
 
-// Only the identity request carries two bounded values; no intake or full profile is sent.
-chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
-  if (isIdentityControl(message, sender)) {
-    const current = identitySession;
-    if (!current || current.session !== message.session || current.sourceTabId !== sender.tab.id
-        || Date.now() >= current.expiresAt) { clearIdentity(); respond({ alive: false }); return false; }
-    if (message.type === 'clear-identity') { clearIdentity(); respond({ alive: false }); return false; }
-    current.lastHeartbeat = Date.now(); respond({ alive: true, stage: current.stage,
-      ...(current.stage === 'paused' ? { reason: current.reason } : {}) }); return false;
+chrome.runtime.onConnectExternal.addListener(port => {
+  if (port.name !== CHANNEL || !isToolkitLaunchRequest({ type: 'open-ssa-application' }, port.sender)) {
+    port.disconnect();
+    return;
   }
-  if (!isIdentityRequest(message, sender) && !isToolkitLaunchRequest(message, sender)) return false;
-  clearIdentity();
-  chrome.tabs.create({ url: OFFICIAL_START_URL, active: true }).then(tab => {
-    if (message.type === 'start-identity') {
-      const now = Date.now();
-      identitySession = { sourceTabId: sender.tab.id, tabId: tab.id, session: message.session,
-        ssn: message.ssn, reentry: message.reentry, stage: 'terms', busy: false,
-        lastHeartbeat: now, expiresAt: now + IDENTITY_AGE_MS,
-        timer: setTimeout(clearIdentity, IDENTITY_AGE_MS) };
-      void chrome.tabs.get(tab.id).then(inspectIdentity).catch(() => {});
+
+  let handled = false;
+  port.onMessage.addListener(message => {
+    if (message?.type === 'clear' && Object.keys(message).length === 1) {
+      closeSourceSessions(port.sender.tab.id);
+      return;
     }
-    respond({ opened: true });
-  }).catch(() => respond({ opened: false }));
-  return true;
+    if (handled) return;
+    handled = true;
+    if (!validLaunch(message)) {
+      try { port.postMessage({ type: 'status', reason: 'unverified-controls' }); } finally { port.disconnect(); }
+      return;
+    }
+
+    chrome.tabs.create({ url: OFFICIAL_START_URL, active: true }).then(tab => {
+      if (!Number.isInteger(tab.id)) throw new Error('SSA tab was not created');
+      const session = liveSessions.create({
+        tabId: tab.id,
+        sourceTabId: port.sender.tab.id,
+        port,
+        ssn: message.ssn,
+        reentry: message.reentry.trim(),
+        onClear: () => {
+          clearInterval(pollTimers.get(tab.id));
+          pollTimers.delete(tab.id);
+        },
+        onTimeout: () => {
+          notify(session, 'wrong-page');
+          try { port.disconnect(); } catch { /* The port may already be disconnected. */ }
+        },
+      });
+      session.returnSelected = false;
+      session.lastReason = '';
+      session.busy = false;
+      pollTimers.set(tab.id, setInterval(() => { void inspectTab(tab.id); }, 1000));
+      port.postMessage({ type: 'opened' });
+      void inspectTab(tab.id);
+    }).catch(() => {
+      try { port.postMessage({ type: 'status', reason: 'wrong-page' }); } finally { port.disconnect(); }
+    });
+  });
+
+  port.onDisconnect.addListener(() => {
+    liveSessions.clearPort(port);
+  });
 });

@@ -1,14 +1,162 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { classifyPage, OFFICIAL_START_URL, isSavedApplicationLanding } from '../ssa-intake-assistant/extension-live-dev/page-scope.js';
+import { classifyPage, OFFICIAL_START_URL, isSavedApplicationLanding, isSsaApplicationPage } from '../ssa-intake-assistant/extension-live-dev/page-scope.js';
 import { selectSavedControl } from '../ssa-intake-assistant/extension-live-dev/select-saved-control.js';
+import { livePageAction } from '../ssa-intake-assistant/extension-live-dev/live-page-actions.js';
+import { createLiveIdentitySessionStore, IDENTITY_SESSION_TIMEOUT_MS } from '../ssa-intake-assistant/extension-live-dev/live-identity-session.js';
 import { LIVE_PAGE_MAPPINGS, RESERVED_TARGETS, planLiveFields } from '../ssa-intake-assistant/extension-live-dev/live-mappings.js';
 import { createLiveSession } from '../ssa-intake-assistant/extension-live-dev/live-session.js';
-import { isToolkitLaunchRequest, isIdentityRequest, isIdentityControl } from '../ssa-intake-assistant/extension-live-dev/toolkit-launch.js';
-import { inspectLivePage, selectReturnProcess, fillSavedIdentity } from '../ssa-intake-assistant/extension-live-dev/live-page-actions.js';
+import { isToolkitLaunchRequest } from '../ssa-intake-assistant/extension-live-dev/toolkit-launch.js';
 import { LIVE_EXTENSION_ID } from '../ssa-intake-assistant/src/model/live-extension-id.js';
 import { createHash } from 'node:crypto';
+
+const SYNTHETIC_SSN = '000-12-3456';
+const SYNTHETIC_REENTRY = 'SYNTHETIC-REENTRY';
+
+function syntheticPage(pathname, build) {
+  const previous = {
+    location: globalThis.location, document: globalThis.document, Event: globalThis.Event,
+    HTMLInputElement: globalThis.HTMLInputElement, HTMLAnchorElement: globalThis.HTMLAnchorElement,
+  };
+  const elements = [];
+  const dispatched = [];
+  const matches = (element, selector) => selector.split(',').some(raw => {
+    const item = raw.trim();
+    if (item === '[role="heading"]' || item === '[role=heading]') return element.getAttribute('role') === 'heading';
+    if (item === '[role="row"]' || item === '[role=row]') return element.getAttribute('role') === 'row';
+    if (item === '[role="button"]' || item === '[role=button]') return element.getAttribute('role') === 'button';
+    if (item === 'a[href]') return element.tagName === 'A' && element.getAttribute('href') !== null;
+    if (item === 'input[type="button"]' || item === 'input[type=button]') return element.tagName === 'INPUT' && element.type === 'button';
+    if (item === 'input[type="submit"]' || item === 'input[type=submit]') return element.tagName === 'INPUT' && element.type === 'submit';
+    return /^[a-z][a-z0-9]*$/i.test(item) && element.tagName.toLowerCase() === item.toLowerCase();
+  });
+  let documentObject;
+  class Element {
+    constructor(tagName, textContent = '', attributes = {}) {
+      this.tagName = tagName.toUpperCase();
+      this.textContent = textContent;
+      this.attributes = { ...attributes };
+      this.children = [];
+      this.parentElement = null;
+      this.ownerDocument = documentObject;
+      this.hidden = Boolean(attributes.hidden);
+      this.disabled = Boolean(attributes.disabled);
+      this.readOnly = Boolean(attributes.readOnly);
+      this.style = {};
+      this.events = [];
+      elements.push(this);
+    }
+    getAttribute(name) { return Object.hasOwn(this.attributes, name) ? String(this.attributes[name]) : null; }
+    getClientRects() { return this.hidden ? [] : [{}]; }
+    contains(other) { return other === this || this.children.some(child => child.contains(other)); }
+    append(...children) {
+      for (const child of children) {
+        child.parentElement = this;
+        this.children.push(child);
+      }
+      return this;
+    }
+    descendants() { return this.children.flatMap(child => [child, ...child.descendants()]); }
+    querySelectorAll(selector) {
+      return this.descendants().filter(element => matches(element, selector));
+    }
+    closest(selector) {
+      for (let current = this; current; current = current.parentElement)
+        if (matches(current, selector)) return current;
+      return null;
+    }
+    dispatchEvent(event) { this.events.push(event.type); dispatched.push(event.type); return true; }
+    click() { this.clicked = true; }
+  }
+  class Input extends Element {
+    constructor(type = 'text', attributes = {}) {
+      super('input', '', { ...attributes, type });
+      this.type = type;
+      this._value = '';
+      this.rejectsValue = Boolean(attributes.rejectsValue);
+    }
+    get value() { return this._value; }
+    set value(value) {
+      const text = String(value);
+      if (this.rejectsValue && text) this._value = '';
+      else if (this.type === 'number' && text && !/^-?\d+(?:\.\d+)?$/.test(text)) this._value = '';
+      else this._value = text;
+    }
+  }
+  class Anchor extends Element {
+    constructor(text, href = '') { super('a', text, href ? { href } : {}); this.href = href; }
+  }
+  class SyntheticEvent { constructor(type) { this.type = type; } }
+  documentObject = {
+    children: [],
+    append(...children) {
+      for (const child of children) {
+        child.parentElement = documentObject;
+        documentObject.children.push(child);
+      }
+    },
+    querySelectorAll: selector => elements.filter(element => matches(element, selector)),
+    getElementById: id => elements.find(element => element.getAttribute('id') === id) || null,
+    defaultView: { getComputedStyle: element => element.style },
+  };
+  for (const element of elements) element.ownerDocument = documentObject;
+  documentObject.defaultView = { getComputedStyle: element => element.style };
+  globalThis.location = { origin: 'https://secure.ssa.gov', pathname, href: `https://secure.ssa.gov${pathname}` };
+  globalThis.document = documentObject;
+  globalThis.Event = SyntheticEvent;
+  globalThis.HTMLInputElement = Input;
+  globalThis.HTMLAnchorElement = Anchor;
+  const api = {
+    node: (tag, text = '', attrs = {}) => new Element(tag, text, attrs),
+    input: (type = 'text', attrs = {}) => new Input(type, attrs),
+    anchor: (text, href = '') => new Anchor(text, href),
+    dispatched,
+    restore: () => Object.assign(globalThis, previous),
+  };
+  build(api);
+  for (const element of elements) element.ownerDocument = documentObject;
+  return api;
+}
+
+function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text', rejectReentry = false } = {}) {
+  let page;
+  const inputs = [];
+  page = syntheticPage('/iClaim/Msg024View.action', ({ node, input }) => {
+    const heading = node('h1', 'Return to Saved Application Process');
+    const ssn = input(ssnType, { rejectsValue: false });
+    const reentry = input(reentryType, { rejectsValue: rejectReentry });
+    inputs.push(ssn, reentry);
+    document.append(heading);
+    if (layout === 'labels') {
+      const ssnText = "Applicant's Social Security Number (SSN):";
+      const ssnLabel = node('label', ssnText, { for: 'ssn-field' }).append(node('span', ssnText));
+      const reentryLabel = node('label', 'Re-entry Number:', { for: 'reentry-field' }).append(node('span', 'Re-entry Number:'));
+      ssn.attributes.id = 'ssn-field'; reentry.attributes.id = 'reentry-field';
+      document.append(ssnLabel, ssn, reentryLabel, reentry);
+    } else if (layout === 'table') {
+      const row = node('tr');
+      row.append(node('td', "Applicant's Social Security Number (SSN):"), node('td').append(ssn));
+      document.append(row);
+      const secondRow = node('tr');
+      secondRow.append(node('th', 'Re-entry Number:'), node('td').append(reentry));
+      document.append(secondRow);
+    } else if (layout === 'spans') {
+      const ssnGroup = node('div');
+      ssnGroup.append(node('span', "Applicant's Social Security Number (SSN):"), node('span').append(ssn));
+      const reentryGroup = node('div');
+      reentryGroup.append(node('span', 'Re-entry Number:'), node('span').append(reentry));
+      document.append(ssnGroup, reentryGroup);
+    } else {
+      const ssnGroup = node('div');
+      ssnGroup.append(node('p', "Applicant's Social Security Number (SSN):"), node('div').append(node('span').append(ssn)));
+      const reentryGroup = node('div');
+      reentryGroup.append(node('p', 'Re-entry Number:'), node('div').append(node('span').append(reentry)));
+      document.append(ssnGroup, reentryGroup);
+    }
+  });
+  return { ...page, inputs };
+}
 
 test('recognizes only exact HTTPS SSA application origins and never trusts lookalikes', () => {
   assert.equal(OFFICIAL_START_URL, 'https://secure.ssa.gov/iClaim/dib');
@@ -27,6 +175,8 @@ test('recognizes only exact HTTPS SSA application origins and never trusts looka
   assert(isSavedApplicationLanding('https://secure.ssa.gov/iClaim/Msg024View.action'));
   assert(!isSavedApplicationLanding('https://secure.ssa.gov/iClaim/other'));
   assert(!isSavedApplicationLanding('https://secure.ssa.gov.evil.invalid/iClaim/dib'));
+  assert(isSsaApplicationPage('https://secure.ssa.gov/iClaim/identity/step'));
+  assert(!isSsaApplicationPage('https://secure.ssa.gov.evil.invalid/iClaim/identity/step'));
 });
 
 test('saved-application extension exposes only the Toolkit launch message and no client-data storage', async () => {
@@ -47,15 +197,20 @@ test('saved-application extension exposes only the Toolkit launch message and no
   assert.match(manifest.content_security_policy.extension_pages, /connect-src 'none'/);
   assert.match(script, /chrome\.tabs\.query\(\{ active: true, currentWindow: true \}\)/);
   assert.doesNotMatch(script, /fetch\(|postMessage|connect\(|storage|\.value\b|textContent\s*=\s*tab\?\.url\s*;/);
-  assert.match(popup, /No live SSA page fields have been verified/);
+  assert.match(popup, /Identity matching is fail-closed/);
   assert.match(popup, /href="https:\/\/secure\.ssa\.gov\/iClaim\/dib"/);
   assert.match(popup, /Open and select saved application/);
-  assert.match(popup, /Enter the applicant’s Social Security number and re-entry number directly on SSA/);
-  assert.match(popup, /client-profile connection and live field mappings are not enabled yet/);
+  assert.match(popup, /fills and verifies only SSN and re-entry number/);
+  assert.match(popup, /later application questions/);
   assert.doesNotMatch(popup, /<form|<input/);
   const background = await readFile(new URL('background.js', root), 'utf8');
-  assert.doesNotMatch(background, /fetch\(|storage|postMessage|connect\(/);
-  assert.match(background, /isSavedApplicationLanding\(tab.url\)/);
+  assert.doesNotMatch(background, /fetch\(|chrome\.storage|localStorage|sessionStorage|indexedDB/);
+  assert.match(background, /livePageAction/);
+  assert.match(background, /open-ssa-application/);
+  assert.match(background, /isSsaApplicationPage/);
+  assert.doesNotMatch(background, /console\.(?:log|warn|error|info|debug)/);
+  const action = await readFile(new URL('live-page-actions.js', root), 'utf8');
+  assert.doesNotMatch(action, /console\.|localStorage|sessionStorage|indexedDB|fetch\(|SYNTHETIC/);
 });
 
 test('Toolkit launch accepts only an exact top-level source tab and message without client data', () => {
@@ -71,27 +226,138 @@ test('Toolkit launch accepts only an exact top-level source tab and message with
   assert(!isToolkitLaunchRequest({ type: 'open-ssa-application', ssn: 'synthetic' }, sender));
 });
 
-test('temporary identity request requires a ready-shaped SSN, bounded re-entry and exact Toolkit source', () => {
-  const sender = { tab: { id: 4 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' };
-  const request = { type: 'start-identity', session: '11111111-1111-4111-8111-111111111111',
-    ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' };
-  assert(isIdentityRequest(request, sender));
-  assert(!isIdentityRequest({ ...request, ssn: '123' }, sender));
-  assert(!isIdentityRequest({ ...request, reentry: '' }, sender));
-  assert(!isIdentityRequest({ ...request, rawIntake: 'synthetic' }, sender));
-  assert(!isIdentityRequest(request, { ...sender, frameId: 1 }));
-  assert(isIdentityControl({ type: 'identity-heartbeat', session: request.session }, sender));
-  assert(!isIdentityControl({ type: 'identity-heartbeat', session: request.session, ssn: request.ssn }, sender));
-});
-
-test('Intake Assistant uses a temporary re-entry input and checks authentication', async () => {
+test('Intake Assistant launch sends only a ready SSN and temporary re-entry number after authentication', async () => {
   const source = await readFile(new URL('../ssa-intake-assistant/src/LiveLaunch.jsx', import.meta.url), 'utf8');
   assert.match(source, /fetch\('\/api\/auth\/session'/);
-  assert.match(source, /type: 'start-identity'/);
-  assert.match(source, /personal\.social-security-number/);
-  assert.match(source, /type="password"/);
-  assert.match(source, /setReentry\(''\)/);
-  assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|console\./i);
+  assert.match(source, /chrome\.runtime\.connect\(LIVE_EXTENSION_ID, \{ name: channel \}\)/);
+  assert.match(source, /type: 'open-ssa-application', ssn, reentry: reentryValue/);
+  assert.doesNotMatch(source, /\bprofile\b|clientFilingText|localStorage|sessionStorage|indexedDB/i);
+  assert.doesNotMatch(source, /console\.(?:log|warn|error|info|debug)/);
+  assert.match(source, /packardaccountchange/);
+  assert.match(source, /pagehide/);
+});
+
+test('identity-page action recognizes label/for, table-cell and separate div/paragraph layouts', () => {
+  for (const layout of ['labels', 'table', 'divs', 'spans']) {
+    const page = identityPage(layout);
+    const values = { ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, allowReturnClick: true };
+    try {
+      assert.equal(livePageAction(values), 'filled', layout);
+      assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
+      assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']]);
+      assert.equal(values.ssn, '');
+      assert.equal(values.reentry, '');
+    } finally { page.restore(); }
+  }
+});
+
+test('identity-page action supports text, password and telephone controls using the native setter', () => {
+  for (const [ssnType, reentryType] of [['text', 'text'], ['password', 'tel'], ['tel', 'password']]) {
+    const page = identityPage('table', { ssnType, reentryType });
+    try {
+      assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
+      assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
+      assert(page.inputs.every(input => input.events.join(',') === 'input,change'));
+    } finally { page.restore(); }
+  }
+});
+
+test('identity-page action ignores hidden controls and safely rejects duplicate labels', () => {
+  const hiddenPage = syntheticPage('/iClaim/Msg024View.action', ({ node, input }) => {
+    document.append(node('h1', 'Return to Saved Application Process'));
+    const row = node('tr');
+    const hidden = input('hidden');
+    const disabled = input('text', { disabled: true });
+    const readOnly = input('text', { readOnly: true });
+    const visible = input('text');
+    row.append(node('td', "Applicant's Social Security Number (SSN):"), node('td').append(hidden, disabled, readOnly, visible));
+    const second = node('tr');
+    const reentry = input('text');
+    second.append(node('td', 'Re-entry Number:'), node('td').append(reentry));
+    document.append(row, second);
+  });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
+  } finally { hiddenPage.restore(); }
+
+  const duplicatePage = syntheticPage('/iClaim/Msg024View.action', ({ node, input }) => {
+    document.append(node('h1', 'Return to Saved Application Process'));
+    for (const label of ["Applicant's Social Security Number (SSN):", "Applicant's Social Security Number (SSN):"])
+      document.append(node('div').append(node('p', label), node('div').append(input())));
+    document.append(node('div').append(node('p', 'Re-entry Number:'), node('div').append(input())));
+  });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'ambiguous-controls');
+  } finally { duplicatePage.restore(); }
+});
+
+test('identity-page action returns distinct safe reasons for wrong page and missing controls', () => {
+  const wrong = syntheticPage('/iClaim/Msg024View.action', ({ node }) => document.append(node('h1', 'A different SSA heading')));
+  try { assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'wrong-page'); }
+  finally { wrong.restore(); }
+  const missing = syntheticPage('/iClaim/Msg024View.action', ({ node }) => document.append(node('h1', 'Return to Saved Application Process')));
+  try { assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'missing-controls'); }
+  finally { missing.restore(); }
+  const terms = syntheticPage('/iClaim/dib', ({ node }) => {
+    document.append(node('h1', 'Terms of Service'), node('button', 'Return to Saved Application Process'));
+  });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, allowReturnClick: true }), 'wrong-page');
+  } finally { terms.restore(); }
+});
+
+test('identity-page action clicks only the exact unique saved-process control after Terms', () => {
+  const page = syntheticPage('/iClaim/Msg024View.action', ({ node }) => {
+    document.append(node('button', 'Return to Saved Application Process'));
+  });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, allowReturnClick: true }), 'selected');
+    assert.equal(document.querySelectorAll('button')[0].clicked, true);
+  } finally { page.restore(); }
+});
+
+test('identity-page action rejects numeric SSN inputs and clears both fields on failed verification', () => {
+  const numeric = identityPage('table', { ssnType: 'number' });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'unverified-controls');
+    assert.deepEqual(numeric.inputs.map(input => input.value), ['', '']);
+  } finally { numeric.restore(); }
+  const rejected = identityPage('table', { rejectReentry: true });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'unverified-controls');
+    assert.deepEqual(rejected.inputs.map(input => input.value), ['', '']);
+    assert(rejected.inputs.every(input => input.events.includes('input') && input.events.includes('change')));
+  } finally { rejected.restore(); }
+});
+
+test('live identity sessions clear on source reload/logout, tab close, timeout, and disconnect', () => {
+  const timers = [];
+  const store = createLiveIdentitySessionStore({
+    schedule: callback => { const timer = { callback, cancelled: false }; timers.push(timer); return timer; },
+    cancel: timer => { if (timer) timer.cancelled = true; },
+  });
+  const make = (tabId, sourceTabId, port = {}) => store.create({
+    tabId, sourceTabId, port, ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY,
+  });
+  assert.equal(IDENTITY_SESSION_TIMEOUT_MS, 300000);
+  const reload = make(1, 10);
+  assert.equal(store.clearSource(10).length, 1);
+  assert.equal(reload.ssn, ''); assert.equal(reload.reentry, '');
+  const logout = make(2, 11);
+  assert.equal(store.clearSource(11).length, 1);
+  assert.equal(logout.ssn, ''); assert.equal(logout.reentry, '');
+  const tabClose = make(3, 12);
+  assert.equal(store.clearTab(3).length, 1);
+  assert.equal(tabClose.ssn, ''); assert.equal(tabClose.reentry, '');
+  const disconnectPort = {};
+  const disconnect = make(4, 13, disconnectPort);
+  assert.equal(store.clearPort(disconnectPort).length, 1);
+  assert.equal(disconnect.ssn, ''); assert.equal(disconnect.reentry, '');
+  const timeout = make(5, 14);
+  timers.at(-1).callback();
+  assert.equal(store.forTab(5), null);
+  assert.equal(timeout.ssn, ''); assert.equal(timeout.reentry, '');
+  assert(timers.every(timer => timer.cancelled));
 });
 
 test('future live field registry starts empty and reserves identity and filing controls', () => {
@@ -125,153 +391,102 @@ test('future approved profile session is one-tab, short-lived and empty before m
   session.clear();
 });
 
-test('synthetic SSA page recognition waits at Terms, selects one saved path and fills only exact identity controls', () => {
-  const original = { location: globalThis.location, document: globalThis.document,
-    HTMLInputElement: globalThis.HTMLInputElement, HTMLAnchorElement: globalThis.HTMLAnchorElement };
-  class Input {
-    #current = '';
-    get value() { return this.#current; }
-    set value(value) { this.#current = value; }
-    getClientRects() { return [1]; }
-    dispatchEvent() { this.events = (this.events || 0) + 1; }
-    type = 'text'; disabled = false; readOnly = false;
-  }
-  class Anchor {}
-  const element = text => ({ textContent: text, getClientRects: () => [1], getAttribute: () => null });
-  const social = new Input(), number = new Input();
-  const socialLabel = { ...element("Applicant's Social Security Number (SSN):"), control: social };
-  const numberLabel = { ...element('Re-entry Number:'), control: number };
-  const choice = { ...element('Return to Saved Application Process'), disabled: false, click() { this.clicked = true; } };
-  let heading = element('Benefits Application Terms of Service');
-  try {
-    globalThis.HTMLInputElement = Input; globalThis.HTMLAnchorElement = Anchor;
-    globalThis.location = { origin: 'https://secure.ssa.gov', pathname: '/iClaim/synthetic', href: 'https://secure.ssa.gov/iClaim/synthetic' };
-    globalThis.document = { body: { textContent: '' }, querySelectorAll: selector =>
-      selector === 'h1,h2,h3,h4' ? [heading]
-        : selector.startsWith('label,th,td,div,p,strong,b,span') ? [socialLabel, numberLabel]
-          : selector.includes('button') ? [choice] : [] };
-    assert.equal(inspectLivePage(), 'terms');
-    assert.equal(selectReturnProcess(), 'wrong-page');
-    heading = element('Apply Online for Disability Benefits');
-    assert.equal(inspectLivePage(), 'choice');
-    assert.equal(selectReturnProcess(), 'selected'); assert.equal(choice.clicked, true);
-    heading = element('Return to Saved Application Process');
-    globalThis.document.body.textContent = "Applicant's Social Security Number (SSN): Re-entry Number:";
-    assert.equal(inspectLivePage(), 'identity');
-    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'filled');
-    assert.equal(social.value, '000-12-3456'); assert.equal(number.value, 'SYNTHETIC-REENTRY');
-    assert.equal(social.events, 2); assert.equal(number.events, 2);
-    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
-    assert.equal(inspectLivePage(), 'identity');
-    social.value = ''; number.value = '';
-    delete socialLabel.control; delete numberLabel.control;
-    socialLabel.tagName = 'TD'; socialLabel.querySelectorAll = () => [];
-    numberLabel.tagName = 'TD'; numberLabel.querySelectorAll = () => [];
-    socialLabel.parentElement = { tagName: 'TR', querySelectorAll: () => [social] };
-    numberLabel.parentElement = { tagName: 'TR', querySelectorAll: () => [number] };
-    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'filled');
-    social.value = ''; number.value = ''; social.type = 'number';
-    assert.equal(fillSavedIdentity({ ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' }), 'unverified-controls');
-    assert.equal(social.value, ''); assert.equal(number.value, '');
-    globalThis.location.origin = 'https://secure.ssa.gov.evil.invalid';
-    assert.equal(inspectLivePage(), 'outside');
-  } finally { Object.assign(globalThis, original); }
-});
-
 test('background opens only the exact SSA URL and injects only after its landing page completes', async () => {
   const saved = globalThis.chrome;
   const hooks = {};
   const injected = [];
-  let nextTab = 10;
+  const openedTabs = new Map();
+  let nextTab = 20;
+  let result = 'wrong-page';
+  function event(name) { return { addListener: listener => { hooks[name] = listener; } }; }
+  function portFor(sender) {
+    const port = {
+      name: 'ssa-identity-handoff', sender, messages: [], disconnected: false,
+      onMessage: { addListener: listener => { port.messageListener = listener; } },
+      onDisconnect: { addListener: listener => { port.disconnectListener = listener; } },
+      postMessage(message) { this.messages.push(message); },
+      disconnect() { this.disconnected = true; this.disconnectListener?.(); },
+      send(message) { this.messageListener(message); },
+    };
+    return port;
+  }
   globalThis.chrome = {
     tabs: {
-      onUpdated: { addListener: fn => { hooks.updated = fn; } },
-      onRemoved: { addListener: fn => { hooks.removed = fn; } },
-      create: async options => { assert.equal(options.url, OFFICIAL_START_URL); return { id: nextTab++, status: 'loading' }; },
-      get: async id => ({ id, status: 'loading' }),
+      onUpdated: event('updated'),
+      onRemoved: event('removed'),
+      create: async options => {
+        assert.equal(options.url, OFFICIAL_START_URL);
+        const tab = { id: nextTab++, status: 'complete', url: OFFICIAL_START_URL };
+        openedTabs.set(tab.id, tab);
+        return tab;
+      },
+      get: async id => openedTabs.get(id),
     },
-    runtime: { onMessage: { addListener: fn => { hooks.message = fn; } },
-      onMessageExternal: { addListener: fn => { hooks.external = fn; } } },
-    scripting: { executeScript: async options => { injected.push(options); } },
+    runtime: {
+      onMessage: event('message'),
+      onConnectExternal: event('external'),
+    },
+    scripting: { executeScript: async options => { injected.push(options); return [{ result }]; } },
   };
   try {
     await import(`../ssa-intake-assistant/extension-live-dev/background.js?synthetic=${Date.now()}`);
-    let reply;
-    assert.equal(hooks.message({ type: 'unknown' }, {}, value => { reply = value; }), false);
-    assert.equal(reply, undefined);
-    assert.equal(hooks.message({ type: 'open-saved-application' }, {}, value => { reply = value; }), true);
+    const sender = { tab: { id: 3 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' };
+    const port = portFor(sender);
+    hooks.external(port);
+    port.send({ type: 'open-ssa-application', ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY });
     await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(reply, { opened: true });
-    hooks.updated(10, { status: 'complete' }, { id: 10, status: 'complete', url: OFFICIAL_START_URL });
-    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.deepEqual(port.messages[0], { type: 'opened' });
     assert.equal(injected.length, 1);
-    assert.equal(injected[0].target.tabId, 10);
-    hooks.updated(10, { status: 'complete' }, { id: 10, status: 'complete', url: OFFICIAL_START_URL });
-    assert.equal(injected.length, 1);
-    hooks.message({ type: 'open-saved-application' }, {}, () => {});
-    await new Promise(resolve => setTimeout(resolve, 0));
-    hooks.updated(11, { status: 'complete' }, { id: 11, status: 'complete', url: 'https://secure.ssa.gov.evil.invalid/iClaim/dib' });
-    assert.equal(injected.length, 1);
-    hooks.removed(11);
-    let externalReply;
-    assert.equal(hooks.external({ type: 'open-ssa-application' },
-      { tab: { id: 3 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' },
-      value => { externalReply = value; }), true);
-    await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(externalReply, { opened: true });
-    assert.equal(injected.length, 1, 'Toolkit launch never injects into the SSA page');
-  } finally { globalThis.chrome = saved; }
-});
+    assert.equal(injected[0].target.tabId, 20);
+    assert.deepEqual(Object.keys(injected[0].args[0]).sort(), ['allowReturnClick', 'reentry', 'ssn']);
+    assert.equal(injected[0].args[0].ssn, SYNTHETIC_SSN);
+    assert.equal(injected[0].args[0].reentry, SYNTHETIC_REENTRY);
 
-test('synthetic extension session waits at Terms, selects the saved path, fills identity once and clears on request', async () => {
-  const saved = globalThis.chrome, hooks = {}, calls = [];
-  let page = 'terms', fillOutcome = 'filled';
-  globalThis.chrome = {
-    tabs: { onUpdated: { addListener: fn => { hooks.updated = fn; } },
-      onRemoved: { addListener: fn => { hooks.removed = fn; } },
-      create: async options => { assert.equal(options.url, OFFICIAL_START_URL); return { id: 20, status: 'loading' }; },
-      get: async id => ({ id, status: 'loading' }) },
-    runtime: { onMessage: { addListener: fn => { hooks.message = fn; } },
-      onMessageExternal: { addListener: fn => { hooks.external = fn; } } },
-    scripting: { executeScript: async options => {
-      calls.push(options.func.name);
-      return [{ result: options.func.name === 'inspectLivePage' ? page
-        : options.func.name === 'selectReturnProcess' ? 'selected' : fillOutcome }];
-    } },
-  };
-  try {
-    await import(`../ssa-intake-assistant/extension-live-dev/background.js?identity=${Date.now()}`);
-    const sender = { tab: { id: 4 }, frameId: 0, url: 'http://localhost:5173/intake-checker/', origin: 'http://localhost:5173' };
-    const session = '11111111-1111-4111-8111-111111111111';
-    let reply;
-    assert.equal(hooks.external({ type: 'start-identity', session, ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' },
-      sender, value => { reply = value; }), true);
+    openedTabs.set(20, { id: 20, status: 'complete', url: 'https://secure.ssa.gov/iClaim/Msg024View.action' });
+    result = 'selected';
+    hooks.updated(20, { status: 'complete' }, openedTabs.get(20));
     await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(reply, { opened: true });
-    const complete = () => hooks.updated(20, { status: 'complete' },
-      { id: 20, status: 'complete', url: 'https://secure.ssa.gov/iClaim/synthetic' });
-    complete(); await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(calls, ['inspectLivePage']);
-    page = 'choice'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(calls, ['inspectLivePage', 'inspectLivePage', 'selectReturnProcess']);
-    page = 'identity'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
-    assert.deepEqual(calls, ['inspectLivePage', 'inspectLivePage', 'selectReturnProcess',
-      'inspectLivePage', 'fillSavedIdentity']);
-    complete(); await new Promise(resolve => setTimeout(resolve, 0));
-    assert.equal(calls.filter(name => name === 'fillSavedIdentity').length, 1);
-    hooks.external({ type: 'identity-heartbeat', session }, sender, value => { reply = value; });
-    assert.deepEqual(reply, { alive: true, stage: 'filled' });
-    hooks.external({ type: 'clear-identity', session }, sender, value => { reply = value; });
-    assert.deepEqual(reply, { alive: false });
-    const retrySession = '22222222-2222-4222-8222-222222222222';
-    page = 'terms'; fillOutcome = 'unverified-controls';
-    hooks.external({ type: 'start-identity', session: retrySession, ssn: '000-12-3456', reentry: 'SYNTHETIC-REENTRY' },
-      sender, () => {});
+    assert(port.messages.some(message => message.type === 'status' && message.reason === 'selected'));
+    result = 'filled';
+    hooks.updated(20, { status: 'complete' }, openedTabs.get(20));
     await new Promise(resolve => setTimeout(resolve, 0));
-    page = 'identity'; complete(); await new Promise(resolve => setTimeout(resolve, 0));
-    hooks.external({ type: 'identity-heartbeat', session: retrySession }, sender, value => { reply = value; });
-    assert.deepEqual(reply, { alive: true, stage: 'paused', reason: 'unverified-controls' });
-    hooks.external({ type: 'clear-identity', session: retrySession }, sender, () => {});
+    assert(port.messages.some(message => message.type === 'status' && message.reason === 'filled'));
+    assert(port.disconnected);
+    for (const message of port.messages) {
+      if (message.type === 'opened') assert.deepEqual(Object.keys(message), ['type']);
+      else {
+        assert.deepEqual(Object.keys(message), ['type', 'reason']);
+        assert(['selected', 'wrong-page', 'missing-controls', 'ambiguous-controls', 'unverified-controls', 'filled'].includes(message.reason));
+      }
+    }
+    assert.doesNotMatch(JSON.stringify(port.messages), /000-12-3456|SYNTHETIC-REENTRY/);
+
+    const invalidPort = portFor(sender);
+    hooks.external(invalidPort);
+    invalidPort.send({ type: 'open-ssa-application', ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, profile: {} });
+    assert(invalidPort.disconnected);
+    assert.deepEqual(invalidPort.messages, [{ type: 'status', reason: 'unverified-controls' }]);
+
+    const reloadPort = portFor(sender);
+    hooks.external(reloadPort);
+    reloadPort.send({ type: 'open-ssa-application', ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    hooks.updated(3, { status: 'loading' }, { id: 3 });
+    assert(reloadPort.disconnected);
+
+    const logoutPort = portFor(sender);
+    hooks.external(logoutPort);
+    logoutPort.send({ type: 'open-ssa-application', ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    logoutPort.send({ type: 'clear' });
+    assert(logoutPort.disconnected);
+
+    const closedPort = portFor(sender);
+    hooks.external(closedPort);
+    closedPort.send({ type: 'open-ssa-application', ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    hooks.removed(23);
+    assert(closedPort.disconnected);
   } finally { globalThis.chrome = saved; }
 });
 
@@ -285,15 +500,15 @@ test('exact control selector clicks only one visible, enabled, same-origin saved
   try {
     globalThis.HTMLInputElement = Input; globalThis.HTMLAnchorElement = Anchor;
     globalThis.location = { origin: 'https://secure.ssa.gov', pathname: '/iClaim/dib', href: OFFICIAL_START_URL };
-    const first = control('Return to a Saved Application');
+    const first = control('Return to Saved Application Process');
     globalThis.document = { querySelectorAll: () => [first] };
     assert.equal(selectSavedControl(), 'selected'); assert.equal(first.clicked, true);
     first.clicked = false;
-    globalThis.document.querySelectorAll = () => [first, control('Return to a Saved Application')];
+    globalThis.document.querySelectorAll = () => [first, control('Return to Saved Application Process')];
     assert.equal(selectSavedControl(), 'ambiguous'); assert.equal(first.clicked, false);
-    globalThis.document.querySelectorAll = () => [control('Return to a Saved Application', { disabled: true })];
+    globalThis.document.querySelectorAll = () => [control('Return to Saved Application Process', { disabled: true })];
     assert.equal(selectSavedControl(), 'not-found');
-    const offsite = Object.assign(new Anchor(), control('Return to a Saved Application', { href: 'https://evil.invalid/' }));
+    const offsite = Object.assign(new Anchor(), control('Return to Saved Application Process', { href: 'https://evil.invalid/' }));
     globalThis.document.querySelectorAll = () => [offsite];
     assert.equal(selectSavedControl(), 'not-found');
     globalThis.location.pathname = '/iClaim/other';

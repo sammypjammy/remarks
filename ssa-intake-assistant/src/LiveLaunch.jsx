@@ -6,87 +6,122 @@ const sources = new Set([
   'http://localhost:5173/intake-checker/',
   'http://127.0.0.1:5173/intake-checker/',
 ]);
+const channel = 'ssa-identity-handoff';
+const statuses = {
+  selected: 'Selected the unique Return to Saved Application Process control. Continue manually if SSA asks; the identity page Next button is never clicked.',
+  'wrong-page': 'The SSA page did not match the verified controls. No fields were filled, and the temporary handoff values were cleared.',
+  'missing-controls': 'The identity page was recognized, but one or both expected fields were missing. No values were filled; the temporary handoff values were cleared.',
+  'ambiguous-controls': 'The identity controls were duplicated or ambiguous. No values were filled; the temporary handoff values were cleared.',
+  'unverified-controls': 'The identity values could not be verified. Both fields were cleared, and the temporary handoff values were cleared.',
+  filled: 'The SSN and re-entry number were filled and verified. The extension cleared its temporary values. Review the page and continue manually; it did not click Next.',
+};
+const terminalReasons = new Set(['wrong-page', 'missing-controls', 'ambiguous-controls', 'unverified-controls', 'filled']);
 
-const send = message => new Promise(resolve => {
-  try {
-    chrome.runtime.sendMessage(LIVE_EXTENSION_ID, message, reply =>
-      resolve(chrome.runtime.lastError ? null : reply));
-  } catch { resolve(null); }
-});
-
-export default function LiveLaunch({ profile }) {
-  const [status, setStatus] = useState('');
+export default function LiveLaunch({ ssn }) {
   const [reentry, setReentry] = useState('');
-  const session = useRef(null);
-  const ssnFields = profile?.fields?.filter(field => field.definitionId === 'personal.social-security-number'
-    && field.recordId === null && field.readiness === 'ready' && field.blockingReasons?.length === 0
-    && field.dataType === 'text' && /^\d{3}-\d{2}-\d{4}$/.test(field.value)) || [];
-  const readySsn = ssnFields.length === 1 ? ssnFields[0].value : null;
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  const portRef = useRef(null);
+  const settledRef = useRef(false);
+
+  function stop(clear = true) {
+    const port = portRef.current;
+    portRef.current = null;
+    if (!port) return;
+    settledRef.current = true;
+    if (clear) {
+      try { port.postMessage({ type: 'clear' }); } catch { /* Disconnect still clears the extension session. */ }
+    }
+    try { port.disconnect(); } catch { /* The extension may already have disconnected. */ }
+  }
 
   useEffect(() => {
-    let stopped = false;
-    const pulse = async () => {
-      if (stopped || !session.current) return;
-      try {
-        const response = await fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' });
-        if (!response.ok || (await response.json()).authenticated !== true) throw Error('auth');
-        const reply = await send({ type: 'identity-heartbeat', session: session.current });
-        if (!reply?.alive) throw Error('extension');
-        if (reply.stage === 'filled') setStatus('SSN and re-entry number were filled on SSA. Review them there before continuing.');
-        if (reply.stage === 'paused') setStatus(reply.reason === 'unverified-controls'
-          ? 'The identity inputs could not be matched one-to-one. Continue manually; no further fields were filled.'
-          : 'The SSA page or saved-application control could not be verified. Continue manually; no further fields were filled.');
-      } catch {
-        const id = session.current; session.current = null;
-        if (id) void send({ type: 'clear-identity', session: id });
-        setStatus('Connection ended. The identity values were cleared; start again if needed.');
-      }
-    };
-    const timer = setInterval(pulse, 5000);
-    const clear = () => {
-      stopped = true; clearInterval(timer);
-      const id = session.current; session.current = null;
-      if (id) void send({ type: 'clear-identity', session: id });
-    };
-    window.addEventListener('pagehide', clear);
-    window.addEventListener('packard-ssa-revoke', clear);
-    window.addEventListener('packardaccountchange', clear);
+    function clearForAccountChange() {
+      stop();
+      setBusy(false);
+      setStatus('Toolkit account changed. The extension handoff was cleared.');
+    }
+    function clearOnPageExit() { stop(); }
+    window.addEventListener('packardaccountchange', clearForAccountChange);
+    window.addEventListener('pagehide', clearOnPageExit);
     return () => {
-      window.removeEventListener('pagehide', clear);
-      window.removeEventListener('packard-ssa-revoke', clear);
-      window.removeEventListener('packardaccountchange', clear);
-      clear();
+      window.removeEventListener('packardaccountchange', clearForAccountChange);
+      window.removeEventListener('pagehide', clearOnPageExit);
+      stop();
     };
   }, []);
 
   async function open() {
-    if (!sources.has(location.href) || window.top !== window || !window.chrome?.runtime?.sendMessage) {
-      setStatus('Open the supported Toolkit page in Chrome with the SSA Page Review extension installed.'); return;
+    const reentryValue = reentry.trim();
+    if (!ssn) {
+      setStatus('A single valid, ready Social Security number is required. Review and correct it in Intake Checker first.');
+      return;
     }
-    setStatus('Opening SSA…');
+    if (!reentryValue) {
+      setStatus('Enter the temporary SSA re-entry number. It stays in memory and is not saved.');
+      return;
+    }
+    if (!sources.has(location.href) || window.top !== window || !window.chrome?.runtime?.connect) {
+      setStatus('Open the supported Toolkit page in Chrome with the SSA Page Review extension installed.');
+      return;
+    }
+    setBusy(true);
+    setStatus('Verifying Toolkit authentication…');
+    let authenticated = false;
     try {
       const response = await fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' });
-      if (!response.ok || (await response.json()).authenticated !== true) throw new Error('auth');
-      if (!readySsn) { setStatus('The intake has no ready SSN. Resolve it in Intake Checker first.'); return; }
-      if (!reentry.trim() || reentry.length > 64 || /[^\x20-\x7E]/.test(reentry)) {
-        setStatus('Enter the re-entry number for this saved application.'); return;
-      }
-      const id = crypto.randomUUID();
-      const reply = await send({ type: 'start-identity', session: id, ssn: readySsn, reentry });
+      authenticated = response.ok && (await response.json()).authenticated === true;
+    } catch {
+      authenticated = false;
+    }
+    if (!authenticated) {
+      setBusy(false);
+      setStatus('Toolkit authentication could not be verified. Sign in and try again.');
+      return;
+    }
+
+    try {
+      settledRef.current = false;
+      const port = chrome.runtime.connect(LIVE_EXTENSION_ID, { name: channel });
+      portRef.current = port;
+      port.onMessage.addListener(packet => {
+        if (packet?.type === 'opened') {
+          setStatus('SSA opened. Review the Terms of Service and click Next manually. Only the ready SSN and entered re-entry number were shared.');
+          return;
+        }
+        if (packet?.type !== 'status' || !Object.hasOwn(statuses, packet.reason)) return;
+        setStatus(statuses[packet.reason]);
+        if (terminalReasons.has(packet.reason)) {
+          settledRef.current = true;
+          portRef.current = null;
+          setBusy(false);
+        }
+      });
+      port.onDisconnect.addListener(() => {
+        void chrome.runtime.lastError;
+        if (settledRef.current) return;
+        portRef.current = null;
+        setBusy(false);
+        setStatus('The extension disconnected. Its temporary values were cleared; reload the extension and try again.');
+      });
+      port.postMessage({ type: 'open-ssa-application', ssn, reentry: reentryValue });
       setReentry('');
-      if (!reply?.opened) {
-        setStatus('The development extension did not open SSA. Reload it in Chrome, then try again.'); return;
-      }
-      session.current = id;
-      setStatus('SSA opened. Review the Terms of Service and click Next. The extension will look for the saved-application path and identity fields.');
-    } catch { setStatus('Toolkit authentication could not be verified. Sign in and try again.'); }
+    } catch {
+      stop(false);
+      setBusy(false);
+      setStatus('The development extension could not be reached. Reload it in Chrome and try again.');
+    }
   }
+
   return <div className="live-launch">
-    <label htmlFor="ssa-reentry">Re-entry number (temporary)</label>
-    <input id="ssa-reentry" type="password" value={reentry} onChange={event => setReentry(event.target.value)}
-      autoComplete="off" spellCheck={false} maxLength={64} aria-describedby="ssa-reentry-note" />
-    <span id="ssa-reentry-note">Cleared from this page after launch or reload. Never saved in Toolkit preferences.</span>
-    <button type="button" className="button primary" onClick={open}>Open SSA application</button>
-    {status && <p role="status" aria-live="polite">{status}</p>}
+    <label htmlFor="ssaReentryNumber">Temporary SSA re-entry number</label>
+    <input id="ssaReentryNumber" type="password" autoComplete="off" spellCheck={false}
+      maxLength={128} value={reentry} disabled={busy} onChange={event => setReentry(event.target.value)}
+      aria-describedby="ssaLivePrivacy" />
+    <p id="ssaLivePrivacy">Used only with one ready SSN for this in-memory handoff. It is not saved.</p>
+    <button type="button" className="button primary" onClick={open} disabled={busy}>
+      {busy ? 'SSA handoff active…' : 'Open SSA application'}
+    </button>
+    <p role="status" aria-live="polite">{status}</p>
   </div>;
 }

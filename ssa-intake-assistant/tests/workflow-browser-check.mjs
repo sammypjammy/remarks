@@ -135,6 +135,11 @@ try {
   await click('Continue to SSA Intake Assistant');
   await until(() => evaluate("!!document.querySelector('.ssa-client-filing')"));
   await until(() => evaluate("[...document.querySelectorAll('.ssa-client-filing button')].some(button => button.textContent === 'Open SSA application')"));
+  await evaluate(`(() => {
+    const input = document.getElementById('ssaReentryNumber');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'SYNTHETIC-REENTRY');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
   await click('Open SSA application');
   await until(() => evaluate("document.querySelector('.live-launch [role=status]').textContent.includes('supported Toolkit page')"));
   assert(requests.every(request => request.method === 'GET'));

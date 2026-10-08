@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Packard SSA Page Review (Development)",
-  "version": "0.4.1",
-  "description": "Development saved-application navigation and exact identity-field fill after manual Terms review. No application-answer mapping or submission.",
+  "version": "0.4.0",
+  "description": "Opens SSA and narrowly fills verified SSN and re-entry identity controls in an in-memory Toolkit handoff.",
   "action": {
     "default_popup": "popup.html",
     "default_title": "Review SSA page"

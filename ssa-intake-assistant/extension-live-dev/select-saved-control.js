@@ -3,7 +3,7 @@
 export function selectSavedControl() {
   const allowedPath = ['/iClaim/dib', '/iClaim/dib/', '/iClaim/Msg024View.action'];
   if (location.origin !== 'https://secure.ssa.gov' || !allowedPath.includes(location.pathname)) return 'wrong-page';
-  const label = 'Return to a Saved Application';
+  const label = 'Return to Saved Application Process';
   const candidates = [...document.querySelectorAll('button, input[type="button"], input[type="submit"], a[href], [role="button"]')]
     .filter(element => (element instanceof HTMLInputElement ? element.value : element.textContent)?.trim().replace(/\s+/g, ' ') === label)
     .filter(element => element.getClientRects().length > 0 && !element.disabled && element.getAttribute('aria-disabled') !== 'true')

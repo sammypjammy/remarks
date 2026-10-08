@@ -27,7 +27,7 @@ export default function ReadinessDashboard({ profile, onBack, onSource, onCorrec
   return <div className="ssa-workspace ssa-readiness">
     <section className="privacy-notice"><strong>Page memory only.</strong> Closing or reloading clears the intake and profile. No client-data uploads or saved profiles.</section>
     <header className="readiness-header">
-      <div><p className="eyebrow">SSA Intake Assistant v1.25.0</p><h2>Client profile readiness</h2>
+      <div><p className="eyebrow">SSA Intake Assistant v1.27.0</p><h2>Client profile readiness</h2>
         <p>Intake Checker is the source of truth. Only unresolved Intake Checker issues need attention here.</p></div>
       <button className="button quiet" onClick={() => onBack()}>Back to Intake Checker</button>
     </header>

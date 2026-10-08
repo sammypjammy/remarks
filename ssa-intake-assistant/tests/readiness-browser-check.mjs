@@ -54,11 +54,18 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     for (let repeat = 0; repeat < 2; repeat++) {
       await click('Continue to SSA Intake Assistant');
       await until(() => evaluate("!!document.querySelector('.ssa-client-filing')"));
-      await until(() => evaluate("document.querySelectorAll('.ssa-client-filing button').length === 3"));
-      assert(await evaluate("!document.querySelector('.ssa-client-filing textarea, .ssa-client-filing p, .readiness-counts, .blocked-fields, .ready-fields, .development-bridge')"));
+      await until(() => evaluate("!!document.getElementById('ssaReentryNumber')"));
+      const launchUi = JSON.parse(await evaluate("JSON.stringify({ buttons: document.querySelectorAll('.ssa-client-filing button').length, type: document.getElementById('ssaReentryNumber')?.type, autocomplete: document.getElementById('ssaReentryNumber')?.autocomplete, forbidden: !!document.querySelector('.ssa-client-filing textarea, .readiness-counts, .blocked-fields, .ready-fields, .development-bridge') })"));
+      assert.deepEqual(launchUi, { buttons: 3, type: 'password', autocomplete: 'off', forbidden: false });
       await click('Open client filing');
       await until(() => evaluate("!!document.getElementById('clientFilingText')"));
       assert.equal(await evaluate("document.getElementById('clientFilingText').value"), expected);
+      if (!repeat) {
+        await evaluate("(() => { const input = document.getElementById('ssaReentryNumber'); const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(input, 'SYNTHETIC-REENTRY'); input.dispatchEvent(new Event('input', { bubbles: true })); })()");
+        assert.equal(await evaluate("document.getElementById('ssaReentryNumber').value"), 'SYNTHETIC-REENTRY');
+      } else {
+        assert.equal(await evaluate("document.getElementById('ssaReentryNumber').value"), '');
+      }
       assert(await evaluate("document.getElementById('clientFilingText').readOnly && document.activeElement.id === 'clientFilingText' && !document.querySelector('.ssa-client-filing img')"));
       assert(await evaluate('document.documentElement.scrollWidth <= innerWidth'));
       assert(await evaluate("document.getElementById('clientFilingText').getBoundingClientRect().top >= document.querySelector('.ssa-client-filing button').getBoundingClientRect().bottom"));
@@ -74,8 +81,8 @@ export async function checkReadiness({ cdp, evaluate, visit, click, check, until
     assert.equal(await evaluate('JSON.stringify([localStorage, sessionStorage])'), storage);
     assert.equal(await evaluate('JSON.stringify([location.href, history.state, history.length])'), history);
     assert.equal(await evaluate('window.clientWrites + window.clientDb + window.clientLogs'), 0);
-    assert(network.slice(start).every(request => request.method === 'GET' && !request.postData &&
-      (request.url === origin + '/api/auth/session' || request.url.startsWith(origin + '/assets/LiveLaunch-'))));
+    assert(network.slice(start).every(request => request.method === 'GET' && !request.postData
+      && request.url.startsWith(origin + '/') && !/ssn|reentry/i.test(request.url)));
     await evaluate("intakeText.dispatchEvent(new Event('input'))");
     assert(await evaluate("document.getElementById('continueToSsa').hidden && !document.getElementById('ssaIntakeView').children.length"));
     await check(readinessIntake);

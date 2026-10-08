@@ -4,7 +4,31 @@ import { parseIntake } from '../intake-checker/parser.js';
 import { createIntakeSession, correctIntakeField, canContinueToSsa } from '../intake-checker/session.js';
 import { createClientData } from '../intake-checker/client-data.js';
 import { clientFilingText } from '../ssa-intake-assistant/src/model/client-filing-text.js';
+import { readySocialSecurityNumber } from '../ssa-intake-assistant/src/model/ready-identity.js';
 import { completeSyntheticIntake } from '../ssa-intake-assistant/tests/complete-intake.mjs';
+
+test('live handoff projects only one valid, ready Checker SSN', () => {
+  const ready = {
+    definitionId: 'personal.social-security-number', recordId: null, supported: true,
+    dataType: 'text', valueStatus: 'value', value: '000-12-3456',
+    validation: { hasErrors: false, unresolvedIssueIds: [] },
+    review: { itemIds: ['review-1'], reviewedIds: ['review-1'] },
+  };
+  const data = {
+    schema: 'packard.intake-checker.client-data', schemaVersion: '1.2.0',
+    validationPerformed: true, fields: [ready],
+    source: { text: 'synthetic raw text is never projected' },
+  };
+  assert.equal(readySocialSecurityNumber(data), '000-12-3456');
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [ready, ready] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, valueStatus: 'invalid' }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, value: '000123456' }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, validation: { hasErrors: true, unresolvedIssueIds: [] } }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, review: { itemIds: ['review-1'], reviewedIds: [] } }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, review: { itemIds: ['review-1'], reviewedIds: ['review-other'] } }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, fields: [{ ...ready, review: { itemIds: ['review-1', 'review-2'], reviewedIds: ['review-1'] } }] }), null);
+  assert.equal(readySocialSecurityNumber({ ...data, schemaVersion: 'unexpected' }), null);
+});
 
 test('filing text includes every canonical field and occurrence without filtering by validation', () => {
   const data = createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())));

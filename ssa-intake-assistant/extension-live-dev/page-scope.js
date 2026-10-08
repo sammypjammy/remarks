@@ -1,6 +1,6 @@
 // Recognition only. These paths are not verified form mappings or permission grants.
 export const OFFICIAL_START_URL = 'https://secure.ssa.gov/iClaim/dib';
-export const SAVED_APPLICATION_LABEL = 'Return to a Saved Application';
+export const SAVED_APPLICATION_LABEL = 'Return to Saved Application Process';
 
 export function isSavedApplicationLanding(rawUrl) {
   try {
@@ -8,6 +8,14 @@ export function isSavedApplicationLanding(rawUrl) {
     return url.protocol === 'https:' && url.hostname === 'secure.ssa.gov' && !url.username && !url.password
       && (url.pathname === '/iClaim/dib' || url.pathname === '/iClaim/dib/'
         || url.pathname === '/iClaim/Msg024View.action');
+  } catch { return false; }
+}
+
+export function isSsaApplicationPage(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    return url.protocol === 'https:' && url.hostname === 'secure.ssa.gov' && !url.username && !url.password
+      && /^\/iClaim(?:\/|$)/.test(url.pathname);
   } catch { return false; }
 }
 

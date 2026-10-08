@@ -9,24 +9,24 @@
 </head>
 <body>
   <main>
-    <p class="eyebrow">DEVELOPMENT · READ ONLY</p>
+    <p class="eyebrow">DEVELOPMENT · IDENTITY HANDOFF</p>
     <h1>SSA page review</h1>
     <p id="page-status" role="status">Checking this tab…</p>
     <section aria-labelledby="workflow-heading">
       <h2 id="workflow-heading">Saved application workflow</h2>
       <ol>
-        <li>Open the SSA disability application and select <strong>Return to a Saved Application</strong>.</li>
-        <li>Enter the applicant’s Social Security number and re-entry number directly on SSA. Complete any login or identity checks yourself.</li>
-        <li>Once inside the application, review each question. The client-profile connection and live field mappings are not enabled yet.</li>
+        <li>The Toolkit launch opens SSA with only one ready SSN and the temporary re-entry number entered for this handoff. The popup button opens SSA without client values.</li>
+        <li>Review the Terms of Service and click Next yourself. The extension may select only the unique <strong>Return to Saved Application Process</strong> control.</li>
+        <li>On the exact identity heading and unique expected labels, the extension fills and verifies only SSN and re-entry number. Sign-in, identity challenges, and later application questions remain manual.</li>
       </ol>
     </section>
     <section aria-labelledby="mapping-heading">
       <h2 id="mapping-heading">Field mappings</h2>
-      <p id="mapping-status">No live SSA page fields have been verified. Review and enter answers manually.</p>
+      <p id="mapping-status">Identity matching is fail-closed. Live SSA markup has not been verified; changed or ambiguous controls pause.</p>
     </section>
     <button id="open-saved" type="button">Open and select saved application</button>
     <a href="https://secure.ssa.gov/iClaim/dib" target="_blank" rel="noopener noreferrer">Open SSA page without selecting</a>
-    <p class="note">The button above opens the official SSA disability application and selects only a unique “Return to a Saved Application” control. The extension has no SSN or re-entry-number input and receives no client profile.</p>
+    <p class="note">The popup button opens the official SSA URL and can select only a unique “Return to Saved Application Process” control on the recognized landing page. It does not create an identity handoff.</p>
   </main>
 </body>
 </html>
