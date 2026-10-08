@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { PDFDocument } from 'pdf-lib';
 import { unzipSync, zipSync } from 'fflate';
 import { splitContract, INTAKE_CONTRACT_PIECES, makeSplits, parsePageSelection } from '../document-splitter/splits.js';
-import { documentName, uniqueDocumentName } from '../document-splitter/names.js';
+import { documentName, intakeDocumentName, uniqueDocumentName } from '../document-splitter/names.js';
 
 async function fixture(count) {
   const pdf = await PDFDocument.create();
@@ -80,8 +80,13 @@ test('Intake Contracts preset maps each page selection to its output name', asyn
   ];
   assert.deepEqual(INTAKE_CONTRACT_PIECES.map(({ selection, name }) => [selection, name]), expected);
   const { results } = await splitContract(await fixture(11), makeSplits(INTAKE_CONTRACT_PIECES));
-  assert.deepEqual(results.map(({ range }) => documentName('Client.pdf', range.selection, range.name)),
-    ['Client 1696.pdf', 'Client 1693.pdf', 'Client 3288.pdf', 'Client 827.pdf']);
+  assert.deepEqual(results.map(({ range }) => intakeDocumentName(range.name)),
+    ['1696.pdf', '1693.pdf', '3288.pdf', '827.pdf']);
+  const used = new Set();
+  assert.deepEqual(results.map(({ range }) => uniqueDocumentName(intakeDocumentName(range.name), used)),
+    ['1696.pdf', '1693.pdf', '3288.pdf', '827.pdf']);
+  assert.deepEqual(results.map(({ range }) => uniqueDocumentName(intakeDocumentName(range.name), used)),
+    ['1696 (2).pdf', '1693 (2).pdf', '3288 (2).pdf', '827 (2).pdf']);
 });
 
 test('Other pieces can use distinct names or fall back to page selections', () => {

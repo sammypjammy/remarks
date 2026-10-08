@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate';
 import { splitContract, makeSplits, INTAKE_CONTRACT_PIECES } from './splits.js';
-import { documentName, uniqueDocumentName } from './names.js';
+import { documentName, intakeDocumentName, uniqueDocumentName } from './names.js';
 
 const input = document.getElementById('documentFiles');
 const results = document.getElementById('documentResults');
@@ -160,7 +160,10 @@ function addContract(file, result) {
       missing.textContent = `Unavailable — missing ${item.missingPages.length === 1 ? 'page' : 'pages'} ${item.missingPages.join(', ')}`;
       row.append(missing);
     } else {
-      const name = uniqueDocumentName(documentName(file.name, item.range.selection, item.range.name), usedNames);
+      const baseName = documentType.value === 'intake'
+        ? intakeDocumentName(item.range.name)
+        : documentName(file.name, item.range.selection, item.range.name);
+      const name = uniqueDocumentName(baseName, usedNames);
       const button = document.createElement('button');
       button.className = 'secondary-btn';
       button.type = 'button';

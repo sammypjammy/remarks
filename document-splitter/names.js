@@ -5,6 +5,11 @@ export function documentName(sourceName, selection, pieceName = '') {
   return `${base} ${suffix}.pdf`;
 }
 
+export function intakeDocumentName(pieceName) {
+  if (!/^\d+$/.test(pieceName)) throw new Error('Invalid intake document name.');
+  return `${pieceName}.pdf`;
+}
+
 export function uniqueDocumentName(name, used) {
   let candidate = name;
   let copy = 2;
