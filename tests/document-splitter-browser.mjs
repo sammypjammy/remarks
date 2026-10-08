@@ -19,6 +19,7 @@ await mkdir(downloadsSingle);
 await mkdir(downloadsMultiple);
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png' };
 const requests = [];
+const consoleMessages = [];
 const server = createServer(async (req, res) => {
   requests.push({ method: req.method, path: req.url });
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
@@ -64,6 +65,10 @@ try {
   const pending = new Map();
   socket.onmessage = ({ data }) => {
     const event = JSON.parse(data);
+    if (event.method === 'Runtime.consoleAPICalled') {
+      consoleMessages.push((event.params.args || []).map(argument => argument.value || argument.description || '').join(' '));
+      return;
+    }
     if (!event.id) return;
     const request = pending.get(event.id);
     pending.delete(event.id);
@@ -88,10 +93,31 @@ try {
   }
   await cdp('Runtime.enable');
   await cdp('Page.enable');
+  await cdp('Network.enable');
   await cdp('Page.navigate', { url: `${origin}/document-splitter/` });
   await until(() => evaluate("document.readyState === 'complete' && document.querySelectorAll('.splitter-preset-piece').length === 4"), 'splitter ready');
 
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  assert.deepEqual(await evaluate(`(() => {
+    document.getElementById('documentType').value = 'other';
+    document.getElementById('documentType').dispatchEvent(new Event('change'));
+    return {
+      columns: getComputedStyle(document.getElementById('pieceFields')).gridTemplateColumns.split(' ').length,
+      heading: getComputedStyle(document.querySelector('.splitter-heading')).flexDirection,
+      fits: document.documentElement.scrollWidth <= innerWidth
+    };
+  })()`), { columns: 2, heading: 'row', fits: true }, 'Desktop layout must retain two setup columns without horizontal overflow.');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  assert.deepEqual(await evaluate(`(() => ({
+    columns: getComputedStyle(document.getElementById('pieceFields')).gridTemplateColumns.split(' ').length,
+    heading: getComputedStyle(document.querySelector('.splitter-heading')).flexDirection,
+    fits: document.documentElement.scrollWidth <= innerWidth
+  }))()`), { columns: 1, heading: 'column', fits: true }, 'Mobile layout must stack controls without horizontal overflow.');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  await evaluate("document.getElementById('documentType').value = 'intake'; document.getElementById('documentType').dispatchEvent(new Event('change'))");
+
   const fixture = await PDFDocument.create();
+  fixture.setTitle('CLIENT_DOCUMENT_CONTENT_CANARY');
   for (let page = 1; page <= 11; page++) fixture.addPage([200 + page, 300 + page]);
   const base64 = Buffer.from(await fixture.save()).toString('base64');
   async function chooseFiles(names) {
@@ -140,6 +166,10 @@ try {
   }
   for (const name of Object.keys(multipleZip)) assert(!/Private|Second|Client/.test(name));
   assert(requests.every(({ method }) => method === 'GET'), 'PDF contents must not be transmitted');
+  const persistedData = await evaluate("JSON.stringify({ localStorage: { ...localStorage }, sessionStorage: { ...sessionStorage } })");
+  assert(!/Private Client|Second Client|CLIENT_DOCUMENT_CONTENT_CANARY/.test(persistedData), 'Client documents and filenames must not be persisted.');
+  assert(!/Private Client|Second Client|CLIENT_DOCUMENT_CONTENT_CANARY/.test(consoleMessages.join('\n')), 'Client documents and filenames must not be logged to the console.');
+  assert(requests.every(({ path }) => !/Private|Second|CANARY/.test(path)), 'Client documents and filenames must not appear in request URLs.');
   process.stdout.write('Document Splitter browser downloads passed: single, multiple, individual, ZIP.\n');
 } finally {
   socket?.close();
