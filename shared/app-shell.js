@@ -63,7 +63,7 @@ function renderAppShell() {
           <span class="app-footer-links">
             <a class="app-footer-link" href="${routes.versionHistory}">Version history</a>
             <a class="app-footer-link" href="${routes.settings}">Settings</a>
-            <a class="app-footer-link" href="mailto:sam.jensen@packardfirm.com?subject=Packard%20Toolkit%20update%20request">Request an update</a>
+            <a class="app-footer-link" href="https://outlook.office.com/mail/deeplink/compose?to=sam.jensen%40packardfirm.com&amp;subject=Packard%20Toolkit%20update%20request" target="_blank" rel="noopener noreferrer">Request an update</a>
           </span>
         </div>
       </footer>
