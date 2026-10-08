@@ -17,6 +17,8 @@ a.tool-card:hover { z-index: 1; border-color: var(--accent-line); background: va
 .tool-card-status { align-self: start; padding: 5px 8px; border-radius: 999px; background: var(--surface-inset); color: var(--muted); font-size: 0.67rem; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; text-transform: uppercase; }
 .tool-card-status.available { background: var(--accent-soft); color: var(--accent); }
 .tool-card.is-disabled { opacity: 0.7; }
+.tool-directory-feedback { margin: 20px 2px 0; padding-top: 15px; border-top: 1px solid var(--border-subtle); color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
+.tool-directory-feedback a { color: var(--accent-strong); font-weight: 700; text-underline-offset: 2px; }
 :root[data-density="compact"] .tool-directory { padding: 24px; }
 :root[data-density="compact"] .tool-card { min-height: 88px; padding: 13px 15px; }
 

@@ -719,6 +719,7 @@ export default function App() {
           <span className="app-footer-links">
             <a className="app-footer-link" href="#email-version-history" onClick={() => { document.getElementById("email-version-history").open = true; }}>Version history</a>
             <a className="app-footer-link" href="/settings/">Settings</a>
+            <a className="app-footer-link" href="mailto:sam.jensen@packardfirm.com?subject=Packard%20Toolkit%20update%20request">Request an update</a>
           </span>
         </div>
       </footer>
