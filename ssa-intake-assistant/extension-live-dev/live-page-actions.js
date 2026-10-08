@@ -52,7 +52,8 @@ export function livePageAction(values) {
 
   function eligibleInputs(elements) {
     return [...new Set(elements)].filter(input => input instanceof HTMLInputElement
-      && isVisible(input) && !input.disabled && !input.readOnly);
+      && isVisible(input) && !input.disabled && !input.readOnly
+      && input.type.toLowerCase() === 'text');
   }
 
   function containsFieldLabel(element) {
@@ -72,16 +73,24 @@ export function livePageAction(values) {
   function findAssociatedInputs(labelElement) {
     const forId = labelElement.getAttribute('for');
     if (forId) {
-      const target = document.getElementById(forId);
-      return target instanceof HTMLInputElement && inputsOutsideLinks(target.parentElement ?? target).includes(target)
-        ? eligibleInputs([target]) : [];
+      const targets = [...document.querySelectorAll('input')]
+        .filter(input => input.getAttribute('id') === forId);
+      if (targets.length) return targets;
     }
-    if (labelElement.tagName === 'LABEL') return eligibleInputs(inputsOutsideLinks(labelElement));
+
+    const labelId = labelElement.getAttribute('id');
+    if (labelId) {
+      const labelledTargets = [...document.querySelectorAll('input')]
+        .filter(input => (input.getAttribute('aria-labelledby') ?? '').trim().split(/\s+/).includes(labelId));
+      if (labelledTargets.length) return labelledTargets;
+    }
+
+    if (labelElement.tagName === 'LABEL') return inputsOutsideLinks(labelElement);
 
     const cell = labelElement.closest('td, th');
     if (cell) {
-      const inCell = eligibleInputs(inputsOutsideLinks(cell));
-      if (inCell.length) return inCell;
+      const cellInputs = eligibleInputs(inputsOutsideLinks(cell));
+      if (cellInputs.length) return cellInputs;
 
       const row = cell.closest('tr, [role="row"]');
       const cells = row ? [...row.children].filter(child => ['TD', 'TH'].includes(child.tagName)) : [];
@@ -128,7 +137,7 @@ export function livePageAction(values) {
 
   function setInput(input, value) {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    if (!setter || !['text', 'password', 'tel'].includes(input.type.toLowerCase())) return false;
+    if (!setter || input.type.toLowerCase() !== 'text') return false;
     setter.call(input, value);
     dispatchValueEvents(input);
     return input.value === value;
@@ -172,14 +181,13 @@ export function livePageAction(values) {
   const ssnLabels = findLabelElements(text => text === ssnLabel || text.endsWith(ssnLabel));
   const reentryLabels = findLabelElements(text => text.startsWith(reentryLabel));
   if (!ssnLabels.length || !reentryLabels.length) return 'missing-controls';
-  if (ssnLabels.length !== 1 || reentryLabels.length !== 1) return 'ambiguous-controls';
 
-  const ssnInputs = findAssociatedInputs(ssnLabels[0]);
-  const reentryInputs = findAssociatedInputs(reentryLabels[0]);
+  const ssnInputs = eligibleInputs(ssnLabels.flatMap(findAssociatedInputs));
+  const reentryInputs = eligibleInputs(reentryLabels.flatMap(findAssociatedInputs));
   if (!ssnInputs.length) return 'missing-ssn-input';
   if (!reentryInputs.length) return 'missing-reentry-input';
-  if (ssnInputs.length > 1) return 'ambiguous-ssn-input';
-  if (reentryInputs.length > 1) return 'ambiguous-reentry-input';
+  if (ssnInputs.length !== 1) return 'ambiguous-ssn-input';
+  if (reentryInputs.length !== 1) return 'ambiguous-reentry-input';
   if (ssnInputs[0] === reentryInputs[0]) return 'ambiguous-ssn-input';
 
   const ssnInput = ssnInputs[0];

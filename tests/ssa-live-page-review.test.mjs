@@ -144,6 +144,12 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       const reentryLabel = node('label', '', { for: 'reentry-field' }).append(node('span', 'Re-entry Number:'));
       ssn.attributes.id = 'ssn-field'; reentry.attributes.id = 'reentry-field';
       document.append(ssnLabel, ssn, reentryLabel, reentry);
+    } else if (layout === 'aria-labelledby') {
+      const ssnLabel = node('label', "Applicant's Social Security Number (SSN):", { id: 'ssn-label' });
+      const reentryLabel = node('label', 'Re-entry Number:', { id: 'reentry-label' });
+      ssn.attributes['aria-labelledby'] = 'ssn-label';
+      reentry.attributes['aria-labelledby'] = 'reentry-label';
+      document.append(ssnLabel, ssn, reentryLabel, reentry);
     } else if (layout === 'table-same-cell') {
       const ssnRow = node('tr');
       ssnRow.append(node('td').append(node('span', "Applicant's Social Security Number (SSN):"), ssn));
@@ -289,9 +295,9 @@ test('Intake Assistant launch sends only a ready SSN and temporary re-entry numb
   assert.match(source, /pagehide/);
 });
 
-test('identity-page action recognizes label/for, table-cell and separate div/paragraph layouts', () => {
+test('identity-page action recognizes label/for, aria-labelledby, table-cell and separate div/paragraph layouts', () => {
   for (const layout of [
-    'labels', 'table-same-cell', 'table', 'table-next-row', 'div-same-container',
+    'labels', 'aria-labelledby', 'table-same-cell', 'table', 'table-next-row', 'div-same-container',
     'div-next-container', 'ssn-label-suffix', 'divs', 'spans',
   ]) {
     const page = identityPage(layout);
@@ -309,15 +315,49 @@ test('identity-page action recognizes label/for, table-cell and separate div/par
   }
 });
 
-test('identity-page action supports text, password and telephone controls using the native setter', () => {
-  for (const [ssnType, reentryType] of [['text', 'text'], ['password', 'tel'], ['tel', 'password']]) {
-    const page = identityPage('table', { ssnType, reentryType });
-    try {
-      assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
-      assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
-      assert(page.inputs.every(input => input.events.join(',') === 'input,change'));
-    } finally { page.restore(); }
-  }
+test('identity-page action supports text controls using the native setter', () => {
+  const page = identityPage('table');
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
+    assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
+    assert(page.inputs.every(input => input.events.join(',') === 'input,change'));
+  } finally { page.restore(); }
+});
+
+test('identity-page action resolves the supplied SSA label/id markup and ignores its help link', () => {
+  const page = syntheticPage('/iClaim/Msg024View.action', ({ node, input, anchor }) => {
+    document.append(node('h1', 'Return to Saved Application Process'));
+    const ssnLabel = node('label', "Applicant's Social Security Number (SSN):", {
+      for: 'ssn', id: 'uef-ssn1PatternLabel',
+    });
+    const duplicateSsnLabel = node('label', "Applicant's Social Security Number (SSN):", {
+      for: 'ssn', id: 'uef-ssn1PatternLabel-duplicate',
+    });
+    const ssn = input('text', {
+      id: 'ssn', name: 'SSN', 'aria-labelledby': 'uef-ssn1PatternLabel',
+      autocomplete: 'off', maxlength: '11',
+    });
+    const reentryHelp = anchor('Forgot or lost Re-entry Number');
+    reentryHelp.attributes.title = 'Forgot or lost Re-entry Number';
+    reentryHelp.attributes.id = 'uef-help0';
+    const reentryLabel = node('label', 'Re-entry Number: Forgot or lost Re-entry Number', {
+      for: 'reentrynum', id: 'uef-textBox1PatternLabel',
+    }).append(reentryHelp);
+    const reentry = input('text', {
+      id: 'reentrynum', name: 'reentryNum', 'aria-labelledby': 'uef-textBox1PatternLabel',
+      autocomplete: 'off', maxlength: '9',
+    });
+    const unrelated = input('text', { id: 'unrelated' });
+    document.append(ssnLabel, duplicateSsnLabel, ssn, reentryLabel, reentry, unrelated);
+  });
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
+    assert.equal(document.getElementById('ssn').value, SYNTHETIC_SSN);
+    assert.equal(document.getElementById('reentrynum').value, SYNTHETIC_REENTRY);
+    assert.equal(document.getElementById('unrelated').value, '');
+    assert.deepEqual(document.querySelectorAll('input').map(field => field.events),
+      [['input', 'change'], ['input', 'change'], []]);
+  } finally { page.restore(); }
 });
 
 test('identity-page action ignores a re-entry help link and fills only its associated input', () => {
@@ -410,7 +450,7 @@ test('identity-page action ignores hidden controls and safely rejects duplicate 
     document.append(node('div').append(node('p', 'Re-entry Number:'), node('div').append(input())));
   });
   try {
-    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'ambiguous-controls');
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'ambiguous-ssn-input');
   } finally { duplicatePage.restore(); }
 });
 
@@ -442,7 +482,7 @@ test('identity-page action clicks only the exact unique saved-process control af
 test('identity-page action rejects numeric SSN inputs and clears both fields on failed verification', () => {
   const numeric = identityPage('table', { ssnType: 'number' });
   try {
-    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'unverified-controls');
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'missing-ssn-input');
     assert.deepEqual(numeric.inputs.map(input => input.value), ['', '']);
   } finally { numeric.restore(); }
   const rejected = identityPage('table', { rejectReentry: true });
