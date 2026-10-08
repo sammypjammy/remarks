@@ -19,16 +19,25 @@ test('canonical Checker data projects only exact ready practice questions', () =
     .concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
-  assert.equal(profile.schemaVersion, '3.4.0');
+  assert.equal(profile.schemaVersion, '3.5.0');
   assert.deepEqual(profile.jobRecords, ['job-1']);
-  assert.deepEqual(profile.employmentQuestionFields, [
+  assert.deepEqual(profile.conditionalQuestionFields, [
     'employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country',
+    'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi',
+    'previous-applications.previous-applications-medicare',
+    'previous-applications.previous-applications-social-security',
+    'previous-applications.previous-applications-ssi',
+    'workers-compensation.illnesses-injuries-work-related',
+    'wages-earnings.expect-money-from-employer-in-future',
   ]);
-  assert.deepEqual(profile.employmentQuestionMissingFields, []);
+  assert.deepEqual(profile.conditionalQuestionMissingFields, []);
   assert.equal(profile.fields.find(field => field.definitionId === 'employment.worked-outside-united-states')?.value, true);
   assert.equal(profile.fields.find(field => field.definitionId === 'employment.eligible-for-foreign-ssi')?.value, false);
   assert.equal(profile.fields.find(field => field.definitionId === 'employment.foreign-ssi-country')?.value, 'Example Country');
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 67);
+  assert.equal(profile.fields.find(field => field.definitionId === 'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi')?.value, true);
+  assert.equal(profile.fields.find(field => field.definitionId === 'workers-compensation.illnesses-injuries-work-related')?.value, true);
+  assert.equal(profile.fields.find(field => field.definitionId === 'wages-earnings.expect-money-from-employer-in-future')?.value, false);
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 70);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
@@ -50,8 +59,8 @@ test('foreign work and benefit answers map independently, and missing or invalid
   const noCountryInput = completeSyntheticIntake().replace('**Foreign SSI country:** Example Country', '**Foreign SSI country:** Not provided');
   const noCountryData = createClientData(createIntakeSession(parseIntake(noCountryInput)));
   profile = canonicalPracticeProfile(noCountryData);
-  assert(profile.employmentQuestionFields.includes('employment.foreign-ssi-country'));
-  assert(profile.employmentQuestionMissingFields.includes('employment.foreign-ssi-country'));
+  assert(profile.conditionalQuestionFields.includes('employment.foreign-ssi-country'));
+  assert(profile.conditionalQuestionMissingFields.includes('employment.foreign-ssi-country'));
   assert(!profile.fields.some(field => field.definitionId === 'employment.foreign-ssi-country'));
   assert(!projectReady(profile).fields.some(field => field.definitionId === 'employment.foreign-ssi-country'));
 
@@ -81,14 +90,94 @@ test('foreign work and benefit answers map independently, and missing or invalid
 });
 
 test('employment questions are absent when the Checker source has none', () => {
-  const text = completeSyntheticIntake().replace(
-    '**Worked outside United States:** Yes\n**Eligible for foreign SSI:** No\n**Foreign SSI country:** Example Country\n', '');
+  const omitted = new Set([
+    'Worked outside United States', 'Eligible for foreign SSI', 'Foreign SSI country',
+    'Previous Applications - Previously applied for Medicare/SS/SSI', 'Previous Applications - Medicare',
+    'Previous Applications - Social Security', 'Previous Applications - SSI',
+    'Illnesses/injuries work related', 'Expect money from employer in future',
+  ]);
+  const text = completeSyntheticIntake().split('\n')
+    .filter(line => ![...omitted].some(label => line.startsWith(`**${label}:**`))).join('\n');
   const profile = canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(text))));
-  assert.deepEqual(profile.employmentQuestionFields, []);
-  assert.deepEqual(profile.employmentQuestionMissingFields, []);
+  assert.deepEqual(profile.conditionalQuestionFields, []);
+  assert.deepEqual(profile.conditionalQuestionMissingFields, []);
   assert(!profile.fields.some(field => field.definitionId.startsWith('employment.worked-')
     || field.definitionId.startsWith('employment.eligible-for-foreign-ssi')
     || field.definitionId === 'employment.foreign-ssi-country'));
+});
+
+test('previous application and work-condition answers are independent and benefit types stay unmapped', () => {
+  const input = completeSyntheticIntake()
+    .replace('**Previous Applications - Previously applied for Medicare/SS/SSI:** Yes',
+      '**Previous Applications - Previously applied for Medicare/SS/SSI:** No')
+    .replace('**Previous Applications - Medicare:** Yes', '**Previous Applications - Medicare:** Yes')
+    .replace('**Previous Applications - Social Security:** No', '**Previous Applications - Social Security:** Yes')
+    .replace('**Previous Applications - SSI:** Yes', '**Previous Applications - SSI:** Yes')
+    .replace('**Illnesses/injuries work related:** Yes', '**Illnesses/injuries work related:** No')
+    .replace('**Expect money from employer in future:** No', '**Expect money from employer in future:** Yes');
+  const profile = canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(input))));
+  assert.equal(profile.fields.find(field => field.definitionId === 'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi')?.value, false);
+  assert.equal(profile.fields.find(field => field.definitionId === 'workers-compensation.illnesses-injuries-work-related')?.value, false);
+  assert.equal(profile.fields.find(field => field.definitionId === 'wages-earnings.expect-money-from-employer-in-future')?.value, true);
+  assert.equal(planPractice(profile).find(item => item.target === 'previous-application')?.value, false);
+  assert.equal(planPractice(profile).find(item => item.target === 'conditions-related-to-work')?.value, false);
+  assert.equal(planPractice(profile).find(item => item.target === 'expect-to-receive-more-money')?.value, true);
+
+  const withoutCombined = input.replace('**Previous Applications - Previously applied for Medicare/SS/SSI:** No\n', '');
+  const noCombinedData = createClientData(createIntakeSession(parseIntake(withoutCombined)));
+  const noCombinedProfile = canonicalPracticeProfile(noCombinedData);
+  assert(!noCombinedProfile.fields.some(field => field.definitionId ===
+    'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi'));
+  assert.equal(planPractice(noCombinedProfile).find(item => item.target === 'previous-application')?.status, 'pause');
+  assert(noCombinedData.fields.some(field => field.definitionId === 'previous-applications.previous-applications-medicare'
+    && field.value === true));
+
+  for (const definitionId of [
+    'previous-applications.previous-applications-medicare',
+    'previous-applications.previous-applications-social-security',
+    'previous-applications.previous-applications-ssi',
+  ]) assert(!mappings.some(mapping => mapping.definitionId === definitionId));
+  assert(!mappings.some(mapping => /Which type of benefits|Money from employer after onset date|Received money from employer after unable to work|Filed on another person's SSN|Different name/i.test(mapping.label)));
+});
+
+test('ambiguous new booleans remain blocked and corrections use their exact source field', () => {
+  const ambiguousInput = completeSyntheticIntake().replace(
+    '**Expect money from employer in future:** No', '**Expect money from employer in future:** Maybe');
+  const ambiguousData = createClientData(createIntakeSession(parseIntake(ambiguousInput)));
+  const ambiguous = ambiguousData.fields.find(field => field.definitionId === 'wages-earnings.expect-money-from-employer-in-future');
+  assert.equal(ambiguous.valueStatus, 'ambiguous');
+  assert(!canonicalPracticeProfile(ambiguousData).fields.some(field => field.definitionId === ambiguous.definitionId));
+
+  const session = createIntakeSession(parseIntake(completeSyntheticIntake()));
+  const data = createClientData(session);
+  const source = data.fields.find(field => field.definitionId === 'workers-compensation.illnesses-injuries-work-related');
+  const scope = data.scopes.find(item => item.id === source.scopeId);
+  assert(correctIntakeField(session, {
+    nodePath: scope.nodePath, section: "WORKER'S COMPENSATION", label: source.label,
+    range: source.occurrences[0].source,
+  }, 'No'));
+  const corrected = createClientData(session);
+  assert.equal(corrected.fields.find(field => field.definitionId === source.definitionId).value, false);
+  assert.equal(canonicalPracticeProfile(corrected).fields.find(field => field.definitionId === source.definitionId)?.value, false);
+});
+
+test('conflicting and unresolved new mapped answers never enter the practice profile', () => {
+  const cases = [
+    ['Previous Applications - Previously applied for Medicare/SS/SSI', 'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi', 'Yes', 'No'],
+    ['Illnesses/injuries work related', 'workers-compensation.illnesses-injuries-work-related', 'Yes', 'No'],
+    ['Expect money from employer in future', 'wages-earnings.expect-money-from-employer-in-future', 'No', 'Yes'],
+  ];
+  for (const [label, definitionId, original, conflicting] of cases) {
+    const conflictingInput = completeSyntheticIntake().replace(
+      `**${label}:** ${original}`, `**${label}:** ${original}\n**${label}:** ${conflicting}`);
+    const conflictingData = createClientData(createIntakeSession(parseIntake(conflictingInput)));
+    assert.equal(conflictingData.fields.find(field => field.definitionId === definitionId).valueStatus, 'conflict');
+    assert(!canonicalPracticeProfile(conflictingData).fields.some(field => field.definitionId === definitionId));
+
+    const unresolved = canonical();
+    unresolved.fields.find(field => field.definitionId === definitionId).validation.unresolvedIssueIds.push('synthetic-unresolved');
+    assert(!canonicalPracticeProfile(unresolved).fields.some(field => field.definitionId === definitionId));
+  }
 });
 
 test('foreign benefit correction transfers only its corrected exact value', () => {

@@ -59,6 +59,9 @@ export function syntheticProfile() {
     ['employment.worked-outside-united-states', true, 'boolean'],
     ['employment.eligible-for-foreign-ssi', false, 'boolean'],
     ['employment.foreign-ssi-country', 'Example Country', 'text'],
+    ['previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi', true, 'boolean'],
+    ['workers-compensation.illnesses-injuries-work-related', true, 'boolean'],
+    ['wages-earnings.expect-money-from-employer-in-future', false, 'boolean'],
     ['jobs.job-title', 'Example Job Title', 'text', null, 'job-1'],
     ['jobs.employer', 'Example Company', 'text', null, 'job-1'],
     ['jobs.business-type', 'Example Business Type', 'text', null, 'job-1'],
@@ -74,8 +77,15 @@ export function syntheticProfile() {
     ['jobs.end-date', '2015-06-07', 'date', 'day', 'job-1'],
   ];
   return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], jobRecords: ['job-1'],
-    employmentQuestionFields: ['employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country'],
-    employmentQuestionMissingFields: [], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
+    conditionalQuestionFields: [
+      'employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country',
+      'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi',
+      'previous-applications.previous-applications-medicare',
+      'previous-applications.previous-applications-social-security',
+      'previous-applications.previous-applications-ssi',
+      'workers-compensation.illnesses-injuries-work-related', 'wages-earnings.expect-money-from-employer-in-future',
+    ],
+    conditionalQuestionMissingFields: [], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
     id: recordId ? `${definitionId}@${recordId}` : definitionId, definitionId, recordId,
     value, dataType, precision, readiness: value === null ? 'blocked' : 'ready',
     blockingReasons: value === null ? [{ code: 'missing' }] : [],

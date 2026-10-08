@@ -16,7 +16,7 @@ test('practice mapping references exact current contract IDs without inventing d
   assert.equal(schemaVersion, PROFILE_SCHEMA_VERSION);
   for (const m of mappings.filter(m => m.definitionId)) assert(fieldDefinitions.some(d => d.id === m.definitionId && d.dataType === m.type && d.record === !!m.recordCategory));
   const plan = planPractice(canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())))));
-  assert.equal(plan.filter(item => item.status === 'ready').length, 67);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 70);
   for (const target of ['other-middle-name', 'other-suffix']) assert.equal(plan.find(item => item.target === target).status, 'pause');
   assert.equal(plan.find(item => item.target === 'work-stopped').status, 'pause');
   assert.equal(plan.find(item => item.target === 'employment-employer' && item.recordId === 'job-1').value, 'Synthetic');
@@ -61,7 +61,7 @@ test('practice layout follows the supplied section order and leaves unsupported 
 });
 test('synthetic practice fills security answers and pauses on missing, partial and unsupported answers', () => {
   const p = syntheticProfile(), before = JSON.stringify(p), plan = planPractice(p);
-  assert.equal(plan.filter(item => item.status === 'ready').length, 64);
+  assert.equal(plan.filter(item => item.status === 'ready').length, 67);
   assert.equal(plan.find(item => item.target === 'applicant-blind').value, true);
   assert.equal(plan.find(item => item.target === 'current-spouse-first').value, 'Fictional');
   assert.equal(plan.find(item => item.target === 'worked-outside-us').value, true);

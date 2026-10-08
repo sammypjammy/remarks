@@ -8,7 +8,7 @@ import { distinctMedicalProblemCount } from './medical-problems.js';
 import { incomeFields } from './review-fields.js';
 
 export const CLIENT_DATA_SCHEMA = 'packard.intake-checker.client-data';
-export const CLIENT_DATA_VERSION = '1.1.0';
+export const CLIENT_DATA_VERSION = '1.2.0';
 const knownSections = new Set([...Object.keys(intakeRules.sections), ...intakeRules.optionalSections,
   ...Object.values(intakeRules.records).map(rule => rule.section), 'MEDICAL PROBLEMS']);
 const overlap = (a, b) => a && b && a.start <= b.end && a.end >= b.start;

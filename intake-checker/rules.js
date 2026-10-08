@@ -19,9 +19,17 @@ export const intakeRules = {
     "VITALS": { required: ["Height (feet)", "Weight (pounds)"], optional: ["Height (inches)"] },
     "EMPLOYMENT INFORMATION": {
       required: ["When did you last work", "Currently working"],
-      optional: ["Worked outside United States", "Eligible for foreign SSI", "Foreign SSI country"],
+      optional: ["Worked outside United States", "Eligible for foreign SSI", "Foreign SSI country",
+        "Previous Applications - Previously applied for Medicare/SS/SSI", "Previous Applications - Medicare",
+        "Previous Applications - Social Security", "Previous Applications - SSI"],
       otherFieldsOptional: true
     },
+    "WORKER'S COMPENSATION": {
+      required: [],
+      optional: ["Illnesses/injuries work related"],
+      otherFieldsOptional: true
+    },
+    "WAGES AND EARNINGS": { required: [], optional: ["Expect money from employer in future"], otherFieldsOptional: true },
     "MARRIAGE INFORMATION": { required: [], optional: ["Marital Status"] },
     "SCHOOL INFORMATION": {
       parent: "EDUCATION INFORMATION",
@@ -30,7 +38,7 @@ export const intakeRules = {
     },
     "CHILDREN INFORMATION": { required: [] }
   },
-  optionalSections: ["DISABILITY INFORMATION", "FIRM ONLY INFORMATION", "SSI INFORMATION", "FINANCIAL SUPPORT", "MEDICAL INFORMATION", "OTHER NAMES", "WAGES AND EARNINGS", "WORKER'S COMPENSATION", "ADDITIONAL EMPLOYMENT QUESTIONS", "CITIZENSHIP INFORMATION", "SPECIALIZED TRAINING INFORMATION", "SPECIAL EDUCATION INFORMATION", "REMARKS/COMMENTS"],
+  optionalSections: ["DISABILITY INFORMATION", "FIRM ONLY INFORMATION", "SSI INFORMATION", "FINANCIAL SUPPORT", "MEDICAL INFORMATION", "OTHER NAMES", "ADDITIONAL EMPLOYMENT QUESTIONS", "CITIZENSHIP INFORMATION", "SPECIALIZED TRAINING INFORMATION", "SPECIAL EDUCATION INFORMATION", "REMARKS/COMMENTS"],
   records: {
     vehicles: { section: "VEHICLES", heading: /^Vehicle(?: \d+)?$/, required: [], optional: ["Year", "Make", "Model", "Mileage"] },
     providers: {

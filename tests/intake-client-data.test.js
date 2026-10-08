@@ -33,8 +33,8 @@ function allFieldsFixture() {
 }
 
 test('catalog includes every configured field and every supplemental parser/review label with stable unique IDs', () => {
-  assert.equal(fieldDefinitions.length, 141);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 141);
+  assert.equal(fieldDefinitions.length, 147);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 147);
   for (const [section, rule] of Object.entries(intakeRules.sections)) for (const label of [...rule.required, ...(rule.optional || [])]) {
     assert(fieldDefinitions.some(item => item.section === section && item.label === label && !item.record), `${section} / ${label}`);
   }
@@ -46,14 +46,14 @@ test('catalog includes every configured field and every supplemental parser/revi
     'Other first name', 'Other last name', 'Remarks/Comments']) assert(fieldDefinitions.some(item => item.label === label), label);
 });
 
-test('complete synthetic intake represents all 141 definitions and every parsed occurrence exactly once', () => {
+test('complete synthetic intake represents all 147 definitions and every parsed occurrence exactly once', () => {
   const state = session(allFieldsFixture()), before = JSON.stringify(state.parsed);
   const data = createClientData(state);
-  assert.equal(data.schema, CLIENT_DATA_SCHEMA);   assert.equal(data.schemaVersion, '1.1.0');
-  assert.equal(CLIENT_DATA_VERSION, '1.1.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
+  assert.equal(data.schema, CLIENT_DATA_SCHEMA);   assert.equal(data.schemaVersion, '1.2.0');
+  assert.equal(CLIENT_DATA_VERSION, '1.2.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
   for (const definition of fieldDefinitions) assert(data.fields.some(item => item.definitionId === definition.id && item.parsed), definition.id);
-  assert.equal(data.coverage.parsedOccurrences, 142);
-  assert.equal(data.coverage.preservedOccurrences, 142);
+  assert.equal(data.coverage.parsedOccurrences, 148);
+  assert.equal(data.coverage.preservedOccurrences, 148);
   assert.equal(data.coverage.unmappedFields, 0);
   assert.equal(new Set(data.fields.map(item => item.id)).size, data.fields.length);
   assert.equal(JSON.stringify(state.parsed), before);
@@ -66,7 +66,53 @@ test('complete synthetic intake represents all 141 definitions and every parsed 
   assert.equal(field(data, 'employment.eligible-for-foreign-ssi').value, false);
   assert.equal(field(data, 'employment.foreign-ssi-country').dataType, 'text');
   assert.equal(field(data, 'employment.foreign-ssi-country').value, 'Example Country');
+  assert.equal(field(data, 'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi').value, false);
+  assert.equal(field(data, 'previous-applications.previous-applications-medicare').value, false);
+  assert.equal(field(data, 'previous-applications.previous-applications-social-security').value, false);
+  assert.equal(field(data, 'previous-applications.previous-applications-ssi').value, false);
+  assert.equal(field(data, 'workers-compensation.illnesses-injuries-work-related').value, false);
+  assert.equal(field(data, 'wages-earnings.expect-money-from-employer-in-future').value, false);
   assert.equal(field(data, 'personal.phone-number').value, '202-555-0142');
+});
+
+test('previous-application and work-condition fields preserve exact provenance and corrections', () => {
+  const text = `EMPLOYMENT INFORMATION
+Previous Applications - Previously applied for Medicare/SS/SSI: Yes
+Previous Applications - Medicare: No
+Previous Applications - Social Security: Yes
+Previous Applications - SSI: No
+WORKER'S COMPENSATION
+Illnesses/injuries work related: No
+WAGES AND EARNINGS
+Expect money from employer in future: Yes`;
+  const state = session(text), data = createClientData(state);
+  const ids = [
+    'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi',
+    'previous-applications.previous-applications-medicare',
+    'previous-applications.previous-applications-social-security',
+    'previous-applications.previous-applications-ssi',
+    'workers-compensation.illnesses-injuries-work-related',
+    'wages-earnings.expect-money-from-employer-in-future',
+  ];
+  for (const id of ids) {
+    const sourceField = field(data, id);
+    assert.equal(sourceField.dataType, 'boolean', id);
+    assert(sourceField.supported && sourceField.parsed && sourceField.validation && sourceField.review, id);
+    assert(sourceField.occurrences[0].source, id);
+    assert.equal(text.slice(sourceField.occurrences[0].source.start, sourceField.occurrences[0].source.end),
+      `${sourceField.label}: ${sourceField.occurrences[0].originalValue}`);
+  }
+  const target = field(data, ids[0]);
+  const scope = data.scopes.find(item => item.id === target.scopeId);
+  assert(correctIntakeField(state, {
+    nodePath: scope.nodePath, section: 'EMPLOYMENT INFORMATION', label: target.label,
+    range: target.occurrences[0].source,
+  }, 'No'));
+  const corrected = field(createClientData(state), ids[0]);
+  assert.equal(corrected.value, false);
+  assert.equal(corrected.origin, 'employee_entered');
+  assert.equal(corrected.occurrences[0].originalValue, 'Yes');
+  assert.equal(corrected.occurrences[0].currentValue, 'No');
 });
 
 test('foreign work and SSI fields retain exact source provenance, missing state, and valid employee corrections', () => {

@@ -2,17 +2,21 @@ import { intakeRules } from './rules.js';
 import { reviewFields } from './review-fields.js';
 
 // This catalog describes EXISTING labels; it does not change what the parser accepts.
-export const INTAKE_CHECKER_VERSION = '1.18.0';
+export const INTAKE_CHECKER_VERSION = '1.19.0';
 export const FIELD_TYPES = Object.freeze(['text', 'boolean', 'date']);
 const sectionIds = {
   'PERSONAL INFORMATION': 'personal', 'BIRTH INFORMATION': 'birth',
   'ADDRESS INFORMATION': 'address', 'LANGUAGE INFORMATION': 'language',
   'SECURITY QUESTIONS': 'security-questions', VEHICLES: 'vehicle-summary', VITALS: 'vitals',
   'EMPLOYMENT INFORMATION': 'employment', 'MARRIAGE INFORMATION': 'marriage',
+  "WORKER'S COMPENSATION": 'workers-compensation', 'WAGES AND EARNINGS': 'wages-earnings',
   'SCHOOL INFORMATION': 'school', 'CHILDREN INFORMATION': 'child-summary',
 };
 const booleans = new Set([
   'Currently working', 'Have you ever worked', 'Worked outside United States', 'Eligible for foreign SSI',
+  'Previous Applications - Previously applied for Medicare/SS/SSI', 'Previous Applications - Medicare',
+  'Previous Applications - Social Security', 'Previous Applications - SSI',
+  'Illnesses/injuries work related', 'Expect money from employer in future',
   'Used other names in medical records', 'Own any vehicles', 'BlindOrHaveLowVision',
   ...reviewFields.filter(label => /Receive |Borrowing Money - Borrowing Money|Other Support -/.test(label)),
 ]);
@@ -31,7 +35,11 @@ function add(category, section, labels, extra = {}) {
   }));
 }
 for (const [section, rule] of Object.entries(intakeRules.sections)) {
-  add(sectionIds[section], section, [...(rule.required || []), ...(rule.optional || [])], { parent: rule.parent || null, record: false });
+  const labels = [...(rule.required || []), ...(rule.optional || [])];
+  if (section === 'EMPLOYMENT INFORMATION') {
+    add('previous-applications', section, labels.filter(label => label.startsWith('Previous Applications - ')), { parent: null, record: false });
+    add(sectionIds[section], section, labels.filter(label => !label.startsWith('Previous Applications - ')), { parent: null, record: false });
+  } else add(sectionIds[section], section, labels, { parent: rule.parent || null, record: false });
 }
 for (const [category, rule] of Object.entries(intakeRules.records)) {
   add(category, rule.section, [...(rule.required || []), ...(rule.optional || []), ...(rule.currentYearAddress || []), ...(rule.recognition || [])], { record: true });

@@ -57,3 +57,10 @@ export const employmentQuestionRows = Object.freeze([
   row('Is applicant eligible for benefits', 'eligible-foreign-ssi'),
   row('What country are they eligible', 'foreign-ssi-country'),
 ]);
+export const previousApplicationRows = Object.freeze([
+  row('Previous Application', 'previous-application'),
+]);
+export const workConditionRows = Object.freeze([
+  row('Conditions related to work', 'conditions-related-to-work'),
+  row('Expect to receive more money', 'expect-to-receive-more-money'),
+]);

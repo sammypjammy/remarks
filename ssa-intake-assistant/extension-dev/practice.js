@@ -1,5 +1,5 @@
 import { mappings, fillPractice } from './mapping.js';
-import { formSections, employmentRows, employmentQuestionRows } from './practice-layout.js';
+import { formSections, employmentRows, employmentQuestionRows, previousApplicationRows, workConditionRows } from './practice-layout.js';
 import { syntheticProfile } from './synthetic.js';
 import { receiveBridge, trustedSender, BRIDGE_NAME } from './bridge-contract.js';
 let received = null, waiting = false, disconnect = () => {};
@@ -35,29 +35,38 @@ function makeField(labelText, target = null, key = null, recordId = null, answer
   }
   return label;
 }
-function showEmploymentQuestions(profile) {
-  root.querySelector('[data-employment-questions]')?.remove();
-  if (!Array.isArray(profile.employmentQuestionFields) || !profile.employmentQuestionFields.length) return;
-  const group = document.createElement('section');
-  group.className = 'practice-section employment-questions';
-  group.dataset.employmentQuestions = '';
-  const heading = document.createElement('h2');
-  heading.textContent = 'Employment — Foreign Work and Benefits';
-  group.append(heading);
-  const grid = document.createElement('div'); grid.className = 'practice-grid';
-  for (const row of employmentQuestionRows) {
-    const mapping = byTarget.get(row.target);
-    if (!profile.employmentQuestionFields.includes(mapping?.definitionId)) continue;
-    const answerAvailable = profile.fields?.some(field => field.definitionId === mapping.definitionId
-      && field.recordId === null && field.id === mapping.definitionId
-      && field.readiness === 'ready' && field.blockingReasons?.length === 0
-      && (mapping.type === 'boolean' ? typeof field.value === 'boolean'
-        : typeof field.value === 'string' && !!field.value.trim())) || false;
-    grid.append(makeField(row.label, row.target, null, null, answerAvailable, true,
-      profile.employmentQuestionMissingFields.includes(mapping.definitionId)));
+const conditionalGroups = [
+  { key: 'employment-questions', title: 'Employment — Foreign Work and Benefits', rows: employmentQuestionRows },
+  { key: 'previous-application-questions', title: 'Previous Applications', rows: previousApplicationRows },
+  { key: 'work-condition-questions', title: 'Work-Related Conditions and Employer Payments', rows: workConditionRows },
+];
+const conditionalTargets = new Set(conditionalGroups.flatMap(group => group.rows.map(row => row.target)));
+function showConditionalQuestions(profile) {
+  root.querySelectorAll('[data-conditional-question-group]').forEach(group => group.remove());
+  if (!Array.isArray(profile.conditionalQuestionFields) || !profile.conditionalQuestionFields.length) return;
+  for (const definition of conditionalGroups) {
+    const rows = definition.rows.filter(row => profile.conditionalQuestionFields.includes(byTarget.get(row.target)?.definitionId));
+    if (!rows.length) continue;
+    const group = document.createElement('section');
+    group.className = 'practice-section conditional-question-group';
+    group.dataset.conditionalQuestionGroup = definition.key;
+    const heading = document.createElement('h2');
+    heading.textContent = definition.title;
+    group.append(heading);
+    const grid = document.createElement('div'); grid.className = 'practice-grid';
+    for (const row of rows) {
+      const mapping = byTarget.get(row.target);
+      const answerAvailable = profile.fields?.some(field => field.definitionId === mapping.definitionId
+        && field.recordId === null && field.id === mapping.definitionId
+        && field.readiness === 'ready' && field.blockingReasons?.length === 0
+        && (mapping.type === 'boolean' ? typeof field.value === 'boolean'
+          : typeof field.value === 'string' && !!field.value.trim())) || false;
+      grid.append(makeField(row.label, row.target, null, null, answerAvailable, true,
+        profile.conditionalQuestionMissingFields.includes(mapping.definitionId)));
+    }
+    group.append(grid);
+    root.append(group);
   }
-  group.append(grid);
-  root.append(group);
 }
 for (const section of formSections) {
   if (section.title === 'Prior Marriages') continue;
@@ -108,7 +117,7 @@ function showPreviousSpouses(profile) {
 }
 function showEmploymentRecords(profile) {
   root.querySelectorAll('[data-employment-record]').forEach(section => section.remove());
-  root.querySelectorAll('[data-employment-questions]').forEach(section => section.remove());
+  root.querySelectorAll('[data-conditional-question-group]').forEach(section => section.remove());
   if (!Array.isArray(profile.jobRecords)) return;
   for (const [index, recordId] of profile.jobRecords.entries()) {
     if (typeof recordId !== 'string' || !/^job-[1-9]\d*$/.test(recordId) || profile.jobRecords.indexOf(recordId) !== index) continue;
@@ -137,7 +146,7 @@ function showEmploymentRecords(profile) {
   }
 }
 const remaining = mappings.filter(mapping => !shown.has(mapping.target)
-  && !['worked-outside-us', 'eligible-foreign-ssi', 'foreign-ssi-country'].includes(mapping.target)
+  && !conditionalTargets.has(mapping.target)
   && !['priorSpouses', 'jobs'].includes(mapping.recordCategory));
 const prior = document.createElement('details'); prior.className = 'prior-practice';
 const priorHeading = document.createElement('summary'); priorHeading.textContent = `Earlier practice fields outside this list (${remaining.length})`;
@@ -185,7 +194,7 @@ const results = document.getElementById('results');
 const status = document.getElementById('status');
 function fill(profile) {
   showEmploymentRecords(profile);
-  showEmploymentQuestions(profile);
+  showConditionalQuestions(profile);
   const plan = fillPractice(profile, root);
   if (plan.some(item => item.target === 'birth-date' && item.status === 'filled')) showDateParts('birth-date', 'birth-');
   if (plan.some(item => item.target === 'current-marriage-date' && item.status === 'filled')) showDateParts('current-marriage-date', 'current-marriage-');
@@ -223,7 +232,7 @@ function clearAnswers() {
   root.querySelectorAll('[data-generated-child]').forEach(label => label.remove());
   root.querySelectorAll('[data-prior-record]').forEach(section => section.remove());
   root.querySelectorAll('[data-employment-record]').forEach(section => section.remove());
-  root.querySelector('[data-employment-questions]')?.remove();
+  root.querySelectorAll('[data-conditional-question-group]').forEach(section => section.remove());
   root.querySelector('[data-practice-placeholder="children-not-mapped"]')?.closest('label')?.removeAttribute('hidden');
   results.replaceChildren(); status.textContent = 'Practice cleared. Nothing saved.';
 }
@@ -243,7 +252,7 @@ globalThis.chrome?.runtime?.onConnectExternal?.addListener(port => {
     nonce: crypto.randomUUID(),
     onProfile(profile) {
       clearAnswers(); received = profile; showPreviousSpouses(profile); showEmploymentRecords(profile);
-      showEmploymentQuestions(profile);
+      showConditionalQuestions(profile);
       document.getElementById('fill').disabled = false;
       document.getElementById('connection').textContent = `Received ${profile.fields.length} ready practice fields. Nothing filled until you select Fill.`;
     },

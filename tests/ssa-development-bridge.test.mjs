@@ -23,9 +23,17 @@ function harness() {
 test('projection sends only mapped ready values with no source, review, credentials or unknown fields',()=>{
   const p=syntheticProfile();p.credentials='synthetic-secret';p.fields[0].sources=[{rawValue:'synthetic source'}];p.fields[0].employeeReview={edits:[]};
   const projected=projectReady(p);
-  assert.equal(projected.fields.length,67);assert.deepEqual(projected.jobRecords,['job-1']);
-  assert.deepEqual(projected.employmentQuestionFields, ['employment.worked-outside-united-states','employment.eligible-for-foreign-ssi','employment.foreign-ssi-country']);
-  assert.deepEqual(projected.employmentQuestionMissingFields, []);
+  assert.equal(projected.fields.length,70);assert.deepEqual(projected.jobRecords,['job-1']);
+  assert.deepEqual(projected.conditionalQuestionFields, [
+    'employment.worked-outside-united-states','employment.eligible-for-foreign-ssi','employment.foreign-ssi-country',
+    'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi',
+    'previous-applications.previous-applications-medicare',
+    'previous-applications.previous-applications-social-security',
+    'previous-applications.previous-applications-ssi',
+    'workers-compensation.illnesses-injuries-work-related',
+    'wages-earnings.expect-money-from-employer-in-future',
+  ]);
+  assert.deepEqual(projected.conditionalQuestionMissingFields, []);
   assert(!JSON.stringify(projected).includes('synthetic-secret'));assert(!JSON.stringify(projected).includes('sources'));
   assert.equal(projected.fields.find(field=>field.id==='jobs.employer@job-1').value,'Example Company');
   assert.equal(projected.fields.find(field=>field.id==='language.can-read-simple-english-messages').value,false);

@@ -95,6 +95,32 @@ First Name: Not a spouse record`);
   assert.equal(parsed.unparsed.some(item => item.text.includes('Previous Spouse 4')), true);
 });
 
+test('previous application and work-condition fields parse under observed DeLorean sections', () => {
+  const parsed = parseIntake(`EMPLOYMENT INFORMATION
+Previous Applications - Previously applied for Medicare/SS/SSI: Yes
+Previous Applications - Medicare: No
+Previous Applications - Social Security: Yes
+Previous Applications - SSI: No
+WORKER'S COMPENSATION
+Illnesses/injuries work related: Yes
+WAGES AND EARNINGS
+Expect money from employer in future: No`);
+  assert.deepEqual(parsed.sections.map(section => section.title), ['EMPLOYMENT INFORMATION', "WORKER'S COMPENSATION", 'WAGES AND EARNINGS']);
+  assert.deepEqual(parsed.sections.map(section => section.fields.map(field => [field.label, field.value])), [
+    [
+      ['Previous Applications - Previously applied for Medicare/SS/SSI', 'Yes'],
+      ['Previous Applications - Medicare', 'No'],
+      ['Previous Applications - Social Security', 'Yes'],
+      ['Previous Applications - SSI', 'No'],
+    ],
+    [
+      ['Illnesses/injuries work related', 'Yes'],
+    ],
+    [['Expect money from employer in future', 'No']],
+  ]);
+  assert.deepEqual(parsed.unparsed, []);
+});
+
 test("Most Recent Job, Previous Job, and numbered Job headings create separate work records", () => {
   const parsed = parseIntake(`WORK HISTORY
 Most Recent Job

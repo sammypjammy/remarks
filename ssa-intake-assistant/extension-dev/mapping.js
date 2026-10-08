@@ -1,5 +1,5 @@
 // These are invented practice questions, NOT verified SSA selectors or meanings.
-export const schemaVersion = '3.4.0';
+export const schemaVersion = '3.5.0';
 export const mappings = Object.freeze([
   ['first-name', 'First name', 'personal.first-name', 'text'],
   ['last-name', 'Last name', 'personal.last-name', 'text'],
@@ -58,6 +58,9 @@ export const mappings = Object.freeze([
   ['worked-outside-us', 'Did Applicant work outside of USA', 'employment.worked-outside-united-states', 'boolean'],
   ['eligible-foreign-ssi', 'Is applicant eligible for benefits', 'employment.eligible-for-foreign-ssi', 'boolean'],
   ['foreign-ssi-country', 'What country are they eligible', 'employment.foreign-ssi-country', 'text'],
+  ['previous-application', 'Previous Application', 'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi', 'boolean'],
+  ['conditions-related-to-work', 'Conditions related to work', 'workers-compensation.illnesses-injuries-work-related', 'boolean'],
+  ['expect-to-receive-more-money', 'Expect to receive more money', 'wages-earnings.expect-money-from-employer-in-future', 'boolean'],
   ['employment-job-title', 'Job Title', 'jobs.job-title', 'text', 'day', 'jobs'],
   ['employment-employer', 'Employer name', 'jobs.employer', 'text', 'day', 'jobs'],
   ['employment-business-type', 'Business Type', 'jobs.business-type', 'text', 'day', 'jobs'],
@@ -101,6 +104,15 @@ export const mappings = Object.freeze([
 export const childDefinitionIds = Object.freeze(['children.first-name', 'children.last-name']);
 export const employmentQuestionDefinitionIds = Object.freeze([
   'employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country',
+]);
+export const conditionalQuestionDefinitionIds = Object.freeze([
+  ...employmentQuestionDefinitionIds,
+  'previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi',
+  'previous-applications.previous-applications-medicare',
+  'previous-applications.previous-applications-social-security',
+  'previous-applications.previous-applications-ssi',
+  'workers-compensation.illnesses-injuries-work-related',
+  'wages-earnings.expect-money-from-employer-in-future',
 ]);
 export const jobDefinitionIds = Object.freeze([
   'jobs.job-title', 'jobs.employer', 'jobs.business-type', 'jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode',

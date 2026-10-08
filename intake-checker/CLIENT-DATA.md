@@ -1,14 +1,14 @@
 # Canonical Intake Checker client data
 
-Schema: `packard.intake-checker.client-data`, version **1.1.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.18.0.
+Schema: `packard.intake-checker.client-data`, version **1.2.0**. Owner: Intake Checker. `createClientData(session)` in `client-data.js` creates a detached, JSON-compatible snapshot of the active session. It uses existing parser nodes, format results, validation issues, review items, acknowledgements and edit ledger. It does not parse or validate a second time. Application release: Intake Checker v1.19.0.
 
 ## Coverage audit
 
 The audit examined `parser.js`, `rules.js`, `formats.js`, `validation.js`, `review.js`, `review-fields.js`, `answers.js`, `medical-problems.js`, `source-location.js`, `acknowledgements.js`, `session.js`, the Checker UI, and the former SSA catalog/adapter. It also reconciled the parser, format, validation, review, duplicate, nested-record, source-location, acknowledgement, document-header and SSA adapter tests. Only generated synthetic fixtures were used.
 
-There are **141 fixed field definitions across 22 categories**, plus an unbounded numbered medical-problem family. Seven repeating record types are vehicles, providers, medications, jobs, Current Spouse, Previous Spouse and children. Previous Spouse N records have their own supported field IDs and retain a record heading source even when individual values are absent. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 141.
+There are **147 fixed field definitions across 24 categories**, plus an unbounded numbered medical-problem family. Seven repeating record types are vehicles, providers, medications, jobs, Current Spouse, Previous Spouse and children. Previous Spouse N records have their own supported field IDs and retain a record heading source even when individual values are absent. Optional record groups produce no hypothetical records. Every actual node, field occurrence, unknown label and unparsed line is retained. Blank fixed singleton definitions are included even if the section is absent. Missing fields on actual recognized records are included. Consequently a snapshot's field count is not a fixed 147.
 
-The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.4.0 SSA practice projection is not the canonical client-data schema. The exact optional EMPLOYMENT INFORMATION fields Worked outside United States (boolean), Eligible for foreign SSI (boolean) and Foreign SSI country (text/place) retain their source and review data; only individually ready exact values are eligible for the synthetic practice extension. No inference or live SSA interaction is present.
+The catalog now resides in `field-catalog.js`; the parser uses it for the existing plain labels. SSA's `intake-contract.js` re-exports these definitions as compatibility metadata. Its separate 3.5.0 SSA practice projection is not the canonical client-data schema. Exact optional EMPLOYMENT INFORMATION, WORKER'S COMPENSATION, and WAGES AND EARNINGS fields retain their source and review data. Only the combined Previous Applications answer and the two work-condition/employer-future-money answers have exact practice mappings; individual Medicare/Social Security/SSI benefit selections remain unmapped because the practice question is multi-select and the UI only represents a single selection. No inference or live SSA interaction is present.
 
 ## Object structure
 
@@ -129,6 +129,12 @@ The following rows reconcile every registered definition to its category, source
 | employment | employment.worked-outside-united-states | EMPLOYMENT INFORMATION | Worked outside United States | boolean | Fixed |
 | employment | employment.eligible-for-foreign-ssi | EMPLOYMENT INFORMATION | Eligible for foreign SSI | boolean | Fixed |
 | employment | employment.foreign-ssi-country | EMPLOYMENT INFORMATION | Foreign SSI country | text | Fixed |
+| previous-applications | previous-applications.previous-applications-previously-applied-for-medicare-ss-ssi | EMPLOYMENT INFORMATION | Previous Applications - Previously applied for Medicare/SS/SSI | boolean | Fixed |
+| previous-applications | previous-applications.previous-applications-medicare | EMPLOYMENT INFORMATION | Previous Applications - Medicare | boolean | Fixed |
+| previous-applications | previous-applications.previous-applications-social-security | EMPLOYMENT INFORMATION | Previous Applications - Social Security | boolean | Fixed |
+| previous-applications | previous-applications.previous-applications-ssi | EMPLOYMENT INFORMATION | Previous Applications - SSI | boolean | Fixed |
+| workers-compensation | workers-compensation.illnesses-injuries-work-related | WORKER'S COMPENSATION | Illnesses/injuries work related | boolean | Fixed |
+| wages-earnings | wages-earnings.expect-money-from-employer-in-future | WAGES AND EARNINGS | Expect money from employer in future | boolean | Fixed |
 | marriage | marriage.marital-status | MARRIAGE INFORMATION | Marital Status | text | Fixed |
 | school | school.school-city | SCHOOL INFORMATION | School City | text | Fixed |
 | school | school.school-state | SCHOOL INFORMATION | School State | text | Fixed |
