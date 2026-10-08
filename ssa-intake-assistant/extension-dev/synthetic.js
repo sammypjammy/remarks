@@ -56,6 +56,9 @@ export function syntheticProfile() {
     ['address.physical-address-zipcode', '11111', 'text'],
     ['disability.onset-date-of-disability', '2020-03', 'date', 'month'],
     ['employment.when-did-you-last-work', '2020-02', 'date', 'month'],
+    ['employment.worked-outside-united-states', true, 'boolean'],
+    ['employment.eligible-for-foreign-ssi', false, 'boolean'],
+    ['employment.foreign-ssi-country', 'Example Country', 'text'],
     ['jobs.job-title', 'Example Job Title', 'text', null, 'job-1'],
     ['jobs.employer', 'Example Company', 'text', null, 'job-1'],
     ['jobs.business-type', 'Example Business Type', 'text', null, 'job-1'],
@@ -70,7 +73,9 @@ export function syntheticProfile() {
     ['jobs.start-date', '2010-01-02', 'date', 'day', 'job-1'],
     ['jobs.end-date', '2015-06-07', 'date', 'day', 'job-1'],
   ];
-  return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], jobRecords: ['job-1'], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
+  return { schema: 'packard.intake-client-profile', schemaVersion, priorSpouseRecords: [], jobRecords: ['job-1'],
+    employmentQuestionFields: ['employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country'],
+    employmentQuestionMissingFields: [], fields: values.map(([definitionId, value, dataType, precision = null, recordId = null]) => ({
     id: recordId ? `${definitionId}@${recordId}` : definitionId, definitionId, recordId,
     value, dataType, precision, readiness: value === null ? 'blocked' : 'ready',
     blockingReasons: value === null ? [{ code: 'missing' }] : [],

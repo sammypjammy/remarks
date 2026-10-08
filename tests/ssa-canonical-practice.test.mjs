@@ -7,6 +7,7 @@ import { canonicalPracticeProfile } from '../ssa-intake-assistant/src/model/cano
 import { mappings, planPractice } from '../ssa-intake-assistant/extension-dev/mapping.js';
 import { projectReady } from '../ssa-intake-assistant/extension-dev/bridge-contract.js';
 import { completeSyntheticIntake } from '../ssa-intake-assistant/tests/complete-intake.mjs';
+import { fieldDefinitions } from '../intake-checker/field-catalog.js';
 
 const canonical = () => createClientData(createIntakeSession(parseIntake(completeSyntheticIntake())));
 
@@ -18,13 +19,93 @@ test('canonical Checker data projects only exact ready practice questions', () =
     .concat(['children.first-name@child-1', 'children.last-name@child-1']);
   assert.deepEqual(profile.fields.map(field => field.id), ids);
   assert.equal(profile.schema, 'packard.intake-client-profile');
-  assert.equal(profile.schemaVersion, '3.3.0');
+  assert.equal(profile.schemaVersion, '3.4.0');
   assert.deepEqual(profile.jobRecords, ['job-1']);
-  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 64);
+  assert.deepEqual(profile.employmentQuestionFields, [
+    'employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country',
+  ]);
+  assert.deepEqual(profile.employmentQuestionMissingFields, []);
+  assert.equal(profile.fields.find(field => field.definitionId === 'employment.worked-outside-united-states')?.value, true);
+  assert.equal(profile.fields.find(field => field.definitionId === 'employment.eligible-for-foreign-ssi')?.value, false);
+  assert.equal(profile.fields.find(field => field.definitionId === 'employment.foreign-ssi-country')?.value, 'Example Country');
+  assert.equal(planPractice(profile).filter(item => item.status === 'ready').length, 67);
   assert.deepEqual(projectReady(profile), profile);
   assert(!JSON.stringify(profile).includes('Synthetic condition'));
   for (const field of profile.fields) assert.deepEqual(Object.keys(field).sort(),
     ['id', 'definitionId', 'recordId', 'dataType', 'value', 'precision', 'readiness', 'blockingReasons'].sort());
+});
+
+test('foreign work and benefit answers map independently, and missing or invalid values stay out of transfer', () => {
+  const yesNoData = canonical();
+  const outside = yesNoData.fields.find(field => field.definitionId === 'employment.worked-outside-united-states');
+  const eligible = yesNoData.fields.find(field => field.definitionId === 'employment.eligible-for-foreign-ssi');
+  assert.equal(outside.value, true);
+  assert.equal(eligible.value, false);
+  outside.value = false;
+  eligible.value = true;
+  let profile = canonicalPracticeProfile(yesNoData);
+  assert.equal(profile.fields.find(field => field.definitionId === outside.definitionId)?.value, false);
+  assert.equal(profile.fields.find(field => field.definitionId === eligible.definitionId)?.value, true);
+
+  const noCountryInput = completeSyntheticIntake().replace('**Foreign SSI country:** Example Country', '**Foreign SSI country:** Not provided');
+  const noCountryData = createClientData(createIntakeSession(parseIntake(noCountryInput)));
+  profile = canonicalPracticeProfile(noCountryData);
+  assert(profile.employmentQuestionFields.includes('employment.foreign-ssi-country'));
+  assert(profile.employmentQuestionMissingFields.includes('employment.foreign-ssi-country'));
+  assert(!profile.fields.some(field => field.definitionId === 'employment.foreign-ssi-country'));
+  assert(!projectReady(profile).fields.some(field => field.definitionId === 'employment.foreign-ssi-country'));
+
+  for (const label of ['Worked outside United States', 'Eligible for foreign SSI']) {
+    const invalidInput = completeSyntheticIntake().replace(`**${label}:** ${label === 'Worked outside United States' ? 'Yes' : 'No'}`,
+      `**${label}:** Maybe`);
+    const invalidData = createClientData(createIntakeSession(parseIntake(invalidInput)));
+    invalidData.validationIssues.forEach(issue => { issue.dismissed = true; });
+    invalidData.reviewItems.forEach(item => { item.reviewed = true; });
+    const def = fieldDefinitions.find(item => item.label === label && item.section === 'EMPLOYMENT INFORMATION');
+    assert.equal(invalidData.fields.find(field => field.definitionId === def.id).valueStatus, 'ambiguous');
+    assert(!canonicalPracticeProfile(invalidData).fields.some(field => field.definitionId === def.id));
+  }
+  const conflictedInput = completeSyntheticIntake().replace('**Worked outside United States:** Yes',
+    '**Worked outside United States:** Yes\n**Worked outside United States:** No');
+  const conflicted = createClientData(createIntakeSession(parseIntake(conflictedInput)));
+  assert.equal(conflicted.fields.find(field => field.definitionId === 'employment.worked-outside-united-states').valueStatus, 'conflict');
+  assert(!canonicalPracticeProfile(conflicted).fields.some(field => field.definitionId === 'employment.worked-outside-united-states'));
+
+  const unresolved = canonical();
+  unresolved.validationIssues.forEach(issue => { issue.dismissed = true; });
+  unresolved.reviewItems.forEach(item => { item.reviewed = true; });
+  unresolved.fields.find(field => field.definitionId === 'employment.eligible-for-foreign-ssi')
+    .validation.unresolvedIssueIds.push('synthetic-unresolved');
+  assert(!canonicalPracticeProfile(unresolved).fields.some(field =>
+    field.definitionId === 'employment.eligible-for-foreign-ssi'));
+});
+
+test('employment questions are absent when the Checker source has none', () => {
+  const text = completeSyntheticIntake().replace(
+    '**Worked outside United States:** Yes\n**Eligible for foreign SSI:** No\n**Foreign SSI country:** Example Country\n', '');
+  const profile = canonicalPracticeProfile(createClientData(createIntakeSession(parseIntake(text))));
+  assert.deepEqual(profile.employmentQuestionFields, []);
+  assert.deepEqual(profile.employmentQuestionMissingFields, []);
+  assert(!profile.fields.some(field => field.definitionId.startsWith('employment.worked-')
+    || field.definitionId.startsWith('employment.eligible-for-foreign-ssi')
+    || field.definitionId === 'employment.foreign-ssi-country'));
+});
+
+test('foreign benefit correction transfers only its corrected exact value', () => {
+  const session = createIntakeSession(parseIntake(completeSyntheticIntake()));
+  const original = createClientData(session).fields.find(field => field.definitionId === 'employment.foreign-ssi-country');
+  const scope = createClientData(session).scopes.find(item => item.id === original.scopeId);
+  assert(correctIntakeField(session, {
+    nodePath: scope.nodePath, section: 'EMPLOYMENT INFORMATION', label: 'Foreign SSI country',
+    range: original.occurrences[0].source,
+  }, 'Synthetic Corrected Country'));
+  const correctedData = createClientData(session);
+  const corrected = correctedData.fields.find(field => field.definitionId === 'employment.foreign-ssi-country');
+  assert.equal(corrected.occurrences[0].originalValue, 'Example Country');
+  assert.equal(corrected.occurrences[0].currentValue, 'Synthetic Corrected Country');
+  assert.equal(corrected.origin, 'employee_entered');
+  assert.equal(canonicalPracticeProfile(correctedData).fields.find(field =>
+    field.definitionId === 'employment.foreign-ssi-country')?.value, 'Synthetic Corrected Country');
 });
 
 test('unresolved Checker notices stop transfer; dismissed errors do not turn invalid values ready', () => {

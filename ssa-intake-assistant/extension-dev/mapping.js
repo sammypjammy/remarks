@@ -1,5 +1,5 @@
 // These are invented practice questions, NOT verified SSA selectors or meanings.
-export const schemaVersion = '3.3.0';
+export const schemaVersion = '3.4.0';
 export const mappings = Object.freeze([
   ['first-name', 'First name', 'personal.first-name', 'text'],
   ['last-name', 'Last name', 'personal.last-name', 'text'],
@@ -55,6 +55,9 @@ export const mappings = Object.freeze([
   ['onset', 'Disability onset (month accepted)', 'disability.onset-date-of-disability', 'date', 'month'],
   ['last-worked', 'Last day worked (full date)', 'employment.when-did-you-last-work', 'date'],
   ['work-stopped', 'Date work stopped — not mapped', null, 'date'],
+  ['worked-outside-us', 'Did Applicant work outside of USA', 'employment.worked-outside-united-states', 'boolean'],
+  ['eligible-foreign-ssi', 'Is applicant eligible for benefits', 'employment.eligible-for-foreign-ssi', 'boolean'],
+  ['foreign-ssi-country', 'What country are they eligible', 'employment.foreign-ssi-country', 'text'],
   ['employment-job-title', 'Job Title', 'jobs.job-title', 'text', 'day', 'jobs'],
   ['employment-employer', 'Employer name', 'jobs.employer', 'text', 'day', 'jobs'],
   ['employment-business-type', 'Business Type', 'jobs.business-type', 'text', 'day', 'jobs'],
@@ -96,6 +99,9 @@ export const mappings = Object.freeze([
   Object.freeze({ target, label, definitionId, type, precision, recordCategory, allowedValues })));
 
 export const childDefinitionIds = Object.freeze(['children.first-name', 'children.last-name']);
+export const employmentQuestionDefinitionIds = Object.freeze([
+  'employment.worked-outside-united-states', 'employment.eligible-for-foreign-ssi', 'employment.foreign-ssi-country',
+]);
 export const jobDefinitionIds = Object.freeze([
   'jobs.job-title', 'jobs.employer', 'jobs.business-type', 'jobs.address', 'jobs.city', 'jobs.state', 'jobs.zipcode',
   'jobs.hours-per-day', 'jobs.days-per-week', 'jobs.rate-of-pay', 'jobs.pay-frequency', 'jobs.start-date', 'jobs.end-date',

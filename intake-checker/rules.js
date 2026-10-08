@@ -17,7 +17,11 @@ export const intakeRules = {
     "SECURITY QUESTIONS": { required: [], optional: ["Mother - First Name", "Mother - Maiden Name", "Father - First Name", "Father - Last Name", "Other Legal Representative"] },
     "VEHICLES": { required: [], optional: ["Own any vehicles"] },
     "VITALS": { required: ["Height (feet)", "Weight (pounds)"], optional: ["Height (inches)"] },
-    "EMPLOYMENT INFORMATION": { required: ["When did you last work", "Currently working"], otherFieldsOptional: true },
+    "EMPLOYMENT INFORMATION": {
+      required: ["When did you last work", "Currently working"],
+      optional: ["Worked outside United States", "Eligible for foreign SSI", "Foreign SSI country"],
+      otherFieldsOptional: true
+    },
     "MARRIAGE INFORMATION": { required: [], optional: ["Marital Status"] },
     "SCHOOL INFORMATION": {
       parent: "EDUCATION INFORMATION",

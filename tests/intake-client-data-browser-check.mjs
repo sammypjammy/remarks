@@ -18,7 +18,7 @@ export async function checkClientData({ visit, evaluate, width, capture }) {
   assert(await evaluate("!document.getElementById('clientDataInspector').hidden && !document.getElementById('clientDataJson').textContent"));
   await open();
   const initial = await data();
-  assert.equal(initial.schemaVersion, '1.0.0'); assert.equal(initial.source.text, text);
+  assert.equal(initial.schemaVersion, '1.1.0'); assert.equal(initial.source.text, text);
   assert.equal(initial.coverage.parsedOccurrences, initial.coverage.preservedOccurrences);
   assert.equal(initial.fields.filter(field => field.definitionId === 'providers.clinic-name').length, 2);
   const children = initial.fields.filter(field => ['children.first-name', 'children.last-name'].includes(field.definitionId));

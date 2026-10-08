@@ -44,12 +44,13 @@ try {
     assert(await evaluate("[...document.querySelectorAll('#practice .mapping-note')].length===2"));
     assert(await evaluate("!document.querySelector('[data-prior-record]')"));
     assert(await evaluate("!document.querySelector('[data-employment-record]')"));
+    assert(await evaluate("!document.querySelector('[data-employment-questions]')"));
     await evaluate("window.writes=0; for(const name of ['setItem','removeItem','clear']) Storage.prototype[name]=()=>{window.writes++}; indexedDB.open=()=>{window.writes++}; for(const name of ['log','warn','error','info','debug']) console[name]=()=>{window.writes++}");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     assert(await evaluate("document.getElementById('fill').disabled && document.getElementById('demo').textContent.includes('not your intake')"));
     const start=network.length;
     await evaluate("document.getElementById('demo').click()");
-    assert(await evaluate("document.getElementById('status').textContent.startsWith('63 filled; 12 paused')"));
+    assert(await evaluate("document.getElementById('status').textContent.startsWith('66 filled; 12 paused')"));
     assert(await evaluate("document.querySelectorAll('[data-employment-record]').length===1"));
     assert(await evaluate("document.querySelectorAll('[data-employment-record=job-1] [data-practice-field]').length===19"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-job-title]').value==='Example Job Title' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-business-type]').value==='Example Business Type'"));
@@ -94,10 +95,14 @@ try {
         readiness:'ready',blockingReasons:[]
       });
       const profile={
-        schema:'packard.intake-client-profile',schemaVersion:'3.3.0',
+        schema:'packard.intake-client-profile',schemaVersion:'3.4.0',
         priorSpouseRecords:records,
         jobRecords:['job-1','job-2'],
+        employmentQuestionFields:['employment.worked-outside-united-states','employment.eligible-for-foreign-ssi','employment.foreign-ssi-country'],
+        employmentQuestionMissingFields:['employment.foreign-ssi-country'],
         fields:[
+          {id:'employment.worked-outside-united-states',definitionId:'employment.worked-outside-united-states',recordId:null,value:true,dataType:'boolean',readiness:'ready',blockingReasons:[]},
+          {id:'employment.eligible-for-foreign-ssi',definitionId:'employment.eligible-for-foreign-ssi',recordId:null,value:false,dataType:'boolean',readiness:'ready',blockingReasons:[]},
           field('priorSpouses.first-name',records[0],'Former One'),
           field('priorSpouses.middle-name',records[0],'Middle One'),
           field('priorSpouses.name-at-birth',records[0],'Birth One'),
@@ -134,8 +139,11 @@ try {
     assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-spouse-died]').value==='Unknown' && document.querySelector('[data-prior-record=prior-spouse-2] [data-practice-field=prior-spouse-died]').value==='No'"));
     assert(await evaluate("document.querySelector('[data-prior-record=prior-spouse-1] [data-practice-field=prior-marriage-date]').value==='2001-02-03'"));
     assert(await evaluate("document.querySelectorAll('[data-employment-record]').length===2"));
+    assert(await evaluate("document.querySelectorAll('[data-employment-questions] [data-practice-field]').length===3"));
+    assert(await evaluate("document.querySelector('[data-employment-questions] [data-practice-field=worked-outside-us]').nextElementSibling.textContent==='Ready answer; Fill is required to enter it.' && document.querySelector('[data-employment-questions] [data-practice-field=foreign-ssi-country]').nextElementSibling.textContent==='Not provided'"));
     assert(await evaluate("[...document.querySelectorAll('[data-employment-record]')].every(section=>section.querySelectorAll('[data-practice-field]').length===19)"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value==='Synthetic Recent Employer' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-employer]').value==='Synthetic Previous Employer'"));
+    assert(await evaluate("document.querySelector('[data-employment-questions] [data-practice-field=worked-outside-us]').value==='yes' && document.querySelector('[data-employment-questions] [data-practice-field=eligible-foreign-ssi]').value==='no' && document.querySelector('[data-employment-questions] [data-practice-field=foreign-ssi-country]').value===''"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-job-title]').value==='Synthetic Recent Title' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-job-title]').value==='Synthetic Previous Title'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-business-type]').value==='Synthetic Recent Business' && document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-business-type]').value==='Synthetic Previous Business'"));
     assert(await evaluate("document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-hours-per-day]').value==='8' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-days-per-week]').value==='5' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-rate-of-pay]').value==='$20.00' && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-pay-frequency]').value==='Weekly'"));
@@ -146,6 +154,7 @@ try {
     assert(await evaluate("document.querySelector('[data-employment-record=job-2] [data-practice-field=employment-street-line-1]').nextElementSibling.textContent==='Not provided' && document.querySelector('[data-employment-record=job-2] [data-practice-placeholder=employment-start-month]').nextElementSibling.textContent==='Not provided'"));
     await evaluate("document.getElementById('clear').click()");
     assert(await evaluate("!document.querySelector('[data-prior-record]') && document.getElementById('fill').disabled"));
+    assert(await evaluate("!document.querySelector('[data-employment-questions]')"));
     await evaluate("document.getElementById('demo').click();window.dispatchEvent(new PageTransitionEvent('pagehide',{persisted:true}))");
     assert(await evaluate("[...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));
     await cdp('Page.reload');await until(()=>evaluate("document.querySelectorAll('[data-practice-field]').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(i=>i.value==='')"));

@@ -64,15 +64,18 @@ try{
     await click(source,'Send to practice extension');
     await until(()=>extension.evaluate("document.getElementById('connection').textContent.startsWith('Received')"),'approved transfer');
   }
-  const empty=()=>extension.evaluate("document.querySelectorAll('[data-practice-field]:not([data-practice-record])').length===54 && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')");
+  const empty=(count=54)=>extension.evaluate(`document.querySelectorAll('[data-practice-field]:not([data-practice-record])').length===${count} && [...document.querySelectorAll('#practice input, #practice select')].every(input=>input.value==='')`);
   await parse(text);
   assert(await source.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent==='Send to practice extension').disabled"));
   for(const p of [source,extension])await p.evaluate("window.clientWrites=0; for(const method of ['setItem','removeItem','clear']) Storage.prototype[method]=()=>{window.clientWrites++};indexedDB.open=()=>{window.clientWrites++};for(const method of ['log','warn','error','info','debug']) console[method]=()=>{window.clientWrites++}");
   const start=network.length;
-  await send();assert(await empty(),'receipt must not auto-fill');
+  await send();assert(await empty(57),'receipt must not auto-fill');
+  assert(await extension.evaluate("document.querySelectorAll('[data-employment-questions] [data-practice-field]').length===3"));
+  assert(await extension.evaluate("[...document.querySelectorAll('[data-employment-questions] input, [data-employment-questions] select')].every(input=>input.value==='')"));
   assert(await extension.evaluate("document.querySelectorAll('[data-employment-record]').length===1 && document.querySelector('[data-employment-record=job-1] [data-practice-field=employment-employer]').value===''"));
   assert(await extension.evaluate("!document.getElementById('fill').disabled && document.getElementById('demo').disabled"));
   await click(extension,'Fill received answers');
+  assert(await extension.evaluate("document.querySelector('[data-employment-questions] [data-practice-field=worked-outside-us]').value==='yes' && document.querySelector('[data-employment-questions] [data-practice-field=eligible-foreign-ssi]').value==='no' && document.querySelector('[data-employment-questions] [data-practice-field=foreign-ssi-country]').value==='Example Country'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=first-name]').value==='Bridge Synthetic'"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=birth-city]').value!=='' && document.querySelector('[data-practice-field=mailing-city]').value!==''"));
   assert(await extension.evaluate("document.querySelector('[data-practice-field=physical-street]').value==='456 Fictional Avenue' && document.querySelector('[data-practice-field=mailing-street]').value!=='456 Fictional Avenue'"));
@@ -107,6 +110,10 @@ try{
     await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390},source.sessionId);
     assert(await source.evaluate('document.documentElement.scrollWidth<=innerWidth'));
     const shot=await cdp('Page.captureScreenshot',{format:'png'},source.sessionId);await writeFile(join(directory,`source-${width}.png`),Buffer.from(shot.data,'base64'));
+    await cdp('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===390},extension.sessionId);
+    assert(await extension.evaluate("document.querySelectorAll('[data-employment-questions] [data-practice-field]').length===3"));
+    assert(await extension.evaluate('document.documentElement.scrollWidth<=innerWidth'));
+    const extensionShot=await cdp('Page.captureScreenshot',{format:'png'},extension.sessionId);await writeFile(join(directory,`extension-${width}.png`),Buffer.from(extensionShot.data,'base64'));
   }
   await cdp('Page.reload',{},source.sessionId);await until(empty,'source reload clears receiver');
   await until(()=>source.evaluate("!!document.getElementById('intakeText') && !!document.querySelector('.toolkit-auth-name')"));

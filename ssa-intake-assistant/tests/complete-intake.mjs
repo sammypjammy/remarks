@@ -10,7 +10,10 @@ export function completeSyntheticIntake() {
     const section = sections.get(definition.section) || new Map();
     const key = definition.record ? definition.category : '';
     const fields = section.get(key) || [];
-    const value = definition.dataType === 'boolean' ? 'No' : definition.dataType === 'date'
+    const value = definition.label === 'Worked outside United States' ? 'Yes'
+      : definition.label === 'Eligible for foreign SSI' ? 'No'
+      : definition.label === 'Foreign SSI country' ? 'Example Country'
+      : definition.dataType === 'boolean' ? 'No' : definition.dataType === 'date'
       ? definition.label === 'Next Visit Date' ? '2099-01-01' : definition.label === 'Last Visit Date' || definition.label === 'End Date' ? '2001-01-01' : '2000-01-01'
       : syntheticValue(definition.label, 'Synthetic');
     fields.push(`**${definition.label}:** ${value}`);

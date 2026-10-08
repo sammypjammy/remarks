@@ -52,3 +52,8 @@ export const employmentRows = Object.freeze([
   row('Street Line 2 — not mapped', 'employment-street-line-2'),
   row('Employment has not ended — not mapped', 'employment-not-ended'),
 ]);
+export const employmentQuestionRows = Object.freeze([
+  row('Did Applicant work outside of USA', 'worked-outside-us'),
+  row('Is applicant eligible for benefits', 'eligible-foreign-ssi'),
+  row('What country are they eligible', 'foreign-ssi-country'),
+]);

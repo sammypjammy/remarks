@@ -1,15 +1,25 @@
 import { CLIENT_DATA_SCHEMA, CLIENT_DATA_VERSION } from '../../../intake-checker/client-data.js';
-import { mappings, schemaVersion, childDefinitionIds } from '../../extension-dev/mapping.js';
+import { mappings, schemaVersion, childDefinitionIds, employmentQuestionDefinitionIds } from '../../extension-dev/mapping.js';
 
 // Only these exact, fictional practice questions can receive Checker answers.
 // This projection never contains the original intake, sources, review notes or edits.
 export function canonicalPracticeProfile(data) {
-  const empty = { schema: 'packard.intake-client-profile', schemaVersion, fields: [], priorSpouseRecords: [], jobRecords: [] };
+  const empty = { schema: 'packard.intake-client-profile', schemaVersion, fields: [], priorSpouseRecords: [], jobRecords: [],
+    employmentQuestionFields: [], employmentQuestionMissingFields: [] };
   if (data?.schema !== CLIENT_DATA_SCHEMA || data.schemaVersion !== CLIENT_DATA_VERSION
       || !data.validationPerformed || !Array.isArray(data.fields) || !Array.isArray(data.scopes)
       || !Array.isArray(data.validationIssues) || !Array.isArray(data.reviewItems)
       || data.validationIssues.some(issue => !issue.dismissed)
       || data.reviewItems.some(item => !item.reviewed)) return empty;
+  const presentEmploymentQuestions = new Map();
+  for (const definitionId of employmentQuestionDefinitionIds) {
+    const matches = data.fields.filter(field => field.definitionId === definitionId && field.parsed);
+    if (matches.length === 1) presentEmploymentQuestions.set(definitionId, matches[0]);
+  }
+  empty.employmentQuestionFields = [...presentEmploymentQuestions.keys()];
+  empty.employmentQuestionMissingFields = [...presentEmploymentQuestions]
+    .filter(([, field]) => field.valueStatus === 'missing')
+    .map(([definitionId]) => definitionId);
 
   const eligible = (field, type, precision = 'day', allowedValues = null) => field?.supported && field.dataType === type
     && field.valueStatus === 'value'

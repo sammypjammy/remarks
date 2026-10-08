@@ -18,6 +18,7 @@ function allFieldsFixture() {
     const key = definition.section + (definition.record ? '/' + definition.category : '');
     const group = groups.get(key) || { section: definition.section, heading: definition.record ? records[definition.category] : null, fields: [] };
     const value = definition.label === 'Prior spouse died since marriage ended' ? 'Unknown'
+      : definition.label === 'Foreign SSI country' ? 'Example Country'
       : definition.dataType === 'boolean' ? 'No' : definition.label === 'Next Visit Date' ? '2099-01-01' : syntheticValue(definition.label, 'Synthetic');
     group.fields.push(`${definition.label}: ${value}`); groups.set(key, group);
   }
@@ -32,32 +33,79 @@ function allFieldsFixture() {
 }
 
 test('catalog includes every configured field and every supplemental parser/review label with stable unique IDs', () => {
-  assert.equal(fieldDefinitions.length, 138);
-  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 138);
+  assert.equal(fieldDefinitions.length, 141);
+  assert.equal(new Set(fieldDefinitions.map(item => item.id)).size, 141);
   for (const [section, rule] of Object.entries(intakeRules.sections)) for (const label of [...rule.required, ...(rule.optional || [])]) {
     assert(fieldDefinitions.some(item => item.section === section && item.label === label && !item.record), `${section} / ${label}`);
   }
   for (const [category, rule] of Object.entries(intakeRules.records)) for (const label of [...rule.required, ...(rule.optional || []), ...(rule.currentYearAddress || []), ...(rule.recognition || [])]) {
     assert(fieldDefinitions.some(item => item.category === category && item.label === label && item.record), `${category} / ${label}`);
   }
-  for (const label of [...reviewFields, 'Last Visit Date', 'Have you ever worked', 'Used other names in medical records', 'Other first name', 'Other last name', 'Remarks/Comments']) assert(fieldDefinitions.some(item => item.label === label), label);
+  for (const label of [...reviewFields, 'Last Visit Date', 'Have you ever worked', 'Worked outside United States',
+    'Eligible for foreign SSI', 'Foreign SSI country', 'Used other names in medical records',
+    'Other first name', 'Other last name', 'Remarks/Comments']) assert(fieldDefinitions.some(item => item.label === label), label);
 });
 
-test('complete synthetic intake represents all 138 definitions and every parsed occurrence exactly once', () => {
+test('complete synthetic intake represents all 141 definitions and every parsed occurrence exactly once', () => {
   const state = session(allFieldsFixture()), before = JSON.stringify(state.parsed);
   const data = createClientData(state);
-  assert.equal(data.schema, CLIENT_DATA_SCHEMA); assert.equal(data.schemaVersion, '1.0.0');
-  assert.equal(CLIENT_DATA_VERSION, '1.0.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
+  assert.equal(data.schema, CLIENT_DATA_SCHEMA);   assert.equal(data.schemaVersion, '1.1.0');
+  assert.equal(CLIENT_DATA_VERSION, '1.1.0'); assert.equal(data.toolVersion, INTAKE_CHECKER_VERSION);
   for (const definition of fieldDefinitions) assert(data.fields.some(item => item.definitionId === definition.id && item.parsed), definition.id);
-  assert.equal(data.coverage.parsedOccurrences, 139);
-  assert.equal(data.coverage.preservedOccurrences, 139);
+  assert.equal(data.coverage.parsedOccurrences, 142);
+  assert.equal(data.coverage.preservedOccurrences, 142);
   assert.equal(data.coverage.unmappedFields, 0);
   assert.equal(new Set(data.fields.map(item => item.id)).size, data.fields.length);
   assert.equal(JSON.stringify(state.parsed), before);
   assert.deepEqual(data, JSON.parse(JSON.stringify(data)));
   assert.deepEqual(data, createClientData(state));
   assert.equal(field(data, 'employment.currently-working').value, false);
+  assert.equal(field(data, 'employment.worked-outside-united-states').dataType, 'boolean');
+  assert.equal(field(data, 'employment.worked-outside-united-states').value, false);
+  assert.equal(field(data, 'employment.eligible-for-foreign-ssi').dataType, 'boolean');
+  assert.equal(field(data, 'employment.eligible-for-foreign-ssi').value, false);
+  assert.equal(field(data, 'employment.foreign-ssi-country').dataType, 'text');
+  assert.equal(field(data, 'employment.foreign-ssi-country').value, 'Example Country');
   assert.equal(field(data, 'personal.phone-number').value, '202-555-0142');
+});
+
+test('foreign work and SSI fields retain exact source provenance, missing state, and valid employee corrections', () => {
+  const text = `EMPLOYMENT INFORMATION
+Worked outside United States: No
+Eligible for foreign SSI: Yes
+Foreign SSI country: Fictional Exampleland
+`;
+  const state = session(text), data = createClientData(state);
+  const outside = field(data, 'employment.worked-outside-united-states');
+  const eligible = field(data, 'employment.eligible-for-foreign-ssi');
+  const country = field(data, 'employment.foreign-ssi-country');
+  assert.equal(outside.value, false);
+  assert.equal(eligible.value, true);
+  assert.equal(country.value, 'Fictional Exampleland');
+  assert.equal(outside.dataType, 'boolean');
+  assert.equal(eligible.dataType, 'boolean');
+  assert.equal(country.dataType, 'text');
+  assert(outside.validation && outside.review && outside.occurrences[0].source);
+  assert.equal(text.slice(country.occurrences[0].source.start, country.occurrences[0].source.end),
+    'Foreign SSI country: Fictional Exampleland');
+  assert.equal(country.occurrences[0].originalValue, 'Fictional Exampleland');
+
+  assert(correctIntakeField(state, {
+    nodePath: data.scopes.find(scope => scope.id === country.scopeId).nodePath,
+    section: 'EMPLOYMENT INFORMATION', label: 'Foreign SSI country', range: country.occurrences[0].source,
+  }, 'Synthetic New Exampleland'));
+  const corrected = field(createClientData(state), 'employment.foreign-ssi-country');
+  assert.equal(corrected.occurrences[0].originalValue, 'Fictional Exampleland');
+  assert.equal(corrected.occurrences[0].currentValue, 'Synthetic New Exampleland');
+  assert.equal(corrected.origin, 'employee_entered');
+  assert.equal(corrected.validation.hasErrors, false);
+
+  const missingData = createClientData(session('EMPLOYMENT INFORMATION\nForeign SSI country: Not provided'));
+  const missing = field(missingData, 'employment.foreign-ssi-country');
+  assert.equal(missing.valueStatus, 'missing');
+  assert.equal(missing.value, null);
+  assert(missing.parsed);
+  assert(missing.occurrences[0].source);
 });
 
 test('actual work-history records retain supported employment values, identities, provenance and corrections', () => {

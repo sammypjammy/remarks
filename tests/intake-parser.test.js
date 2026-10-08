@@ -115,6 +115,19 @@ Employer: Fictional Job Two`);
   assert.deepEqual(parsed.unparsed, []);
 });
 
+test("exact foreign employment labels parse as supported employment-information fields", () => {
+  const parsed = parseIntake(`EMPLOYMENT INFORMATION
+Worked outside United States: Yes
+Eligible for foreign SSI: No
+Foreign SSI country: Fictional Exampleland`);
+  assert.deepEqual(parsed.sections[0].fields, [
+    { label: 'Worked outside United States', value: 'Yes' },
+    { label: 'Eligible for foreign SSI', value: 'No' },
+    { label: 'Foreign SSI country', value: 'Fictional Exampleland' },
+  ]);
+  assert.deepEqual(parsed.unparsed, []);
+});
+
 test("plain parsing does not promote arbitrary uppercase text, unknown labels, or unknown records", () => {
   const parsed = parseIntake("MEDICAL PROVIDERS\nClinic 1\nNotes:\nPLEASE CALL TOMORROW\nImportant detail:\nUnknown Record 7\nClinic Name: Example");
   assert.equal(parsed.sections.length, 1);

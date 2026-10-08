@@ -1,4 +1,4 @@
-import { mappings, schemaVersion, childDefinitionIds, isFullDate } from './mapping.js';
+import { mappings, schemaVersion, childDefinitionIds, employmentQuestionDefinitionIds, isFullDate } from './mapping.js';
 export const BRIDGE_NAME = 'packard-synthetic-practice-v1';
 export const SOURCE_URL = 'http://127.0.0.1:5173/intake-checker/';
 export const HOSTED_PILOT_URL = 'https://packardtoolkit.vercel.app/intake-checker/';
@@ -11,7 +11,14 @@ export const tokenValid = value => typeof value === 'string' && /^[a-f0-9-]{36}$
 // A narrow projection: never copy original text, sources, notes, review logs or auth.
 export function projectReady(profile) {
   if (profile?.schema !== 'packard.intake-client-profile' || profile.schemaVersion !== schemaVersion
-      || !Array.isArray(profile.fields) || !Array.isArray(profile.priorSpouseRecords) || !Array.isArray(profile.jobRecords)) return null;
+      || !Array.isArray(profile.fields) || !Array.isArray(profile.priorSpouseRecords) || !Array.isArray(profile.jobRecords)
+      || !Array.isArray(profile.employmentQuestionFields) || !Array.isArray(profile.employmentQuestionMissingFields)) return null;
+  const employmentQuestionFields = profile.employmentQuestionFields;
+  const employmentQuestionMissingFields = profile.employmentQuestionMissingFields;
+  if (!employmentQuestionFields.every((id, index) => employmentQuestionDefinitionIds.includes(id)
+      && employmentQuestionFields.indexOf(id) === index)
+      || !employmentQuestionMissingFields.every(id => employmentQuestionFields.includes(id)
+        && profile.employmentQuestionMissingFields.indexOf(id) === profile.employmentQuestionMissingFields.lastIndexOf(id))) return null;
   const priorRecords = profile.priorSpouseRecords;
   if (!priorRecords.every((recordId, index) => typeof recordId === 'string' && /^prior-spouse-[1-9]\d*$/.test(recordId)
       && priorRecords.indexOf(recordId) === index)) return null;
@@ -47,7 +54,8 @@ export function projectReady(profile) {
     fields.push({ id: field.id, definitionId: field.definitionId, recordId: field.recordId,
       dataType: 'text', value: field.value, precision: null, readiness: 'ready', blockingReasons: [] });
   }
-  return { schema: profile.schema, schemaVersion, fields, priorSpouseRecords: [...priorRecords], jobRecords: [...jobRecords] };
+  return { schema: profile.schema, schemaVersion, fields, priorSpouseRecords: [...priorRecords], jobRecords: [...jobRecords],
+    employmentQuestionFields: [...employmentQuestionFields], employmentQuestionMissingFields: [...employmentQuestionMissingFields] };
 }
 
 export function trustedSender(sender) {
