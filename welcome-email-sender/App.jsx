@@ -492,7 +492,7 @@ export default function App() {
                           <span>{tool.label}</span><span className="toolkit-nav-status">Current</span>
                         </span>
                       ) : tool.href ? (
-                        <a className="toolkit-nav-item" href={tool.href} key={tool.id}>{tool.label}</a>
+                        <a className="toolkit-nav-item" href={tool.href} target={tool.external ? "_blank" : undefined} rel={tool.external ? "noopener noreferrer" : undefined} key={tool.id}>{tool.label}</a>
                       ) : (
                         <span className="toolkit-nav-item disabled" aria-disabled="true" key={tool.id}>
                           <span>{tool.label}</span><span className="toolkit-nav-status">{tool.status}</span>

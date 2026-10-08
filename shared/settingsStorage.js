@@ -26,7 +26,8 @@ export function getToolkitNavigation(isSettingsPage = false) {
   return settingsStorage.getToolkitNavigation().map(section => ({
     label: section.label,
     items: section.items.map(tool => ({
-      id: tool.id, label: tool.label, href: `/${tool.path}`,
+      id: tool.id, label: tool.label, href: tool.href || `/${tool.path}`,
+      ...(tool.href ? { external: true } : {}),
       ...(tool.id === "email" && !isSettingsPage ? { current: true } : {}),
       ...(tool.id === "settings" ? { current: isSettingsPage } : {})
     }))

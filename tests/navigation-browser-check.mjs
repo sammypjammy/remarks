@@ -120,7 +120,7 @@ try {
   await cdp("Emulation.setFocusEmulationEnabled", { enabled: true });
   await cdp("Browser.grantPermissions", { origin, permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
   const pages = ["/", "/med-tabs-generator/", "/canned-remarks/", "/welcome-email-sender/", "/fax-sender/", "/intake-checker/", "/ssa-intake-assistant/", "/settings/", "/version-history/"];
-  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings"];
+  const defaultMenuOrder = ["Home", "Canned Remarks", "Med Tabs", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings", "Request an update"];
   for (const width of [1280, 390]) {
     authenticated = true;
     await cdp("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -150,9 +150,11 @@ try {
       assert.deepEqual(await evaluate(`[...document.querySelectorAll('.toolkit-navigation .toolkit-nav-item')].map(item => item.querySelector(':scope > span')?.textContent.trim() || item.textContent.trim())`), defaultMenuOrder, `Default tool order on ${page}`);
       const expectedLinks = page === "/version-history/" ? defaultMenuOrder.length : defaultMenuOrder.length - 1;
       assert.equal(links.length, expectedLinks, `Toolkit links on ${page}`);
+      assert(await evaluate(`(() => { const link = [...document.querySelectorAll('.toolkit-navigation a')].find(a => a.textContent.trim() === 'Request an update'); if (!link) return false; const url = new URL(link.href); return url.origin === 'https://outlook.office.com' && url.pathname === '/mail/deeplink/compose' && url.searchParams.get('to') === 'sam.jensen@packardfirm.com' && url.searchParams.get('subject') === 'Packard Toolkit update request' && link.target === '_blank' && link.rel.includes('noopener'); })()`), `Outlook request link under Settings on ${page}`);
       assert(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => /\\/(fax-sender|intake-checker)(\\/|$)/.test(new URL(a.href).pathname)).length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(item => /Fax Sender|Intake Checker/.test(item.textContent)).length) === 2`), `Fax Sender and Intake Checker appear once on ${page}`);
       assert.equal(await evaluate(`([...document.querySelectorAll('.toolkit-navigation a')].filter(a => a.textContent.trim() === 'Fax Sender' && new URL(a.href).pathname === '/fax-sender/').length + [...document.querySelectorAll('.toolkit-navigation .active')].filter(a => a.textContent.trim().startsWith('Fax Sender')).length)`), 1, `One canonical Fax Sender navigation item on ${page}`);
       for (const link of links) {
+        if (link.href.startsWith('https://outlook.office.com/')) continue;
         await visit(page);
         await evaluate(`document.querySelector('.app-menu-toggle').click()`);
         await until(() => evaluate(`!!document.querySelector('.toolkit-navigation a')`), "menu links");
@@ -193,7 +195,7 @@ try {
     assert.equal(await evaluate("document.getElementById('homeGreeting').textContent"), "Welcome, Sam.", "Homepage name survives refresh after reorder");
     await visit("/settings/");
     assert.equal(await evaluate("document.querySelector('#homepageToolList [data-tool-id=\\\"remarks\\\"] .homepage-move-button[data-homepage-move=\\\"up\\\"]').disabled"), false, "Homepage order persists after navigation");
-    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings"];
+    const reorderedMenuOrder = ["Home", "Med Tabs", "Canned Remarks", "Welcome Emails", "Fax Sender", "Intake Checker", "SSA Intake Assistant", "Document Splitter", "Settings", "Request an update"];
     for (const path of pages) {
       await visit(path);
       await evaluate("document.querySelector('.app-menu-toggle').click()");

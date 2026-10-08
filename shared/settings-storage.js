@@ -49,7 +49,9 @@
       Object.freeze({ id: "home", label: "Home", path: "" }), ...HOMEPAGE_TOOLS
     ]) }),
     Object.freeze({ label: "Other", items: Object.freeze([
-      Object.freeze({ id: "settings", label: "Settings", path: "settings/" })
+      Object.freeze({ id: "settings", label: "Settings", path: "settings/" }),
+      Object.freeze({ id: "request-update", label: "Request an update",
+        href: "https://outlook.office.com/mail/deeplink/compose?to=sam.jensen%40packardfirm.com&subject=Packard%20Toolkit%20update%20request" })
     ]) })
   ]);
 

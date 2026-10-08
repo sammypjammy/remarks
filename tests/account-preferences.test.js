@@ -63,6 +63,8 @@ test('navigation shares tool metadata and retains hidden tools in saved order', 
   }
   assert.equal(sections[0].items[0].path, '');
   assert.equal(sections[1].items[0].path, 'settings/');
+  assert.equal(sections[1].items[1].id, 'request-update');
+  assert.equal(new URL(sections[1].items[1].href).searchParams.get('to'), 'sam.jensen@packardfirm.com');
   b.settings.resetHomepagePreferences();
   assert.deepEqual(Array.from(b.settings.getToolkitNavigation()[0].items, item => item.id), ['home', 'remarks', 'med-tabs', 'email', 'fax', 'intake', 'ssa-intake', 'contract-splitter']);
   await b.settings.flushPreferences();

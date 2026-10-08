@@ -85,7 +85,9 @@ const appNavigation = {
         ${section.items.map((item) => {
           const isCurrent = item.id === activePage;
           if (isCurrent) return `<span class="toolkit-nav-item active" aria-current="page"><span>${item.label}</span><span class="toolkit-nav-status">Current</span></span>`;
-          return `<a class="toolkit-nav-item" href="${routePrefix}${item.path}"><span>${item.label}</span></a>`;
+          const href = item.href ? item.href.replaceAll('&', '&amp;') : `${routePrefix}${item.path}`;
+          const external = item.href ? ' target="_blank" rel="noopener noreferrer"' : '';
+          return `<a class="toolkit-nav-item" href="${href}"${external}><span>${item.label}</span></a>`;
         }).join("")}
       </section>
     `).join("");
