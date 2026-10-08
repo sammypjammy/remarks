@@ -18,6 +18,7 @@ function syntheticPage(pathname, build) {
   const previous = {
     location: globalThis.location, document: globalThis.document, Event: globalThis.Event,
     HTMLInputElement: globalThis.HTMLInputElement, HTMLAnchorElement: globalThis.HTMLAnchorElement,
+    Node: globalThis.Node,
   };
   const elements = [];
   const dispatched = [];
@@ -34,7 +35,9 @@ function syntheticPage(pathname, build) {
   let documentObject;
   class Element {
     constructor(tagName, textContent = '', attributes = {}) {
+      this.nodeType = 1;
       this.tagName = tagName.toUpperCase();
+      this.childNodes = [];
       this.textContent = textContent;
       this.attributes = { ...attributes };
       this.children = [];
@@ -47,6 +50,10 @@ function syntheticPage(pathname, build) {
       this.events = [];
       elements.push(this);
     }
+    get textContent() { return this.childNodes.map(node => node.textContent).join(''); }
+    set textContent(value) {
+      this.childNodes = value ? [{ nodeType: 3, textContent: String(value) }] : [];
+    }
     getAttribute(name) { return Object.hasOwn(this.attributes, name) ? String(this.attributes[name]) : null; }
     getClientRects() { return this.hidden ? [] : [{}]; }
     contains(other) { return other === this || this.children.some(child => child.contains(other)); }
@@ -54,6 +61,7 @@ function syntheticPage(pathname, build) {
       for (const child of children) {
         child.parentElement = this;
         this.children.push(child);
+        this.childNodes.push(child);
       }
       return this;
     }
@@ -107,6 +115,7 @@ function syntheticPage(pathname, build) {
   globalThis.Event = SyntheticEvent;
   globalThis.HTMLInputElement = Input;
   globalThis.HTMLAnchorElement = Anchor;
+  globalThis.Node = { TEXT_NODE: 3 };
   const api = {
     node: (tag, text = '', attrs = {}) => new Element(tag, text, attrs),
     input: (type = 'text', attrs = {}) => new Input(type, attrs),
@@ -122,7 +131,8 @@ function syntheticPage(pathname, build) {
 function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text', rejectReentry = false } = {}) {
   let page;
   const inputs = [];
-  page = syntheticPage('/iClaim/Msg024View.action', ({ node, input }) => {
+  const unrelatedInputs = [];
+  page = syntheticPage('/iClaim/Msg024View.action', ({ node, input, anchor }) => {
     const heading = node('h1', 'Return to Saved Application Process');
     const ssn = input(ssnType, { rejectsValue: false });
     const reentry = input(reentryType, { rejectsValue: rejectReentry });
@@ -130,8 +140,8 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
     document.append(heading);
     if (layout === 'labels') {
       const ssnText = "Applicant's Social Security Number (SSN):";
-      const ssnLabel = node('label', ssnText, { for: 'ssn-field' }).append(node('span', ssnText));
-      const reentryLabel = node('label', 'Re-entry Number:', { for: 'reentry-field' }).append(node('span', 'Re-entry Number:'));
+      const ssnLabel = node('label', '', { for: 'ssn-field' }).append(node('span', ssnText));
+      const reentryLabel = node('label', '', { for: 'reentry-field' }).append(node('span', 'Re-entry Number:'));
       ssn.attributes.id = 'ssn-field'; reentry.attributes.id = 'reentry-field';
       document.append(ssnLabel, ssn, reentryLabel, reentry);
     } else if (layout === 'table') {
@@ -147,6 +157,17 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       const reentryGroup = node('div');
       reentryGroup.append(node('span', 'Re-entry Number:'), node('span').append(reentry));
       document.append(ssnGroup, reentryGroup);
+    } else if (layout === 'reentry-help-link') {
+      const ssnRow = node('tr');
+      ssnRow.append(node('td', "Applicant's Social Security Number (SSN):"), node('td').append(ssn));
+      const reentryGroup = node('div');
+      reentryGroup.append(
+        node('div', 'Re-entry Number:').append(anchor('Forgot or lost Re-entry Number', '/iClaim/forgot')),
+        node('div').append(reentry),
+      );
+      const unrelated = input();
+      unrelatedInputs.push(unrelated);
+      document.append(ssnRow, reentryGroup, unrelated);
     } else {
       const ssnGroup = node('div');
       ssnGroup.append(node('p', "Applicant's Social Security Number (SSN):"), node('div').append(node('span').append(ssn)));
@@ -155,7 +176,7 @@ function identityPage(layout = 'table', { ssnType = 'text', reentryType = 'text'
       document.append(ssnGroup, reentryGroup);
     }
   });
-  return { ...page, inputs };
+  return { ...page, inputs, unrelatedInputs };
 }
 
 test('recognizes only exact HTTPS SSA application origins and never trusts lookalikes', () => {
@@ -242,7 +263,9 @@ test('identity-page action recognizes label/for, table-cell and separate div/par
     const page = identityPage(layout);
     const values = { ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY, allowReturnClick: true };
     try {
-      assert.equal(livePageAction(values), 'filled', layout);
+      let result;
+      try { result = livePageAction(values); } catch (error) { error.message += ` (${layout})`; throw error; }
+      assert.equal(result, 'filled', layout);
       assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
       assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']]);
       assert.equal(values.ssn, '');
@@ -260,6 +283,16 @@ test('identity-page action supports text, password and telephone controls using 
       assert(page.inputs.every(input => input.events.join(',') === 'input,change'));
     } finally { page.restore(); }
   }
+});
+
+test('identity-page action ignores a re-entry help link and fills only its associated input', () => {
+  const page = identityPage('reentry-help-link');
+  try {
+    assert.equal(livePageAction({ ssn: SYNTHETIC_SSN, reentry: SYNTHETIC_REENTRY }), 'filled');
+    assert.deepEqual(page.inputs.map(input => input.value), [SYNTHETIC_SSN, SYNTHETIC_REENTRY]);
+    assert.deepEqual(page.unrelatedInputs.map(input => input.value), ['']);
+    assert.deepEqual(page.inputs.map(input => input.events), [['input', 'change'], ['input', 'change']]);
+  } finally { page.restore(); }
 });
 
 test('identity-page action ignores hidden controls and safely rejects duplicate labels', () => {

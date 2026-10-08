@@ -21,9 +21,22 @@ export function livePageAction(values) {
     return [...element.querySelectorAll('input')];
   }
 
-  function findLabelElements(labelText) {
+  function labelTextWithoutLinks(element) {
+    function collectText(node) {
+      if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+      if (node !== element && node instanceof HTMLAnchorElement) return '';
+      return [...node.childNodes].map(collectText).join(' ');
+    }
+    return normalizeText(collectText(element));
+  }
+
+  function findLabelElements(labelText, matchPrefix = false) {
     const elements = [...document.querySelectorAll('label, th, td, div, p, span')]
-      .filter(element => isVisible(element) && normalizeText(element.textContent) === labelText);
+      .filter(element => {
+        if (!isVisible(element)) return false;
+        const text = matchPrefix ? labelTextWithoutLinks(element) : normalizeText(element.textContent);
+        return matchPrefix ? text.startsWith(labelText) : text === labelText;
+      });
     return elements.filter(element => !elements.some(other => other !== element
       && (other.tagName === 'LABEL' && other.contains(element)
         || element.tagName !== 'LABEL' && element.contains(other))));
@@ -125,7 +138,7 @@ export function livePageAction(values) {
   }
 
   const ssnLabels = findLabelElements(ssnLabel);
-  const reentryLabels = findLabelElements(reentryLabel);
+  const reentryLabels = findLabelElements(reentryLabel, true);
   if (!ssnLabels.length || !reentryLabels.length) return 'missing-controls';
   if (ssnLabels.length !== 1 || reentryLabels.length !== 1) return 'ambiguous-controls';
 
