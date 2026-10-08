@@ -16,6 +16,14 @@ a.tool-card:hover { z-index: 1; border-color: var(--accent-line); background: va
 .tool-card-content > span { color: var(--muted); font-size: 0.84rem; line-height: 1.45; }
 .tool-card-status { align-self: start; padding: 5px 8px; border-radius: 999px; background: var(--surface-inset); color: var(--muted); font-size: 0.67rem; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; text-transform: uppercase; }
 .tool-card-status.available { background: var(--accent-soft); color: var(--accent); }
+.tool-card[data-home-tool="ssa-intake"] { border-color: #dfbd65; background: #fff7d9; }
+.tool-card[data-home-tool="ssa-intake"] .tool-card-icon,
+.tool-card[data-home-tool="ssa-intake"] .tool-card-status.construction { background: #f7e39b; color: #5b4200; }
+a.tool-card[data-home-tool="ssa-intake"]:hover { border-color: #c89b2f; background: #fff0b8; }
+:root[data-theme="dark"] .tool-card[data-home-tool="ssa-intake"] { border-color: #8c722f; background: #3a311c; }
+:root[data-theme="dark"] .tool-card[data-home-tool="ssa-intake"] .tool-card-icon,
+:root[data-theme="dark"] .tool-card[data-home-tool="ssa-intake"] .tool-card-status.construction { background: #5b491d; color: #ffe6a0; }
+:root[data-theme="dark"] a.tool-card[data-home-tool="ssa-intake"]:hover { border-color: #bd9740; background: #493b1e; }
 .tool-card.is-disabled { opacity: 0.7; }
 .tool-directory-feedback { margin: 20px 2px 0; padding-top: 15px; border-top: 1px solid var(--border-subtle); color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
 .tool-directory-feedback a { color: var(--accent-strong); font-weight: 700; text-underline-offset: 2px; }
